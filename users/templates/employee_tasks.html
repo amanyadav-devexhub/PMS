@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}My Tasks{% endblock %}
+{% block page_title %}My Tasks{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-8">
+
+    {% if tasks %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for task in tasks %}
+            <div class="bg-white shadow-lg rounded-lg p-5 hover:shadow-2xl transition transform hover:-translate-y-2">
+                <h3 class="text-xl font-semibold mb-2">{{ task.name }}</h3>
+                <p class="text-gray-600 mb-1"><strong>Description:</strong> {{ task.description }}</p>
+                <p class="text-gray-600 mb-1"><strong>Project:</strong> {{ task.project.name }}</p>
+                <p class="text-gray-600 mb-1"><strong>Start Date:</strong> {{ task.start_date }}</p>
+            <p class="text-gray-600 mb-1"><strong>End Date:</strong> {{ task.end_date }}</p>
+
+            <p class="text-gray-600 mb-3">
+            <strong>Time Tracking:</strong>
+
+            {% if task.status == "ONGOING" %}
+            Started at: {{ task.start_time }}
+
+            {% elif task.status == "COMPLETED" %}
+            Total Time: {{ task.total_time }}
+
+            {% else %}
+            Not started
+            {% endif %}
+
+            </p>
+                
+                <span class="px-3 py-1 rounded-full text-sm font-semibold
+                    {% if task.status == 'PENDING' %} bg-red-500 text-white
+                    {% elif task.status == 'ONGOING' %} bg-yellow-400 text-black
+                    {% elif task.status == 'COMPLETED' %} bg-green-400 text-white
+                    {% endif %}">
+                    {{ task.get_status_display }}
+                </span>
+
+            <div class="mt-4">
+
+            {% if task.status == "PENDING" %}
+
+            <a href="{% url 'start_task' task.id %}"
+            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full font-semibold">
+            Start
+            </a>
+
+            {% elif task.status == "ONGOING" %}
+
+            <a href="{% url 'complete_task' task.id %}"
+            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full font-semibold">
+            Complete
+            </a>
+
+            {% else %}
+
+            <span class="bg-gray-400 text-white px-4 py-2 rounded-full font-semibold">
+            Completed
+            </span>
+
+            {% endif %}
+
+            </div>
+        </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center mt-10">
+            <h4 class="text-gray-700 font-semibold text-lg">No tasks assigned yet!</h4>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

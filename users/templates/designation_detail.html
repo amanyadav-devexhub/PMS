@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Designation Members{% endblock %}
+{% block page_title %}Designation: {{ designation.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-8">
+
+    {% if users %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {% for user in users %}
+            <div class="bg-white shadow-lg rounded-lg p-5 hover:shadow-2xl transition transform hover:-translate-y-2">
+                <h3 class="text-xl font-semibold mb-2">{{ user.username }}</h3>
+                <p class="text-gray-600 mb-1"><strong>Email:</strong> {{ user.email }}</p>
+                <p class="text-gray-600 mb-1"><strong>Role:</strong> {{ user.role }}</p>
+                <p class="text-gray-600 mb-1">
+                    <strong>Department:</strong>
+                    {% if user.profile.department %}
+                        {{ user.profile.department.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center mt-10">
+            <h4 class="text-gray-500 font-semibold text-lg">No users found for this designation.</h4>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMS | Professional Project Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F8FAFC; scroll-behavior: smooth; }
+        .pms-card { background: white; border: 1px solid #E2E8F0; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .pms-orange { background-color: #F97316; }
+        .pms-orange-text { color: #EA580C; }
+        .kanban-column { background-color: #F1F5F9; border-radius: 0.75rem; padding: 1rem; min-height: 300px; }
+        .kanban-item { background: white; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body class="antialiased text-slate-900">
+
+    <nav class="sticky top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 pms-orange rounded-xl flex items-center justify-center text-white shadow-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            </div>
+            <div>
+                <span class="text-xl font-extrabold tracking-tight block leading-none">PMS</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Project Management System</span>
+            </div>
+        </div>
+        <div class="hidden lg:flex items-center gap-8 text-sm font-bold text-slate-500">
+            <a href="#workflow" class="hover:pms-orange-text transition">Workflow</a>
+            <a href="#roles" class="hover:pms-orange-text transition">Roles</a>
+            <a href="#tracking" class="hover:pms-orange-text transition">Real-time Tracking</a>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="{% url 'login_page' %}" class="text-sm font-bold text-slate-600 hover:pms-orange-text transition">Login</a>
+            <a href="{% url 'register' %}" class="pms-orange text-white px-6 py-2.5 rounded-xl font-extrabold text-sm shadow-md hover:shadow-orange-200 transition-all">Get Started</a>
+        </div>
+    </nav>
+
+    <header class="pt-20 pb-16 px-6">
+        <div class="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center">
+            <div class="lg:col-span-5">
+                <div class="inline-block bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6">
+                    Enterprise Edition
+                </div>
+                <h1 class="text-5xl md:text-6xl font-black text-slate-900 mb-6 leading-tight">
+                    One System. <br/>
+                    <span class="pms-orange-text">Every Project.</span>
+                </h1>
+                <p class="text-lg text-slate-500 mb-10 leading-relaxed">
+                    A dedicated project management system built to streamline collaboration between Admins, Team Leads, and Employees.
+                </p>
+                <div class="flex gap-4">
+                    <a href="{% url 'register' %}" class="pms-orange text-white px-8 py-4 rounded-2xl font-black text-lg shadow-xl shadow-orange-100 hover:-translate-y-1 transition-all">
+                        Create Account →
+                    </a>
+                </div>
+            </div>
+
+            <div class="lg:col-span-7">
+                <div class="pms-card p-6 bg-white overflow-hidden">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                        <h3 class="font-black text-slate-800 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full pms-orange animate-pulse"></span>
+                            Live Project Board
+                        </h3>
+                        <div class="flex -space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold">JD</div>
+                            <div class="w-8 h-8 rounded-full bg-blue-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-700">AK</div>
+                            <div class="w-8 h-8 rounded-full bg-orange-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-orange-700">TL</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="kanban-column">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">To Do</p>
+                            <div class="kanban-item">
+                                <p class="text-xs font-bold text-slate-800 mb-2">Backend Integration</p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-black uppercase">Admin</span>
+                                    <span class="text-[9px] text-slate-400 font-bold">Oct 24</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="kanban-column">
+                            <p class="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-4">In Progress</p>
+                            <div class="kanban-item border-l-4 border-orange-500">
+                                <p class="text-xs font-bold text-slate-800 mb-2">UI Component Testing</p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-black uppercase">Team Lead</span>
+                                    <div class="w-10 h-1 bg-slate-100 rounded-full overflow-hidden"><div class="w-3/4 h-full pms-orange"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="kanban-column">
+                            <p class="text-[10px] font-black text-green-600 uppercase tracking-widest mb-4">Completed</p>
+                            <div class="kanban-item opacity-60">
+                                <p class="text-xs font-bold text-slate-800 line-through">Database Schema</p>
+                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="roles" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-100">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl font-black mb-4">Three Roles. One Workflow.</h2>
+            <p class="text-slate-500 max-w-xl mx-auto font-medium">Built to handle the specific needs of different team members within the project lifecycle.</p>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-8">
+            <div class="pms-card p-8 hover:border-orange-200 transition group">
+                <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center mb-6 group-hover:pms-orange group-hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                </div>
+                <h4 class="text-xl font-extrabold mb-3">System Admin</h4>
+                <ul class="text-sm text-slate-500 space-y-2 font-medium">
+                    <li>• User access management</li>
+                    <li>• Global project settings</li>
+                    <li>• Role permission control</li>
+                </ul>
+            </div>
+            
+            <div class="pms-card p-8 bg-slate-900 text-white shadow-2xl">
+                <div class="w-12 h-12 pms-orange rounded-xl flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </div>
+                <h4 class="text-xl font-extrabold mb-3">Team Lead</h4>
+                <ul class="text-sm text-slate-400 space-y-2 font-medium">
+                    <li>• Task assignment & Sprints</li>
+                    <li>• Milestone tracking</li>
+                    <li>• Performance reports</li>
+                </ul>
+            </div>
+
+            <div class="pms-card p-8 hover:border-orange-200 transition group">
+                <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center mb-6 group-hover:pms-orange group-hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                </div>
+                <h4 class="text-xl font-extrabold mb-3">Employee</h4>
+                <ul class="text-sm text-slate-500 space-y-2 font-medium">
+                    <li>• Individual task board</li>
+                    <li>• Time tracking & status updates</li>
+                    <li>• Project collaboration</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-white border-t border-slate-200 pt-20 pb-10 px-8">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 pms-orange rounded-lg flex items-center justify-center text-white font-bold italic">P</div>
+                <span class="text-lg font-black tracking-tight uppercase">PMS<span class="pms-orange-text">.system</span></span>
+            </div>
+            <div class="flex gap-8 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                <a href="#" class="hover:text-orange-500 transition">GitHub</a>
+                <a href="#" class="hover:text-orange-500 transition">Documentation</a>
+                <a href="#" class="hover:text-orange-500 transition">Privacy</a>
+            </div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">&copy; 2026 PMS Global Operations</p>
+        </div>
+    </footer>
+
+</body>
+</html>

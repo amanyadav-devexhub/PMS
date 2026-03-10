@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}View Projects{% endblock %}
+{% block page_title %}Projects{% endblock %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-semibold text-gray-700">
+            All Projects
+        </h2>
+
+        <a href="{% url 'create_project' %}"
+           class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
+            + Add Project
+        </a>
+    </div>
+
+    <!-- Search Bar-->
+     <form method="GET" class="mb-4 flex gap-2">
+
+    <input type="text"
+           name="search"
+           value="{{ search_query }}"
+           placeholder="Search project or member..."
+           class="border border-gray-300 px-4 py-2 rounded w-72">
+
+    <button type="submit"
+            class="bg-indigo-500 text-white px-4 py-2 rounded">
+        Search
+    </button>
+
+    </form>
+
+    <!-- Card -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full border-collapse">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">#</th>
+                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Project Name</th>
+                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Assign_to</th>
+                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Status</th>
+                        <th class="text-center px-6 py-3 text-sm font-semibold text-gray-600">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-gray-200">
+
+                    {% for project in projects %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            {{ forloop.counter }}
+                        </td>
+
+                        <td class="px-6 py-4 text-sm font-medium text-gray-800">
+                            {{ project.name }}
+                        </td>
+
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            {% if project.assigned_to.all %}
+                                {% for user in project.assigned_to.all %}
+                                    {{ user.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                Not assigned
+                            {% endif %}
+                        </td>
+
+                        <td class="px-6 py-4">
+                        {% if project.status == "PENDING" %}
+                            <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                {{ project.get_status_display }}
+                            </span>
+
+                        {% elif project.status == "ONGOING" %}
+                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                {{ project.get_status_display }}
+                            </span>
+
+                        {% elif project.status == "COMPLETED" %}
+                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                {{ project.get_status_display }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                        <td class="px-6 py-4 text-center space-x-2">
+                             <!-- <a href="{% url 'edit_projects' project.id %}"
+                               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow">
+                                Edit
+                            </a> -->
+
+                            <a href="{% url 'view_project_detail' project.id %}"
+                               class="bg-blue-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow">
+                                view
+                            </a>
+                        
+                            <a href="{% url 'delete_project' project.id %}"
+                               class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow"
+                               onclick="return confirm('Are you sure you want to delete this project?')">
+                                Delete
+                            </a>
+
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-6 text-gray-500">
+                            No projects found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination (ready for server-side later) -->
+    <div class="flex justify-between items-center mt-6">
+
+        <p class="text-sm text-gray-600">
+            Showing {{ projects|length }} projects
+        </p>
+
+        <div class="flex gap-2">
+            <button class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">
+                Previous
+            </button>
+            <button class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">
+                Next
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

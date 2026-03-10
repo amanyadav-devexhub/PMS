@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Project Details{% endblock %}
+{% block page_title %}Project Details{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
+
+    <div class="mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800">
+            {{ project.name }}
+        </h2>
+        <p class="text-gray-500 mt-1">
+            {{ project.description }}
+        </p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6">
+
+        <div>
+            <p class="text-sm text-gray-500">Assigned To</p>
+            <p class="font-medium text-gray-800">
+                {% for user in project.assigned_to.all %}
+                    {{ user.username }}{% if not forloop.last %}, {% endif %}
+                        {% empty %}
+                    Not assigned
+                {% endfor %}
+            </p>
+        </div>
+
+        <div>
+            <p class="text-sm text-gray-500">Status</p>
+
+            {% if project.status == "PENDING" %}
+                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                    Pending
+                </span>
+            {% elif project.status == "ONGOING" %}
+                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
+                    Ongoing
+                </span>
+            {% else %}
+                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                    Completed
+                </span>
+            {% endif %}
+        </div>
+
+        <div>
+            <p class="text-sm text-gray-500">Start Date</p>
+            <p class="font-medium">{{ project.start_date }}</p>
+        </div>
+
+        <div>
+            <p class="text-sm text-gray-500">End Date</p>
+            <p class="font-medium">{{ project.end_date }}</p>
+        </div>
+
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-4 mt-8">
+        <a href="{% url 'edit_projects' project.id %}"
+           class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow">
+            Edit Project
+        </a>
+
+        <a href="{% url 'view_projects' %}"
+           class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded shadow">
+            Back
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

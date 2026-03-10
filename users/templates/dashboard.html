@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+
+<div class="space-y-6">
+
+    <!-- ================= ADMIN DASHBOARD ================= -->
+    {% if request.user.role|upper == "ADMIN" %}
+    <div class="bg-white shadow rounded p-6">
+        <h2 class="text-xl font-bold mb-4">Welcome, {{ request.user.username }} (Admin)</h2>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-orange-100 p-4 rounded shadow">
+                <h3 class="font-semibold">Total Users</h3>
+                <p class="text-2xl font-bold">{{ total_users }}</p>
+            </div>
+            <div class="bg-orange-100 p-4 rounded shadow">
+                <h3 class="font-semibold">Total Projects</h3>
+                <p class="text-2xl font-bold">{{ total_projects }}</p>
+            </div>
+            <div class="bg-orange-100 p-4 rounded shadow">
+                <h3 class="font-semibold">Total Tasks</h3>
+                <p class="text-2xl font-bold">{{ total_tasks }}</p>
+            </div>
+        </div>
+
+        <!-- Departments & Designations Quick Links -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div class="bg-purple-100 p-4 rounded shadow hover:bg-purple-200">
+                <a href="{% url 'departments' %}" class="font-semibold text-purple-700">Manage Departments</a>
+            </div>
+            <div class="bg-pink-100 p-4 rounded shadow hover:bg-pink-200">
+                <a href="{% url 'designations' %}" class="font-semibold text-pink-700">Manage Designations</a>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="overflow-x-auto">
+            <a href="{% url 'create_user' %}" class="inline-block mb-3 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition">+ Create New User</a>
+            <table class="min-w-full bg-white rounded shadow overflow-hidden">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="py-2 px-4 text-left">Username</th>
+                        <th class="py-2 px-4 text-left">Role</th>
+                        <th class="py-2 px-4 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="py-2 px-4">{{ user.username }}</td>
+                        <td class="py-2 px-4">{{ user.role }}</td>
+                        <td class="py-2 px-4 space-x-2">
+                            <a href="{% url 'edit_user' user.id %}" class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Edit</a>
+                            <a href="{% url 'delete_user' user.id %}" class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Delete</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================= TEAM LEAD DASHBOARD ================= -->
+    {% if request.user.role|upper == "TEAM_LEAD" %}
+    <div class="container mx-auto mt-6">
+
+    <!-- Welcome -->
+        <h2 class="text-2xl font-bold mb-6">Welcome, {{ request.user.username }} (Team Lead)</h2>
+
+    <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div class="bg-blue-100 p-4 rounded shadow hover:bg-blue-200">
+                <a href="{% url 'assign_task' %}" class="font-semibold">Assign Task</a>
+            </div>
+            <div class="bg-green-100 p-4 rounded shadow hover:bg-green-200">
+                <a href="{% url 'create_project' %}" class="font-semibold">Create Project</a>
+            </div>
+            <div class="bg-yellow-100 p-4 rounded shadow hover:bg-yellow-200">
+                <a href="{% url 'teamlead_view_users' %}" class="font-semibold">View Employees</a>
+            </div>
+        </div>
+
+    
+{% endif %}
+
+    <!-- ================= EMPLOYEE DASHBOARD ================= -->
+    {% if request.user.role|upper == "EMPLOYEE" %}
+    <div class="bg-white shadow rounded p-6">
+        <h2 class="text-xl font-bold mb-4">Welcome, {{ request.user.username }} (Employee)</h2>
+
+        <h3 class="font-semibold mb-2">My Tasks</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {% for task in tasks %}
+            <div class="bg-orange-100 p-4 rounded shadow">
+                <h4 class="font-semibold">{{ task.name }}</h4>
+                <p>Status: {{ task.get_status_display }}</p>
+                <p>Start: {{ task.start_date }} | End: {{ task.end_date }}</p>
+                <a href="{% url 'update_task_status' task.id %}" class="inline-block mt-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Update Status</a>
+            </div>
+            {% empty %}
+            <p>No tasks assigned.</p>
+            {% endfor %}
+        </div>
+        <!-- ================= MY PROJECTS ================= -->
+    <h3 class="font-semibold mb-2">My Projects</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {% for project in projects %}
+        <div class="bg-green-100 p-4 rounded shadow">
+            <h4 class="font-semibold">{{ project.name }}</h4>
+            <p>Status: {{ project.status }}</p>
+            <p>Start: {{ project.start_date }} | End: {{ project.end_date }}</p>
+            <p class="text-sm mt-1">
+                Assigned To: 
+                {% for user in project.assigned_to.all %}
+                    {{ user.username }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+            <a href="{% url 'employee_projects' %}" class="inline-block mt-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">View Project</a>
+        </div>
+        {% empty %}
+        <p>No projects assigned.</p>
+        {% endfor %}
+    </div>
+
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

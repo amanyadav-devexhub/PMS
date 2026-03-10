@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+        height: 100vh;
+        margin: 0;
+        background: #f4f6fb;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 380px;
+        background: #ffffff;
+        padding: 32px;
+        border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .login-container h2 {
+        margin: 0 0 24px;
+        text-align: center;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .form-group {
+        margin-bottom: 18px;
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 6px;
+        color: #374151;
+    }
+
+    input {
+        width: 100%;
+        padding: 11px 12px;
+        font-size: 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        background: #eb7425;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #ffffff;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    button:hover {
+        background: #1e40af;
+    }
+
+    #error {
+        margin-top: 14px;
+        font-size: 13px;
+        text-align: center;
+        color: #dc2626;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="login-container">
+    <h2>Sign in to your account</h2>
+
+    <form id="loginForm">
+        {% csrf_token %}
+
+        
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" autocomplete="email">
+        </div>
+
+        <!-- <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" autocomplete="username">
+        </div> -->
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" autocomplete="current-password">
+        </div>
+        
+        <!-- <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" autocomplete="email">
+        </div> -->
+
+        <button type="submit">Sign In</button>
+        <p id="error"></p>
+    </form>
+
+    <div class="text-center mt-4">
+            <a href="{% url 'reset_password' %}" class="text-blue-500 hover:text-blue-600 font-medium">Forgot Password?</a>
+        </div>
+</div>
+
+<script>
+const form = document.getElementById("loginForm");
+const passwordInput = document.getElementById("password");
+const emailInput = document.getElementById("email");
+const errorEL = document.getElementById("error");
+
+function getCSRFToken() {
+    return document.cookie
+        .split("; ")
+        .find(row => row.startsWith("csrftoken="))
+        ?.split("=")[1];
+}
+
+form.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!email) {
+        errorEL.textContent = "Email is required";
+        return;
+    }
+
+    if (!password) {
+        errorEL.textContent = "Password is required";
+        return;
+    }
+
+    errorEL.textContent = "";
+
+    fetch("/ajax_login/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({ email, password }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            // ✅ YOUR REQUESTED LOGIC
+            if (data.role === "ADMIN") {
+                window.location.href = "/admin_dashboard/";
+            } else if (data.role === "TEAM_LEAD") {
+                window.location.href = "/teamlead_dashboard/";
+            } else {
+                window.location.href = "/employee_dashboard/";
+            }
+        } else {
+            errorEL.textContent = data.error || "Login failed";
+        }
+    })
+    .catch(() => {
+        errorEL.textContent = "Server error";
+    });
+});
+</script>
+</body>
+</html>

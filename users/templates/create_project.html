@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Create Project{% endblock %}
+{% block page_title %}Create Project{% endblock %}
+
+{% block content %}
+
+<div class="max-w-3xl mx-auto">
+
+    <!-- Card -->
+    <div class="bg-white shadow-lg rounded-lg p-8">
+
+        <h2 class="text-2xl font-semibold text-gray-700 mb-6">
+            Create New Project
+        </h2>
+
+        <form method="POST" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+
+            {{ form.non_field_errors }}
+
+            {% for field in form %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">
+                        {{ field.label }}
+                    </label>
+
+                    {{ field|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+
+                    {% if field.errors %}
+                        <p class="text-red-500 text-sm mt-1">
+                            {{ field.errors }}
+                        </p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <!-- ================= PROJECT RESOURCES ================= -->
+            <h3 class="text-lg font-semibold mt-6 mb-3">
+                Project Resources
+            </h3>
+
+            <div id="resource_formset">
+                {{ resource_formset.management_form }}
+
+                {% for form in resource_formset %}
+                    <div class="resource-form border rounded p-4 mb-4">
+                        <h4 class="font-medium mb-2">Resource</h4>
+
+                        {% for field in form %}
+                            <div class="mb-2">
+                                <label class="block text-sm font-medium mb-1">{{ field.label }}</label>
+                                {{ field|add_class:"w-full border rounded px-3 py-2" }}
+                                {{ field.errors }}
+                            </div>
+                        {% endfor %}
+
+                        <button type="button" class="remove-resource bg-red-500 text-white px-2 py-1 rounded mt-2">
+                            Remove
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" id="add-resource"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded mt-2">
+                + Add Another Resource
+            </button>
+
+            <!-- Buttons -->
+            <div class="flex items-center gap-4 pt-4">
+                <button type="submit"
+                        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded shadow transition">
+                    Create Project
+                </button>
+
+                {% if request.user.role == "ADMIN" %}
+                    <a href="{% url 'view_projects' %}"
+                       class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded shadow transition">
+                        Cancel
+                    </a>
+                {% else %}
+                    <a href="{% url 'teamlead_dashboard' %}"
+                       class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded shadow transition">
+                        Cancel
+                    </a>
+                {% endif %}
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- ================= DYNAMIC RESOURCE JS ================= -->
+<script>
+    const addBtn = document.getElementById('add-resource');
+    const formsetDiv = document.getElementById('resource_formset');
+    const totalForms = document.querySelector('#id_resources-TOTAL_FORMS');
+
+    addBtn.addEventListener('click', () => {
+        let currentFormCount = parseInt(totalForms.value);
+        let newFormHtml = formsetDiv.querySelector('.resource-form').outerHTML;
+
+        newFormHtml = newFormHtml.replace(/resources-(\d+)-/g, `resources-${currentFormCount}-`);
+        newFormHtml = newFormHtml.replace(/value=".*?"/g, 'value=""'); // clear previous values
+
+        formsetDiv.insertAdjacentHTML('beforeend', newFormHtml);
+        totalForms.value = currentFormCount + 1;
+
+        attachRemoveListeners();
+    });
+
+    function attachRemoveListeners() {
+        document.querySelectorAll('.remove-resource').forEach(btn => {
+            btn.onclick = function() {
+                this.parentElement.remove();
+                updateTotalForms();
+            }
+        });
+    }
+
+    function updateTotalForms() {
+        const forms = document.querySelectorAll('.resource-form');
+        totalForms.value = forms.length;
+        forms.forEach((form, index) => {
+            form.querySelectorAll('input, select, textarea').forEach(input => {
+                input.name = input.name.replace(/resources-\d+-/, `resources-${index}-`);
+                input.id = input.id.replace(/resources-\d+-/, `resources-${index}-`);
+            });
+        });
+    }
+
+    attachRemoveListeners();
+</script>
+
+{% endblock %}

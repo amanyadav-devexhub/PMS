@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Edit Project{% endblock %}
+{% block page_title %}Edit Project{% endblock %}
+
+{% block content %}
+
+<div class="max-w-3xl mx-auto">
+
+    <div class="bg-white shadow-lg rounded-lg p-8">
+
+        <h2 class="text-2xl font-semibold text-gray-700 mb-6">
+            Edit Project
+        </h2>
+
+        <form method="POST" class="space-y-5">
+            {% csrf_token %}
+
+            {{ form.non_field_errors }}
+
+            {% for field in form %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">
+                        {{ field.label }}
+                    </label>
+
+                    {% if field.name == "assigned_to" %}
+                        <!-- Multi-select dropdown for assigned users -->
+                        {{ field|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                        <p class="text-sm text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</p>
+                    {% else %}
+                        {{ field|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <p class="text-red-500 text-sm mt-1">
+                            {{ field.errors }}
+                        </p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <!-- Buttons -->
+            <div class="flex items-center gap-4 pt-4">
+                <button type="submit"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded shadow transition">
+                    Update Project
+                </button>
+
+                <a href="{% url 'view_projects' %}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded shadow transition">
+                    Cancel
+                </a>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

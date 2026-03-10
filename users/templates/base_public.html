@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}PMS{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER (SAME AS base.html BUT CLEAN) ================= -->
+<header class="bg-white shadow-sm">
+    <div class="flex items-center justify-between px-6 py-4">
+
+        <!-- PMS TITLE (same as base.html) -->
+        <h1 class="text-xl font-bold text-gray-800">
+            {% block page_title %}Project Management System{% endblock %}
+        </h1>
+
+        <!-- ❌ REMOVED: notifications, profile image -->
+    </div>
+</header>
+
+<!-- ================= MAIN CONTENT (NO SIDEBAR) ================= -->
+<main class="p-6">
+    {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

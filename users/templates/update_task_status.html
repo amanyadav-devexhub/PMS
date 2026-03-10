@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Update Task Status{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 500px;">
+    <!-- Card Wrapper -->
+    <div class="card shadow p-4">
+        <h2 class="text-center mb-4 text-primary">Update Status: {{ task.name }}</h2>
+
+        <form method="POST" action="{% url 'update_task_status' task.id %}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="status" class="form-label fw-bold">Select Status:</label>
+                <select name="status" id="status" class="form-select">
+                    {% for key, value in status_choices %}
+                        <option value="{{ key }}" {% if task.status == key %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+             <button type="submit"
+                class="inline-flex items-center gap-2
+                    bg-orange-500 hover:bg-orange-600
+                    text-white font-semibold
+                    px-6 py-2 rounded-md
+                    shadow-md transition">
+            ✓ Update Status
+            </button>
+            <a href="{% url 'employee_tasks' %}"
+       class="inline-flex items-center gap-2 px-4 py-2
+              rounded-md border border-gray-300
+              text-gray-600 font-medium
+              hover:bg-gray-100 transition">
+        ← Back</a>
+        
+    </div>
+        </form>
+    </div>
+</div>
+
+<!-- Optional Custom Styles -->
+<style>
+.card {
+    border-radius: 12px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+</style>
+{% endblock %}

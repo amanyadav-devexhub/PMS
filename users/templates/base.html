@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PMS Dashboard{% endblock %}</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 font-sans">
+
+<div class="flex h-screen">
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="w-64 bg-white shadow-lg">
+
+        <!-- Logo / Brand -->
+        <div class="p-6 border-b">
+            <h1 class="text-2xl font-bold text-orange-600">PMS</h1>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="p-4 space-y-2 text-gray-700">
+
+            {% if request.user.is_authenticated %}
+
+                <!-- Dashboard (Visible to All) -->
+                <a href="{% url 'dashboard' %}" 
+                   class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                   Dashboard
+                </a>
+
+                {% if request.user.role == 'ADMIN' %}
+                     <!-- <a href="{% url 'create_user' %}" 
+                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                       Create User
+                    </a> -->
+
+                    <a href="{% url 'admin_view_users' %}" 
+                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                       Members
+                    </a>
+
+                    <a href="{% url 'view_projects' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Projects
+                    </a>
+
+                    <!-- Departments -->
+                    <a href="{% url 'departments' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Departments
+                    </a>
+
+                    <!-- Designations -->
+                    <a href="{% url 'designations' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Designations
+                    </a>
+
+
+                
+                    
+                
+                {% endif %}
+
+                <!-- Team Lead Menu -->
+                        {% if request.user.role|lower == 'TEAM_LEAD' %}
+            <!-- Unified Dashboard link -->
+                    <a href="{% url 'dashboard' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Dashboard
+                    </a>
+
+                    <!-- Optional: you can remove these if Dashboard has everything -->
+                    <!--
+                    <a href="{% url 'projects' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Projects
+                    </a>
+
+                    <a href="{% url 'team_members' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Team Members
+                    </a>
+                    -->
+                {% endif %}
+
+                <!-- Employee Menu -->
+                {% if request.user.role == 'EMPLOYEE' %}
+                    <!-- <a href="{% url 'employee_tasks' %}" 
+                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                       My Tasks
+                    </a> -->
+                {% endif %}
+
+                <!-- Logout -->
+               <form method="post" action="{% url 'logout' %}" class="mt-4">
+                {% csrf_token %}
+                <button type="submit"
+                    class="w-full text-left px-4 py-2 rounded
+                        hover:bg-red-100 hover:text-red-600 transition">
+                    Logout
+                </button>
+                </form>
+            {% endif %}
+
+        </nav>
+    </aside>
+    <!-- ================= END SIDEBAR ================= -->
+
+
+
+    <!-- ================= MAIN AREA ================= -->
+    <div class="flex-1 flex flex-col">
+
+        <!-- Topbar -->
+        <header class="bg-white shadow p-4 flex justify-between items-center">
+
+            <h2 class="text-xl font-semibold text-gray-800">
+                {% block page_title %}Dashboard{% endblock %}
+            </h2>
+
+            <div class="flex items-center space-x-4">
+
+                <!-- Notification Bell -->
+                <div class="relative cursor-pointer" id="notificationBell">
+                    <span class="text-xl">🔔</span>
+                    {% if unread_notifications_count > 0 %}
+                    <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
+                        {{ unread_notifications_count }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Notification Dropdown Panel -->
+                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg overflow-hidden z-50">
+                    <div class="p-4 border-b font-semibold text-gray-700">Notifications</div>
+                    <ul class="max-h-64 overflow-y-auto">
+                        {% for notif in request.user.notifications.all|slice:":5" %}
+                        <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer {% if not notif.is_read %}font-bold{% endif %}">
+                            <a href="{% url 'mark_as_read' notif.id %}">
+                                {{ notif.message }}
+                                <div class="text-xs text-gray-400">{{ notif.created_at|date:"M d, H:i" }}</div>
+                            </a>
+                        </li>
+                        {% empty %}
+                        <li class="px-4 py-2 text-gray-500">No notifications</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{% url 'all_notifications' %}" class="block px-4 py-2 bg-gray-100 text-center text-gray-700 hover:bg-gray-200">View All</a>
+            </div>
+
+                <!-- User Info -->
+                <div class="flex items-center space-x-2">
+                    <img src="https://i.pravatar.cc/40" 
+                         class="rounded-full w-10 h-10" 
+                         alt="User">
+                    <span class="font-medium">
+                        {{ request.user.username }}
+                    </span>
+                </div>
+
+            </div>
+        </header>
+
+
+        <!-- Content Area -->
+        <main class="p-6 overflow-y-auto flex-1">
+            {% block content %}
+            <!-- Page Content Goes Here -->
+            {% endblock %}
+        </main>
+
+    </div>
+    <!-- ================= END MAIN AREA ================= -->
+
+</div>
+
+
+<script>
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
+
+    bell.addEventListener('click', () => {
+        dropdown.classList.toggle('hidden');
+    });
+
+    // Click outside to close the dropdown
+    document.addEventListener('click', (event) => {
+        if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Dashboard{% endblock %}
+{% block page_title %}Employee Dashboard{% endblock %}
+
+{% block content %}
+<div class="text-center mb-6">
+    <h2 class="text-3xl font-bold text-gray-700">Welcome, {{ request.user.username }}!</h2>
+    <p class="text-gray-500 mt-2">
+        Manage your tasks and projects efficiently!
+    </p>
+</div>
+
+<div class="flex flex-wrap justify-center gap-6 mt-8">
+
+    <!-- Projects card -->
+    <div class="bg-white shadow-lg rounded-lg w-64 h-36 flex items-center justify-center hover:shadow-2xl transition transform hover:-translate-y-2">
+        <a href="{% url 'employee_projects' %}" class="text-blue-600 font-semibold text-lg hover:text-blue-400">
+            My Projects ({{ projects.count }})
+        </a>
+    </div>
+
+    <!-- Tasks card -->
+    <div class="bg-white shadow-lg rounded-lg w-64 h-36 flex items-center justify-center hover:shadow-2xl transition transform hover:-translate-y-2">
+        <a href="{% url 'employee_tasks' %}" class="text-blue-600 font-semibold text-lg hover:text-blue-400">
+            My Tasks ({{ tasks.count }})
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

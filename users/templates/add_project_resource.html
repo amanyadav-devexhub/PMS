@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Add Resource{% endblock %}
+{% block page_title %}Add Resource{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white shadow rounded-lg p-6">
+
+    <h2 class="text-xl font-semibold mb-4">
+        Add Resource to "{{ project.name }}"
+    </h2>
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+
+        {% for field in form %}
+            <div>
+                <label class="block text-sm font-medium mb-1">
+                    {{ field.label }}
+                </label>
+                {{ field|add_class:"w-full border rounded px-3 py-2" }}
+                {{ field.errors }}
+            </div>
+        {% endfor %}
+
+        <div class="flex gap-3">
+            <button class="bg-indigo-600 text-white px-4 py-2 rounded">
+                Save Resource
+            </button>
+
+            <a href="{% url 'view_project_detail' project.id %}"
+               class="bg-gray-200 px-4 py-2 rounded">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

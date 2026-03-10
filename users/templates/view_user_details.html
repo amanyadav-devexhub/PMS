@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}User Detail{% endblock %}
+{% block page_title %}Member Details{% endblock %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- ================= TOP PROFILE CARD ================= -->
+    <div class="bg-white shadow rounded-lg p-6 flex gap-6 items-center">
+
+        <!-- Avatar -->
+        <div class="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center text-4xl font-bold text-gray-600">
+            {{ user_obj.username|slice:":1"|upper }}
+        </div>
+
+        <!-- Basic Info -->
+        <div class="flex-1">
+            <h2 class="text-2xl font-semibold text-gray-800">
+                {{ user_obj.username }}
+            </h2>
+
+            <p class="text-gray-500 mt-1">
+                {{ profile.designation|default:"—" }} · {{ profile.department|default:"—" }}
+            </p>
+
+            <div class="flex gap-6 mt-3 text-sm text-gray-600">
+                <span>📧 {{ user_obj.email }}</span>
+                <span>📅 {{ profile.date_of_joining|default:"—" }}</span>
+            </div>
+        </div>
+
+        <!-- Edit Button -->
+        <a href="{% url 'edit_user' user_obj.id %}"
+           class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow">
+            Edit
+        </a>
+    </div>
+
+    <!-- ================= BASIC DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+
+        <h3 class="text-lg font-semibold mb-4">
+            Basic Details
+        </h3>
+
+        <div class="grid grid-cols-2 gap-6 text-sm">
+
+            <div>
+                <p class="text-gray-500">Employee ID</p>
+                <p class="font-medium">
+                    {{ profile.employee_id|default:"—" }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Phone</p>
+                <p class="font-medium">
+                    {{ profile.phone|default:"—" }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Department</p>
+                <p class="font-medium">
+                    {{ profile.department|default:"—" }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Designation</p>
+                <p class="font-medium">
+                    {{ profile.designation|default:"—" }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Role</p>
+                <p class="font-medium">
+                    {{ user_obj.role }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Status</p>
+                {% if user_obj.is_active %}
+                    <span class="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">
+                        Active
+                    </span>
+                {% else %}
+                    <span class="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs">
+                        Inactive
+                    </span>
+                {% endif %}
+            </div>
+
+
+        </div>
+    </div>
+                <!-- ================= SALARY DETAILS ================= -->
+        <div class="bg-white shadow rounded-lg p-6">
+
+            <h3 class="text-lg font-semibold mb-4">
+                Salary Details
+            </h3>
+
+            <div class="grid grid-cols-2 gap-6 text-sm">
+
+                <div>
+                    <p class="text-gray-500">CTC</p>
+                    <p class="font-medium">
+                        {{ profile.ctc|default:"—" }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-gray-500">Salary In Hand</p>
+                    <p class="font-medium">
+                        {{ profile.salary_in_hand|default:"—" }}
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================= BANK DETAILS ================= -->
+        <div class="bg-white shadow rounded-lg p-6">
+
+            <h3 class="text-lg font-semibold mb-4">
+                Bank Details
+            </h3>
+
+            <div class="grid grid-cols-2 gap-6 text-sm">
+
+                <div>
+                    <p class="text-gray-500">Bank Name</p>
+                    <p class="font-medium">
+                        {{ profile.bank_name|default:"—" }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-gray-500">Account Number</p>
+                    <p class="font-medium">
+                        {{ profile.account_no|default:"—" }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-gray-500">IFSC Code</p>
+                    <p class="font-medium">
+                        {{ profile.ifsc|default:"—" }}
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================= VERIFICATION ================= -->
+        <div class="bg-white shadow rounded-lg p-6">
+
+            <h3 class="text-lg font-semibold mb-4">
+                Verification Details
+            </h3>
+
+            <div class="grid grid-cols-2 gap-6 text-sm">
+
+                <div>
+                    <p class="text-gray-500">Aadhar Number</p>
+                    <p class="font-medium">
+                        {{ profile.aadhar_no|default:"—" }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-gray-500">PAN Number</p>
+                    <p class="font-medium">
+                        {{ profile.pan_no|default:"—" }}
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================= ADDITIONAL DETAILS ================= -->
+        <div class="bg-white shadow rounded-lg p-6">
+
+            <h3 class="text-lg font-semibold mb-4">
+                Additional Details
+            </h3>
+
+            <div class="grid grid-cols-2 gap-6 text-sm">
+
+                <div>
+                    <p class="text-gray-500">Emergency Contact</p>
+                    <p class="font-medium">
+                        {{ profile.emergency_contact|default:"—" }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-gray-500">Address</p>
+                    <p class="font-medium">
+                        {{ profile.address|default:"—" }}
+                    </p>
+                </div>
+
+                <!-- ================= MEMBER ANALYTICS ================= -->
+
+        <!-- <div class="bg-white shadow rounded-lg p-6">
+
+            <h3 class="text-lg font-semibold mb-6">
+                Member Analytics
+            </h3>
+
+            <div class="grid grid-cols-5 gap-6 text-center">
+
+                Projects
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-500">Projects Assigned</p>
+                    <p class="text-2xl font-bold text-blue-600">
+                        {{ projects_assigned }}
+                    </p>
+                </div>
+
+                Tasks
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-500">Tasks Assigned</p>
+                    <p class="text-2xl font-bold text-yellow-600">
+                        {{ tasks_assigned }}
+                    </p>
+                </div>
+
+                Completed
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-500">Completed Tasks</p>
+                    <p class="text-2xl font-bold text-green-600">
+                        {{ completed_tasks }}
+                    </p>
+                </div>
+
+                Team Lead
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-500">Role</p>
+                    <p class="text-lg font-semibold text-purple-600">
+                        {{ user_obj.role }}
+                    </p>
+                </div>
+
+                Performance
+                <div class="bg-indigo-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-500">Performance</p>
+                    <p class="text-2xl font-bold text-indigo-600">
+                        {{ performance }}%
+                    </p>
+                </div>
+
+            </div>
+
+
+
+    </div> -->
+</div>
+
+</div>
+
+{% endblock %}
