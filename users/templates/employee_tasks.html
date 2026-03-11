@@ -1,77 +1,216 @@
 {% extends "base.html" %}
 
-{% block title %}My Tasks{% endblock %}
-{% block page_title %}My Tasks{% endblock %}
+{% block title %}Task Details{% endblock %}
+{% block page_title %}Task Details{% endblock %}
 
 {% block content %}
-<div class="container mx-auto mt-8">
+<div class="container mx-auto mt-8 max-w-3xl">
+    <!-- Back to Dashboard Link
+    <div class="mb-4">
+        <a href="{% url 'task_dashboard' %}" class="text-gray-600 hover:text-gray-900 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to My Tasks
+        </a>
+    </div> -->
 
-    {% if tasks %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% for task in tasks %}
-            <div class="bg-white shadow-lg rounded-lg p-5 hover:shadow-2xl transition transform hover:-translate-y-2">
-                <h3 class="text-xl font-semibold mb-2">{{ task.name }}</h3>
-                <p class="text-gray-600 mb-1"><strong>Description:</strong> {{ task.description }}</p>
-                <p class="text-gray-600 mb-1"><strong>Project:</strong> {{ task.project.name }}</p>
-                <p class="text-gray-600 mb-1"><strong>Start Date:</strong> {{ task.start_date }}</p>
-            <p class="text-gray-600 mb-1"><strong>End Date:</strong> {{ task.end_date }}</p>
+    {% for task in tasks %}
+    <div class="bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden">
+        <!-- Task Name Header -->
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <h1 class="text-2xl font-bold text-gray-800">{{ task.name }}</h1>
+        </div>
 
-            <p class="text-gray-600 mb-3">
-            <strong>Time Tracking:</strong>
+        <!-- Description Box (sky blue) -->
+        <div class="bg-blue-50 px-6 py-4 border-b border-gray-200">
+            <p class="text-gray-700">{{ task.description|default:"No description provided." }}</p>
+        </div>
 
-            {% if task.status == "ONGOING" %}
-            Started at: {{ task.start_time }}
+        <!-- Main Content -->
+        <div class="p-6">
+            <!-- Task Owner -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Task owner:</span>
+                <p class="font-medium text-gray-800">
+                    {% if task.assigned_by %}
+                        {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}
+                    {% else %}
+                        Saurav
+                    {% endif %}
+                </p>
+            </div>
 
-            {% elif task.status == "COMPLETED" %}
-            Total Time: {{ task.total_time }}
+            <!-- Deadline -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Deadline:</span>
+                <p class="font-medium text-gray-800">
+                    {% if task.deadline %}
+                        {{ task.deadline|date:"F d H:i" }}
+                    {% else %}
+                        {{ task.end_date|date:"F d" }} 18:20
+                    {% endif %}
+                </p>
+            </div>
 
-            {% else %}
-            Not started
-            {% endif %}
+            <!-- Created -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Created:</span>
+                <p class="font-medium text-gray-800">{{ task.created_at|date:"F d H:i" }} / ID: {{ task.id }}</p>
+            </div>
 
-            </p>
-                
-                <span class="px-3 py-1 rounded-full text-sm font-semibold
-                    {% if task.status == 'PENDING' %} bg-red-500 text-white
-                    {% elif task.status == 'ONGOING' %} bg-yellow-400 text-black
-                    {% elif task.status == 'COMPLETED' %} bg-green-400 text-white
-                    {% endif %}">
+            <!-- Time tracking -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Time tracking:</span>
+                <p class="font-medium text-gray-800">
+                    <span id="timer-{{ task.id }}" class="font-mono">
+                        {% if task.status == "ONGOING" and task.start_time %}
+                            {{ task.current_display_time|default:"00:00:00" }}
+                        {% elif task.status == "COMPLETED" and task.total_time %}
+                            {{ task.total_time_display }}
+                        {% else %}
+                            00:00:00
+                        {% endif %}
+                    </span> / 01:00:00
+                </p>
+            </div>
+
+            <!-- Assignee -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Assignee:</span>
+                <p class="font-medium text-gray-800">{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</p>
+            </div>
+
+            <!-- Status -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Status:</span>
+                <p class="font-medium 
+                    {% if task.status == 'PENDING' %}text-red-600
+                    {% elif task.status == 'ONGOING' %}text-yellow-600
+                    {% else %}text-green-600{% endif %}">
                     {{ task.get_status_display }}
-                </span>
+                </p>
+            </div>
 
-            <div class="mt-4">
+            <!-- Task status summary is required with + icon -->
+            <div class="mt-8 mb-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-gray-800 font-semibold text-lg">Task status summary is required</h2>
+                    
+                    {% if task.status == "ONGOING" and not task.paused_time %}
+                    <a href="{% url 'add_task_summary' task.id %}" 
+                    class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold">
+                        +
+                    </a>
+                    {% endif %}
+                </div>
+                
+                {% if task.summary %}
+                    <div class="mt-2 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-gray-700">{{ task.summary }}</p>
+                    </div>
+                {% else %}
+                    <p class="text-gray-400 text-sm mt-1">No summary added yet.</p>
+                {% endif %}
+            </div>
+            
 
-            {% if task.status == "PENDING" %}
+            <!-- Project -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Project:</span>
+                <p class="font-medium text-gray-800">{{ task.project.name|default:"Devexhub Internal" }}</p>
+            </div>
 
-            <a href="{% url 'start_task' task.id %}"
-            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full font-semibold">
-            Start
-            </a>
+            <!-- Stage -->
+            <div class="mb-4">
+                <span class="text-gray-500 text-sm">Stage:</span>
+                <p class="font-medium text-blue-600">{{ task.get_status_display }}</p>
+            </div>
 
-            {% elif task.status == "ONGOING" %}
+            <!-- Observers -->
+            <div class="mb-6">
+                <span class="text-gray-500 text-sm">Observers:</span>
+                <div class="flex flex-wrap gap-2 mt-1">
+                    {% if task.observers.all %}
+                        {% for observer in task.observers.all %}
+                        <span class="bg-gray-100 px-3 py-1 rounded-full text-sm">
+                            {{ observer.get_full_name|default:observer.username }}
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-gray-400 text-sm">No observers</span>
+                    {% endif %}
+                </div>
+            </div>
 
-            <a href="{% url 'complete_task' task.id %}"
-            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full font-semibold">
-            Complete
-            </a>
-
-            {% else %}
-
-            <span class="bg-gray-400 text-white px-4 py-2 rounded-full font-semibold">
-            Completed
-            </span>
-
-            {% endif %}
-
+            <!-- Action Buttons -->
+            <div class="mt-8 flex space-x-4">
+                {% if task.status == "PENDING" %}
+                    <a href="{% url 'start_task' task.id %}" 
+                       class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
+                        Start
+                    </a>
+                {% elif task.status == "ONGOING" %}
+                    {% if task.paused_time %}
+                        <a href="{% url 'resume_task' task.id %}" 
+                           class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
+                            Resume
+                        </a>
+                    {% else %}
+                        <a href="{% url 'pause_task' task.id %}" 
+                           class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
+                            Pause
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'complete_task' task.id %}" 
+                       class="bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
+                        Complete
+                    </a>
+                {% elif task.status == "COMPLETED" %}
+                    <span class="bg-gray-400 text-white px-8 py-2 rounded-full text-sm font-medium">
+                        Completed
+                    </span>
+                {% endif %}
             </div>
         </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="text-center mt-10">
-            <h4 class="text-gray-700 font-semibold text-lg">No tasks assigned yet!</h4>
-        </div>
-    {% endif %}
+    </div>
 
+    <!-- Live Timer JavaScript -->
+    {% if task.status == "ONGOING" and not task.paused_time and task.start_time %}
+    <script>
+        (function() {
+            const taskId = {{ task.id }};
+            const startTimeStr = "{{ task.start_time|date:'Y-m-d H:i:s' }}";
+            const startTime = new Date(startTimeStr.replace(' ', 'T')).getTime();
+            const pausedSeconds = {{ task.total_paused_duration.total_seconds|default:0 }};
+            const pausedDuration = pausedSeconds * 1000;
+            
+            function updateTimer() {
+                const now = new Date().getTime();
+                const elapsed = now - startTime - pausedDuration;
+                
+                if (elapsed < 0) {
+                    document.getElementById(`timer-${taskId}`).textContent = '00:00:00';
+                    return;
+                }
+                
+                const hours = Math.floor(elapsed / 3600000);
+                const minutes = Math.floor((elapsed % 3600000) / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                
+                const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                const timerElement = document.getElementById(`timer-${taskId}`);
+                if (timerElement) {
+                    timerElement.textContent = timeString;
+                }
+            }
+            
+            setInterval(updateTimer, 1000);
+            updateTimer();
+        })();
+    </script>
+    {% endif %}
+    {% endfor %}
 </div>
 {% endblock %}

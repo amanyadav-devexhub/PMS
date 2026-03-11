@@ -250,19 +250,113 @@ def edit_projects(request,project_id):
         "project":project
     })
 
+
+## edit project
+@login_required
+@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+def edit_task(request, task_id):
+    """Edit an existing task"""
+    task = get_object_or_404(Task, id=task_id)
+    
+    if request.method == 'POST':
+        form = TaskForm(request.POST, instance=task)
+        if form.is_valid():
+            # Save the task
+            updated_task = form.save(commit=False)
+            updated_task.save()
+            
+            # Save ManyToMany fields (observers)
+            form.save_m2m()
+            
+            messages.success(request, f'Task "{task.name}" updated successfully!')
+            
+            # Redirect back to project details
+            return redirect('view_project_detail', project_id=task.project.id)
+        else:
+            # Form is invalid, show errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+    else:
+        form = TaskForm(instance=task)
+    
+    context = {
+        'form': form,
+        'task': task,
+        'is_edit': True
+    }
+    return render(request, 'edit_task.html', context)
+
+## delete task
+@login_required
+@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+def delete_task(request, task_id):
+    """Delete a task"""
+    task = get_object_or_404(Task, id=task_id)
+    project_id = task.project.id
+    task_name = task.name
+    
+    if request.method == 'POST':
+        task.delete()
+        messages.success(request, f'Task "{task_name}" deleted successfully!')
+        return redirect('view_project_detail', project_id=project_id)
+    
+    # GET request - show confirmation page
+    context = {
+        'task': task
+    }
+    return render(request, 'delete_task_confirm.html', context)
+
+
+
+
+
 # ## view_project_details
 @login_required
-@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD","EMPLOYEE"])
+@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD", "EMPLOYEE"])
 def view_project_detail(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     resources = project.resources.all()
+    
+    # Get all tasks under this project
+    tasks = Task.objects.filter(project=project).order_by('-created_at')
+    
+    # Add calculated fields for tasks (for time display)
+    from django.utils import timezone
+    for task in tasks:
+        if task.status == "ONGOING" and task.start_time:
+            elapsed = timezone.now() - task.start_time
+            if task.total_paused_duration:
+                elapsed = elapsed - task.total_paused_duration
+            total_seconds = int(elapsed.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            task.time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        elif task.status == "COMPLETED" and task.total_time:
+            total_seconds = int(task.total_time.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            task.time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    # Task statistics
+    total_tasks = tasks.count()
+    ongoing_tasks = tasks.filter(status='ONGOING').count()
+    completed_tasks = tasks.filter(status='COMPLETED').count()
+    pending_tasks = tasks.filter(status='PENDING').count()
 
     return render(
         request,
         "view_project_detail.html",
         {
             "project": project,
-            "resources": resources
+            "resources": resources,
+            "tasks": tasks,
+            "total_tasks": total_tasks,
+            "ongoing_tasks": ongoing_tasks,
+            "completed_tasks": completed_tasks,
+            "pending_tasks": pending_tasks,
         }
     )
     
@@ -627,37 +721,50 @@ from Tasks.models import Task
 from Tasks.forms import TaskForm 
 
 @login_required
-@allowed_roles(allowed_roles=["TEAM_LEAD"])
+@allowed_roles(allowed_roles=["TEAM_LEAD","ADMIN"])
 def assign_task(request):
     if request.method == "POST":
         form = TaskForm(request.POST)
         if form.is_valid():
-            # Step 1: Save the task instance
-            task = form.save(commit=False)  # Don't save to DB yet
+            # Step 1: Save the task instance but don't commit to DB yet
+            task = form.save(commit=False)
             
-            # Step 2: Assign the employee from the form
-            assigned_employee = task.assigned_to  # Assuming you have this field in Task model
+            # Step 2: Set any additional fields if needed
+            # assigned_employee is already set from form
+            assigner = request.user
             
-            task.save()  # Now save the task
-            assigner = request.user  # Who created the task
+            # Step 3: Save the task to DB
+            task.save()
             
-            # Step 3: Create a notification for the assigned employee
+            # Step 4: CRITICAL - Save ManyToMany fields (observers!)
+            form.save_m2m()  # This saves the observers relationship
+            
+            # Step 5: Create notification for the assigned employee
             from notifications.models import Notification
-            if not Notification.objects.filter(user=assigned_employee, message=f'Task "{task.name}" has been assigned to you').exists():
+            if not Notification.objects.filter(
+                user=task.assigned_to, 
+                message=f'Task "{task.name}" has been assigned to you'
+            ).exists():
                 Notification.objects.create(
-                    user=assigned_employee,
+                    user=task.assigned_to,
                     message=f'Task "{task.name}" has been assigned to you'
                 )
             
-            # Optional Step 4: Create notifications for observers (like TL/Admin)
-            # if task.project and task.project.observers.exists():  # if you track observers in Project
-            #     for observer in task.project.observers.all():
-            #         Notification.objects.create(
-            #             user=observer,
-            #             message=f'Task "{task.name}" has been assigned to {assigned_employee.username}'
-            #         )
+            # Step 6: Create notifications for observers (if any)
+            # This sends notifications to the observers that were just saved
+            for observer in task.observers.all():
+                Notification.objects.create(
+                    user=observer,
+                    message=f'Task "{task.name}" has been assigned to {task.assigned_to.username}'
+                )
 
-        return redirect("teamlead_dashboard")
+            messages.success(request, f'Task "{task.name}" assigned successfully with {task.observers.count()} observers!')
+            return redirect("teamlead_dashboard")
+        else:
+            # Form is invalid, show errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = TaskForm()
 
@@ -700,13 +807,170 @@ def create_project(request):
 
     return render(request, "create_project.html", context)
 
-## employee task
+
+
+## task_dashboard
+@login_required
+@allowed_roles(allowed_roles=["EMPLOYEE","ADMIN","ADMIN"])
+def task_dashboard(request):
+    """NEW: Task dashboard showing all tasks in list view (Page 1)"""
+    
+    # Get all tasks assigned to current user
+    tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+    
+    # Statistics
+    total_tasks = tasks.count()
+    overdue_tasks = tasks.filter(
+        status__in=['PENDING', 'ONGOING'],
+        deadline__lt=timezone.now()
+    ).count()
+    
+    # Add calculated fields for each task
+    for task in tasks:
+        # Format time tracking display
+        if task.status == 'ONGOING' and task.start_time:
+            elapsed = timezone.now() - task.start_time
+            if task.total_paused_duration:
+                elapsed = elapsed - task.total_paused_duration
+            total_seconds = int(elapsed.total_seconds())
+        elif task.status == 'COMPLETED' and task.total_time:
+            total_seconds = int(task.total_time.total_seconds())
+        else:
+            total_seconds = 0
+        
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        task.time_spent_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
+        # Format deadline display
+        if task.deadline:
+            if task.deadline.date() == timezone.now().date():
+                task.deadline_display = f"Today, {task.deadline.strftime('%H:%M')}"
+            else:
+                task.deadline_display = task.deadline.strftime('%b %d, %H:%M')
+        else:
+            task.deadline_display = "No deadline"
+        
+        # Format created date
+        task.created_display = task.created_at.strftime('%b %d, %H:%M')
+        
+        # Estimated time (default 04:00)
+        task.estimated_display = "04:00"
+    
+    context = {
+        'tasks': tasks,
+        'total_tasks': total_tasks,
+        'overdue_tasks': overdue_tasks,
+        'selected_count': 0,
+    }
+    
+    return render(request, 'task_dashboard.html', context)
+
+
+## TaskSummary 
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
+def add_task_summary(request, task_id):
+    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    
+    if request.method == 'POST':
+        summary = request.POST.get('summary')
+        if summary:
+            task.summary = summary
+            task.save()
+            messages.success(request, "Summary added!")
+            return redirect('complete_task', task_id=task.id)
+        else:
+            messages.error(request, "Please enter a summary.")
+    
+    return render(request, 'add_task_summary.html', {'task': task})
+
+
+
+import math
+## employee task
+@login_required
+@allowed_roles(allowed_roles=["EMPLOYEE", "TEAM_LEAD", "ADMIN"])
 def employee_tasks(request):
-    # Get tasks assigned to logged-in employee
-    tasks = Task.objects.filter(assigned_to=request.user)
-    return render(request, "employee_tasks.html", {"tasks": tasks})
+    # Check if a specific task ID is requested
+    task_id = request.GET.get('task_id')
+    
+    if task_id:
+        # SINGLE TASK VIEW - Show specific task by ID
+        try:
+            task = Task.objects.get(id=task_id)
+            
+            # Permission check:
+            # - EMPLOYEE can only see tasks assigned to them
+            # - ADMIN/TEAM_LEAD can see any task
+            if request.user.role == "EMPLOYEE" and task.assigned_to != request.user:
+                messages.error(request, "You don't have permission to view this task.")
+                return redirect('task_dashboard')
+            
+            tasks = [task]  # Put in list for template
+            
+            # Calculate time display for this task
+            if task.status == "ONGOING" and task.start_time:
+                elapsed = timezone.now() - task.start_time
+                if task.total_paused_duration:
+                    elapsed = elapsed - task.total_paused_duration
+                if task.paused_time:
+                    current_pause = timezone.now() - task.paused_time
+                    elapsed = elapsed - current_pause
+                
+                total_seconds = int(elapsed.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                task.current_display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                task.progress_percentage = min(100, int((total_seconds / 14400) * 100))
+            
+            elif task.status == "COMPLETED" and task.total_time:
+                total_seconds = int(task.total_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                task.total_time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            
+        except Task.DoesNotExist:
+            messages.error(request, f"Task with ID {task_id} not found.")
+            return redirect('task_dashboard')
+    
+    else:
+        # TASK LIST VIEW - Show all tasks assigned to current user
+        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+        
+        # Calculate time display for each task (for list view)
+        for task in tasks:
+            if task.status == "ONGOING" and task.start_time:
+                elapsed = timezone.now() - task.start_time
+                if task.total_paused_duration:
+                    elapsed = elapsed - task.total_paused_duration
+                if task.paused_time:
+                    current_pause = timezone.now() - task.paused_time
+                    elapsed = elapsed - current_pause
+                
+                total_seconds = int(elapsed.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                task.current_display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                task.progress_percentage = min(100, int((total_seconds / 14400) * 100))
+            
+            elif task.status == "COMPLETED" and task.total_time:
+                total_seconds = int(task.total_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                task.total_time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    context = {
+        'tasks': tasks,
+        'current_time': timezone.now(),
+        'is_single_task': task_id is not None  # Optional: for template to know if single view
+    }
+    return render(request, "employee_tasks.html", context)
 
 ## update task status
 @login_required
@@ -737,45 +1001,143 @@ def update_task_status(request, task_id):
 
 ## start task
 from django.utils import timezone
-login_required
+import datetime
+@login_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def start_task(request, task_id):
     task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
-    if task.status == "PENDING":
-        task.status = "ONGOING"
-        task.start_time = timezone.now()
-        task.save()
+    # Check if task can be started
+    if task.status != "PENDING":
+        messages.error(request, f'Task cannot be started because it is {task.get_status_display()}.')
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
 
-        # Notify the task creator (assignee implicitly knows who created)
-        # Notify all Admins and Team Leads
-        observers = User.objects.filter(role__in=["ADMIN", "TEAM_LEAD"])
-        message = f"Task '{task.name}' has been started by {request.user.username}."
-        for user in observers:
-            Notification.objects.create(user=user, message=message)
+    # COMPLETELY RESET the task for fresh start
+    task.status = "ONGOING"
+    task.start_time = timezone.now()
+    task.paused_time = None
+    task.total_paused_duration = datetime.timedelta()
+    task.total_time = None
+    task.end_time = None
+    
+    task.save(update_fields=[
+        'status', 'start_time', 'paused_time', 
+        'total_paused_duration', 'total_time', 'end_time'
+    ])
+    messages.success(request, f'Task "{task.name}" started successfully!')
+    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
-    return redirect("employee_tasks")
+## pause task
+from django.urls import reverse
+@login_required
+@allowed_roles(allowed_roles=["EMPLOYEE"])
+def pause_task(request, task_id):
+    """Pause an ongoing task - records the pause time"""
+    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+
+    # Check if task can be paused
+    if task.status != "ONGOING":
+        messages.error(request, 'Only ongoing tasks can be paused.')
+        # FIX: Redirect back to the same task detail page
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+
+    # Check if task is already paused
+    if task.paused_time is not None:
+        messages.error(request, 'Task is already paused.')
+        # FIX: Redirect back to the same task detail page
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+
+    # Pause the task
+    task.paused_time = timezone.now()
+    task.save()
+
+    messages.info(request, f'Task "{task.name}" paused.')
+    # FIX: Redirect back to the same task detail page
+    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+
+## Resume task
+def resume_task(request, task_id):
+    """Resume a paused task - calculates paused duration and clears pause time"""
+    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+
+    # Check if task is paused
+    if task.status != "ONGOING" or task.paused_time is None:
+        messages.error(request, 'Task is not paused.')
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
+
+    # Calculate paused duration
+    paused_duration = timezone.now() - task.paused_time
+
+    # Add to total paused duration
+    if task.total_paused_duration:
+        task.total_paused_duration += paused_duration
+    else:
+        task.total_paused_duration = paused_duration
+
+    # Clear paused time
+    task.paused_time = None
+    task.save()
+
+    messages.success(request, f'Task "{task.name}" resumed.')
+    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+
 
 ## complete task
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def complete_task(request, task_id):
+    """Complete a task - calculates total time spent and marks as COMPLETED"""
     task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
+    # Check if task can be completed
+    if task.status == "COMPLETED":
+        messages.error(request, 'Task is already completed.')
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
+
+    # If task is ongoing, calculate final time
     if task.status == "ONGOING" and task.start_time:
+        # If task is paused, add that pause duration first
+        if task.paused_time:
+            paused_duration = timezone.now() - task.paused_time
+            if task.total_paused_duration:
+                task.total_paused_duration += paused_duration
+            else:
+                task.total_paused_duration = paused_duration
+            task.paused_time = None
+
+        # Calculate total time spent
+        total_spent = timezone.now() - task.start_time
+
+        # Subtract paused time
+        if task.total_paused_duration:
+            total_spent = total_spent - task.total_paused_duration
+
+        task.total_time = total_spent
         task.end_time = timezone.now()
-        task.total_time = task.end_time - task.start_time
-        task.status = "COMPLETED"
-        task.save()
 
-        # Notify the assigner (same logic as above)
-        # Notify all Admins and Team Leads
-        observers = User.objects.filter(role__in=["ADMIN", "TEAM_LEAD"])
-        message = f"Task '{task.name}' has been completed by {request.user.username}."
-        for user in observers:
-            Notification.objects.create(user=user, message=message)
+    # Mark as completed
+    task.status = "COMPLETED"
+    task.save()
 
-    return redirect("employee_tasks")
+    # Format time for display
+    time_display = "00:00:00"
+    if task.total_time:
+        total_seconds = int(task.total_time.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    # Notify all Admins and Team Leads
+    observers = User.objects.filter(role__in=["ADMIN", "TEAM_LEAD"])
+    employee_name = request.user.get_full_name() or request.user.username
+    message = f"Task '{task.name}' has been completed by {employee_name}. Time spent: {time_display}"
+    
+    for user in observers:
+        Notification.objects.create(user=user, message=message)
+
+    messages.success(request, f'Task "{task.name}" completed! Total time: {time_display}')
+    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
 from .models import Department, Designation
 from .forms import UserProfileForm

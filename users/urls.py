@@ -62,6 +62,14 @@ urlpatterns = [
     path("start_task/<int:task_id>/", views.start_task, name="start_task"),
     path("complete_task/<int:task_id>/", views.complete_task, name="complete_task"),
     path('notifications/', include('notifications.urls')),
+    path('task/<int:task_id>/start/', views.start_task, name='start_task'),
+    path('task/<int:task_id>/pause/', views.pause_task, name='pause_task'),
+    path('task/<int:task_id>/resume/', views.resume_task, name='resume_task'),
+    path('task/<int:task_id>/complete/', views.complete_task, name='complete_task'),
+    path('my-tasks/', views.task_dashboard, name='task_dashboard'),
+    path('task/<int:task_id>/edit/', views.edit_task, name='edit_task'),
+    path('task/<int:task_id>/delete/', views.delete_task, name='delete_task'),
+    path('task/<int:task_id>/add-summary/', views.add_task_summary, name='add_task_summary'),
 ]
 
 
