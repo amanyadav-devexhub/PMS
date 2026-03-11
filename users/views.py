@@ -624,7 +624,7 @@ def delete_user(request, user_id):
 # Import Project and Task from their apps
 from projects.models import Projects
 from Tasks.models import Task
-from .forms import TaskForm 
+from Tasks.forms import TaskForm 
 
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD"])

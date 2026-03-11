@@ -1,7 +1,7 @@
 from django.urls import path,include
 from . import views
 from Tasks.models import Task
-from .forms import TaskForm
+from Tasks.forms import TaskForm
 from django.contrib.auth import views as auth_views
 
 
