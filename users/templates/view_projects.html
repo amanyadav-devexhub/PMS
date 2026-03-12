@@ -66,7 +66,7 @@
                         <td class="px-6 py-4 text-sm text-gray-700">
                             {% if project.assigned_to.all %}
                                 {% for user in project.assigned_to.all %}
-                                    {{ user.username }}{% if not forloop.last %}, {% endif %}
+                                    {{ user.get_full_name|default:user.username }}{% if not forloop.last %}, {% endif %}
                                 {% endfor %}
                             {% else %}
                                 Not assigned
@@ -92,14 +92,14 @@
                     </td>
 
                         <td class="px-6 py-4 text-center space-x-2">
-                             <!-- <a href="{% url 'edit_projects' project.id %}"
+                            <!-- <a href="{% url 'edit_projects' project.id %}"
                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow">
                                 Edit
                             </a> -->
 
                             <a href="{% url 'view_project_detail' project.id %}"
-                               class="bg-blue-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow">
-                                view
+                               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow">
+                                View
                             </a>
                         
                             <a href="{% url 'delete_project' project.id %}"

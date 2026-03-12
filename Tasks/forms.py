@@ -34,8 +34,14 @@ class TaskForm(forms.ModelForm):
             'end_date',
             'deadline',     # New field
             'observers',
-            'summary'     # New field
+            'summary',
+            'estimated_time',     # New field
         ]
+
+        widgets = {
+            'estimated_time': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Time in seconds'})
+        },
+
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
             'summary': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Enter task completion summary...'}),

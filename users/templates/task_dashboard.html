@@ -88,54 +88,60 @@
         </div>
 
         <!-- Table Rows -->
-        {% for task in tasks %}
-        <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" class="block hover:bg-gray-50 border-b last:border-b-0">
-            <div class="grid grid-cols-12 gap-2 p-3 items-center">
-                <!-- Name with time tracking -->
-                <div class="col-span-4">
-                    <div class="font-medium">{{ task.name|truncatechars:40 }}</div>
-                    <div class="text-sm text-gray-500">
-                        {{ task.time_spent_display }} / {{ task.estimated_display }}
-                    </div>
-                </div>
-                
-                <!-- Active (Created date) -->
-                <div class="col-span-2 text-sm">
-                    {{ task.created_display }}
-                </div>
-                
-                <!-- Deadlines -->
-                <div class="col-span-1 text-sm">
-                    {{ task.deadline_display }}
-                </div>
-                
-                <!-- Created by -->
-                <div class="col-span-1 text-sm">
-                    {% if task.assigned_by %}
-                        {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}
-                    {% else %}
-                        Saurav
-                    {% endif %}
-                </div>
-                
-                <!-- Assignees -->
-                <div class="col-span-2 text-sm">
-                    {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
-                </div>
-                
-                <!-- Tags (Project) -->
-                <div class="col-span-2">
-                    <span class="bg-gray-100 px-2 py-1 rounded text-xs">
-                        {{ task.project.name|default:"Devexhub Internal" }}
-                    </span>
-                </div>
+{% for task in tasks %}
+<a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" class="block hover:bg-gray-50 border-b last:border-b-0">
+    <div class="grid grid-cols-12 gap-2 p-3 items-center">
+        <!-- Name with time tracking -->
+        <div class="col-span-4">
+            <div class="font-medium">{{ task.name|truncatechars:40 }}</div>
+            <div class="text-sm text-gray-500">
+                {{ task.time_spent_display }} / {{ task.estimated_display }}
             </div>
-        </a>
-        {% empty %}
-        <div class="p-8 text-center text-gray-500">
-            No tasks assigned yet.
         </div>
-        {% endfor %}
+        
+        <!-- Active (Created date) -->
+        <div class="col-span-2 text-sm">
+            {{ task.created_display }}
+        </div>
+        
+        <!-- Deadlines -->
+        <div class="col-span-1 text-sm">
+            {{ task.deadline_display }}
+        </div>
+        
+        <!-- Created by (ForeignKey - single user) -->
+        <div class="col-span-1 text-sm">
+            {% if task.assigned_by %}
+                {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}
+            {% else %}
+                Saurav
+            {% endif %}
+        </div>
+        
+        <!-- Assignees (ManyToMany - multiple users) - FIXED -->
+        <div class="col-span-2 text-sm">
+            {% if task.assigned_to.all %}
+                {% for assignee in task.assigned_to.all %}
+                    {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            {% else %}
+                <span class="text-gray-400">Unassigned</span>
+            {% endif %}
+        </div>
+        
+        <!-- Tags (Project) -->
+        <div class="col-span-2">
+            <span class="bg-gray-100 px-2 py-1 rounded text-xs">
+                {{ task.project.name|default:"Devexhub Internal" }}
+            </span>
+        </div>
+    </div>
+</a>
+{% empty %}
+<div class="p-8 text-center text-gray-500">
+    No tasks assigned yet.
+</div>
+{% endfor %}
     </div>
 
     <!-- Pagination Footer -->

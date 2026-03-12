@@ -4,213 +4,318 @@
 {% block page_title %}Task Details{% endblock %}
 
 {% block content %}
-<div class="container mx-auto mt-8 max-w-3xl">
-    <!-- Back to Dashboard Link
-    <div class="mb-4">
-        <a href="{% url 'task_dashboard' %}" class="text-gray-600 hover:text-gray-900 flex items-center">
-            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
-            Back to My Tasks
-        </a>
-    </div> -->
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+    
+    <!-- Team Lead View Header -->
+    {% if viewing_employee %}
+    <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-blue-800">Tasks for: {{ viewing_employee.get_full_name|default:viewing_employee.username }}</h2>
+                <p class="text-sm text-blue-600">{{ tasks|length }} task{{ tasks|length|pluralize }} found</p>
+            </div>
+            <a href="{% url 'teamlead_view_users' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                ← Back to Team
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
     {% for task in tasks %}
-    <div class="bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden">
-        <!-- Task Name Header -->
-        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-            <h1 class="text-2xl font-bold text-gray-800">{{ task.name }}</h1>
+    <!-- Main Task Card -->
+    <div class="bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden mb-6">
+        <!-- Task Header with Status Badge -->
+        <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 border-b border-gray-200 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">{{ task.name }}</h1>
+                <p class="text-sm text-gray-500 mt-1">ID: {{ task.id }}</p>
+            </div>
+            <div>
+                <span class="px-4 py-2 rounded-full text-sm font-semibold 
+                    {% if task.status == 'PENDING' %}bg-red-100 text-red-700
+                    {% elif task.status == 'ONGOING' %}bg-yellow-100 text-yellow-700
+                    {% else %}bg-green-100 text-green-700{% endif %}">
+                    {{ task.get_status_display }}
+                </span>
+            </div>
         </div>
 
         <!-- Description Box (sky blue) -->
-        <div class="bg-blue-50 px-6 py-4 border-b border-gray-200">
+        <div class="bg-blue-50 px-8 py-5 border-b border-gray-200">
             <p class="text-gray-700">{{ task.description|default:"No description provided." }}</p>
         </div>
 
-        <!-- Main Content -->
-        <div class="p-6">
-            <!-- Task Owner -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Task owner:</span>
-                <p class="font-medium text-gray-800">
-                    {% if task.assigned_by %}
-                        {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}
-                    {% else %}
-                        Saurav
-                    {% endif %}
-                </p>
-            </div>
-
-            <!-- Deadline -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Deadline:</span>
-                <p class="font-medium text-gray-800">
-                    {% if task.deadline %}
-                        {{ task.deadline|date:"F d H:i" }}
-                    {% else %}
-                        {{ task.end_date|date:"F d" }} 18:20
-                    {% endif %}
-                </p>
-            </div>
-
-            <!-- Created -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Created:</span>
-                <p class="font-medium text-gray-800">{{ task.created_at|date:"F d H:i" }} / ID: {{ task.id }}</p>
-            </div>
-
-            <!-- Time tracking -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Time tracking:</span>
-                <p class="font-medium text-gray-800">
-                    <span id="timer-{{ task.id }}" class="font-mono">
-                        {% if task.status == "ONGOING" and task.start_time %}
-                            {{ task.current_display_time|default:"00:00:00" }}
-                        {% elif task.status == "COMPLETED" and task.total_time %}
-                            {{ task.total_time_display }}
-                        {% else %}
-                            00:00:00
-                        {% endif %}
-                    </span> / 01:00:00
-                </p>
-            </div>
-
-            <!-- Assignee -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Assignee:</span>
-                <p class="font-medium text-gray-800">{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</p>
-            </div>
-
-            <!-- Status -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Status:</span>
-                <p class="font-medium 
-                    {% if task.status == 'PENDING' %}text-red-600
-                    {% elif task.status == 'ONGOING' %}text-yellow-600
-                    {% else %}text-green-600{% endif %}">
-                    {{ task.get_status_display }}
-                </p>
-            </div>
-
-            <!-- Task status summary is required with + icon -->
-            <div class="mt-8 mb-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-gray-800 font-semibold text-lg">Task status summary is required</h2>
-                    
-                    {% if task.status == "ONGOING" and not task.paused_time %}
-                    <a href="{% url 'add_task_summary' task.id %}" 
-                    class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold">
-                        +
-                    </a>
-                    {% endif %}
-                </div>
-                
-                {% if task.summary %}
-                    <div class="mt-2 p-3 bg-gray-50 rounded-lg">
-                        <p class="text-gray-700">{{ task.summary }}</p>
+        <!-- Main Content in Grid Layout -->
+        <div class="p-8">
+            <!-- Two Column Grid for Details -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <!-- Left Column -->
+                <div class="space-y-5">
+                    <!-- Task Owner -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Task owner:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">
+                                {% if task.assigned_by %}
+                                    {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}
+                                {% else %}
+                                    Saurav
+                                {% endif %}
+                            </p>
+                        </div>
                     </div>
-                {% else %}
-                    <p class="text-gray-400 text-sm mt-1">No summary added yet.</p>
-                {% endif %}
-            </div>
-            
 
-            <!-- Project -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Project:</span>
-                <p class="font-medium text-gray-800">{{ task.project.name|default:"Devexhub Internal" }}</p>
-            </div>
+                    <!-- Deadline -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Deadline:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">
+                                {% if task.deadline %}
+                                    {{ task.deadline|date:"F d, Y H:i" }}
+                                {% else %}
+                                    {{ task.end_date|date:"F d, Y" }} 18:20
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
 
-            <!-- Stage -->
-            <div class="mb-4">
-                <span class="text-gray-500 text-sm">Stage:</span>
-                <p class="font-medium text-blue-600">{{ task.get_status_display }}</p>
-            </div>
+                    <!-- Created -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Created:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">{{ task.created_at|date:"F d, Y H:i" }} / ID: {{ task.id }}</p>
+                        </div>
+                    </div>
 
-            <!-- Observers -->
-            <div class="mb-6">
-                <span class="text-gray-500 text-sm">Observers:</span>
-                <div class="flex flex-wrap gap-2 mt-1">
-                    {% if task.observers.all %}
-                        {% for observer in task.observers.all %}
-                        <span class="bg-gray-100 px-3 py-1 rounded-full text-sm">
-                            {{ observer.get_full_name|default:observer.username }}
-                        </span>
-                        {% endfor %}
-                    {% else %}
-                        <span class="text-gray-400 text-sm">No observers</span>
-                    {% endif %}
+                    <!-- Time tracking -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Time tracking:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">
+                                <span id="timer-{{ task.id }}" class="font-mono bg-gray-100 px-3 py-1 rounded-lg">
+                                    {% if task.status == "ONGOING" and task.start_time %}
+                                        {{ task.current_display_time }}
+                                    {% elif task.status == "COMPLETED" and task.total_time %}
+                                        {{ task.total_time_display }}
+                                    {% else %}
+                                        00:00:00
+                                    {% endif %}
+                                </span> 
+                                <span class="text-gray-500 ml-2">/ {{ task.estimated_display }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - FIXED ASSIGNEE SECTION -->
+                <div class="space-y-5">
+                    <!-- Assignee (FIXED - handles multiple users) -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Assignee:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">
+                                {% if task.assigned_to.all %}
+                                    {% for assignee in task.assigned_to.all %}
+                                        {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-gray-400">Unassigned</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Status:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium 
+                                {% if task.status == 'PENDING' %}text-red-600
+                                {% elif task.status == 'ONGOING' %}text-yellow-600
+                                {% else %}text-green-600{% endif %}">
+                                {{ task.get_status_display }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Project -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Project:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">{{ task.project.name|default:"Devexhub Internal" }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Stage -->
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-gray-500 text-sm font-medium">Stage:</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-blue-600">{{ task.get_status_display }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="mt-8 flex space-x-4">
+            <!-- Observers Section -->
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <div class="flex items-start">
+                    <div class="w-28 flex-shrink-0">
+                        <span class="text-gray-500 text-sm font-medium">Observers:</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex flex-wrap gap-2">
+                            {% if task.observers.all %}
+                                {% for observer in task.observers.all %}
+                                <span class="bg-gray-100 px-4 py-2 rounded-full text-sm text-gray-700">
+                                    {{ observer.get_full_name|default:observer.username }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-gray-400 text-sm">No observers</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Summary Section -->
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <div class="flex items-start">
+                    <div class="w-28 flex-shrink-0">
+                        <span class="text-gray-500 text-sm font-medium">Summary:</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-2">
+                            <h2 class="text-gray-800 font-semibold">Task status summary is required</h2>
+                            
+                            {% if task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
+                            <a href="{% url 'add_task_summary' task.id %}" 
+                               class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
+                                +
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        {% if task.summary %}
+                            <div class="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <p class="text-gray-700">{{ task.summary }}</p>
+                            </div>
+                        {% else %}
+                            <p class="text-gray-400 text-sm italic">No summary added yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons - Only show for single task view -->
+            {% if tasks|length == 1 %}
+            <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
                 {% if task.status == "PENDING" %}
                     <a href="{% url 'start_task' task.id %}" 
-                       class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
-                        Start
+                       class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                        Start Task
                     </a>
                 {% elif task.status == "ONGOING" %}
                     {% if task.paused_time %}
                         <a href="{% url 'resume_task' task.id %}" 
-                           class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
-                            Resume
+                           class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                            Resume Task
                         </a>
                     {% else %}
                         <a href="{% url 'pause_task' task.id %}" 
-                           class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
-                            Pause
+                           class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                            Pause Task
                         </a>
                     {% endif %}
                     <a href="{% url 'complete_task' task.id %}" 
-                       class="bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-full text-sm font-medium transition">
-                        Complete
+                       class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                        Complete Task
                     </a>
                 {% elif task.status == "COMPLETED" %}
-                    <span class="bg-gray-400 text-white px-8 py-2 rounded-full text-sm font-medium">
-                        Completed
+                    <span class="bg-gray-400 text-white px-8 py-3 rounded-xl text-sm font-medium">
+                        Task Completed
                     </span>
                 {% endif %}
             </div>
+            {% else %}
+            <!-- For list view, show View Details link -->
+            <div class="mt-6 text-right">
+                <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" 
+                   class="inline-flex items-center text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    View Full Details
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
-
-    <!-- Live Timer JavaScript -->
-    {% if task.status == "ONGOING" and not task.paused_time and task.start_time %}
-    <script>
-        (function() {
-            const taskId = {{ task.id }};
-            const startTimeStr = "{{ task.start_time|date:'Y-m-d H:i:s' }}";
-            const startTime = new Date(startTimeStr.replace(' ', 'T')).getTime();
-            const pausedSeconds = {{ task.total_paused_duration.total_seconds|default:0 }};
-            const pausedDuration = pausedSeconds * 1000;
-            
-            function updateTimer() {
-                const now = new Date().getTime();
-                const elapsed = now - startTime - pausedDuration;
-                
-                if (elapsed < 0) {
-                    document.getElementById(`timer-${taskId}`).textContent = '00:00:00';
-                    return;
-                }
-                
-                const hours = Math.floor(elapsed / 3600000);
-                const minutes = Math.floor((elapsed % 3600000) / 60000);
-                const seconds = Math.floor((elapsed % 60000) / 1000);
-                
-                const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                
-                const timerElement = document.getElementById(`timer-${taskId}`);
-                if (timerElement) {
-                    timerElement.textContent = timeString;
-                }
-            }
-            
-            setInterval(updateTimer, 1000);
-            updateTimer();
-        })();
-    </script>
-    {% endif %}
+    {% empty %}
+    <!-- No Tasks State -->
+    <div class="bg-white shadow-xl rounded-2xl border border-gray-200 p-12 text-center">
+        <svg class="w-20 h-20 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+        </svg>
+        <h3 class="text-xl font-bold text-gray-700 mb-2">No Tasks Found</h3>
+        <p class="text-gray-500">No tasks available for this employee.</p>
+    </div>
     {% endfor %}
 </div>
+
+<!-- Live Timer JavaScript -->
+{% for task in tasks %}
+{% if task.status == "ONGOING" and not task.paused_time and task.start_time and tasks|length == 1 %}
+<script>
+    (function() {
+        const taskId = {{ task.id }};
+        const startTime = new Date("{{ task.start_time|date:'Y-m-d H:i:s' }}").getTime();
+        const pausedSeconds = {{ task.total_paused_duration.total_seconds|default:0 }};
+        const pausedDuration = pausedSeconds * 1000;
+        const estimatedSeconds = {{ task.estimated_time|default:3600 }};
+        
+        function updateTimer() {
+            const now = new Date().getTime();
+            const elapsed = now - startTime - pausedDuration;
+            
+            if (elapsed < 0) {
+                document.getElementById(`timer-${taskId}`).textContent = '00:00:00';
+                return;
+            }
+            
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            const timerElement = document.getElementById(`timer-${taskId}`);
+            if (timerElement) {
+                timerElement.textContent = timeString;
+            }
+        }
+        
+        setInterval(updateTimer, 1000);
+        updateTimer();
+    })();
+</script>
+{% endif %}
+{% endfor %}
+
 {% endblock %}

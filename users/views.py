@@ -333,8 +333,10 @@ def view_project_detail(request, project_id):
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
             task.time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            
         elif task.status == "COMPLETED" and task.total_time:
-            total_seconds = int(task.total_time.total_seconds())
+            # Format completed task time WITHOUT milliseconds
+            total_seconds = int(task.total_time.total_seconds())  # Convert to int to remove milliseconds
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
@@ -484,14 +486,73 @@ from .models import User
 @login_required
 @allowed_roles(allowed_roles=["ADMIN"])
 def admin_dashboard(request):
-    users = User.objects.all()  # Get all users from the database
-    return render(request, "admin_dashboard.html", {"users": users})
+    # User statistics
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    inactive_users = User.objects.filter(is_active=False).count()
+    
+    # Project statistics
+    total_projects = Projects.objects.count()
+    ongoing_projects = Projects.objects.filter(status='ONGOING').count()
+    
+    # Task statistics
+    total_tasks = Task.objects.count()
+    completed_tasks = Task.objects.filter(status='COMPLETED').count()
+    
+    # Recent items
+    recent_projects = Projects.objects.all().order_by('-start_date')[:5]
+    recent_tasks = Task.objects.all().order_by('-created_at')[:5]
+    
+    # All users for table
+    users = User.objects.all()
+    
+    context = {
+        'total_users': total_users,
+        'active_users': active_users,
+        'inactive_users': inactive_users,
+        'total_projects': total_projects,
+        'ongoing_projects': ongoing_projects,
+        'total_tasks': total_tasks,
+        'completed_tasks': completed_tasks,
+        'recent_projects': recent_projects,
+        'recent_tasks': recent_tasks,
+        'users': users,
+    }
+    return render(request, 'admin_dashboard.html', context)
 
+@login_required
+# users/views.py
+# users/views.py
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD"])
 def teamlead_dashboard(request):
-    return render(request, "teamlead_dashboard.html")
-
+    # Get statistics
+    total_projects = Projects.objects.count()
+    active_tasks = Task.objects.filter(status='ONGOING').count()
+    completed_tasks = Task.objects.filter(status='COMPLETED').count()
+    team_members = User.objects.filter(role='EMPLOYEE').count()
+    active_members = User.objects.filter(role='EMPLOYEE', is_active=True).count()
+    
+    # Get recent projects - using start_date or end_date instead of created_at
+    recent_projects = Projects.objects.all().order_by('-start_date')[:5]  # or use '-end_date'
+    
+    # Get pending tasks
+    pending_tasks = Task.objects.filter(status='PENDING').order_by('-created_at')[:5]
+    
+    # Get team members list
+    team_members_list = User.objects.filter(role='EMPLOYEE')[:4]
+    
+    context = {
+        'total_projects': total_projects,
+        'active_tasks': active_tasks,
+        'completed_tasks': completed_tasks,
+        'team_members': team_members,
+        'active_members': active_members,
+        'recent_projects': recent_projects,
+        'pending_tasks': pending_tasks,
+        'team_members_list': team_members_list,
+    }
+    return render(request, 'teamlead_dashboard.html', context)
 
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
@@ -730,35 +791,37 @@ def assign_task(request):
             task = form.save(commit=False)
             
             # Step 2: Set any additional fields if needed
-            # assigned_employee is already set from form
             assigner = request.user
             
             # Step 3: Save the task to DB
             task.save()
             
-            # Step 4: CRITICAL - Save ManyToMany fields (observers!)
-            form.save_m2m()  # This saves the observers relationship
+            # Step 4: CRITICAL - Save ALL ManyToMany fields (assigned_to AND observers!)
+            form.save_m2m()  # This saves BOTH assigned_to and observers relationships
             
-            # Step 5: Create notification for the assigned employee
+            # Step 5: Create notifications for ALL assigned employees
             from notifications.models import Notification
-            if not Notification.objects.filter(
-                user=task.assigned_to, 
-                message=f'Task "{task.name}" has been assigned to you'
-            ).exists():
-                Notification.objects.create(
-                    user=task.assigned_to,
+            for employee in task.assigned_to.all():  # Loop through all assigned employees
+                if not Notification.objects.filter(
+                    user=employee, 
                     message=f'Task "{task.name}" has been assigned to you'
-                )
+                ).exists():
+                    Notification.objects.create(
+                        user=employee,
+                        message=f'Task "{task.name}" has been assigned to you'
+                    )
             
             # Step 6: Create notifications for observers (if any)
-            # This sends notifications to the observers that were just saved
+            # Create a list of assignee names for the message
+            assignee_names = ", ".join([u.get_full_name() or u.username for u in task.assigned_to.all()])
+            
             for observer in task.observers.all():
                 Notification.objects.create(
                     user=observer,
-                    message=f'Task "{task.name}" has been assigned to {task.assigned_to.username}'
+                    message=f'Task "{task.name}" has been assigned to {assignee_names}'
                 )
 
-            messages.success(request, f'Task "{task.name}" assigned successfully with {task.observers.count()} observers!')
+            messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s) with {task.observers.count()} observer(s)!')
             return redirect("teamlead_dashboard")
         else:
             # Form is invalid, show errors
@@ -769,7 +832,6 @@ def assign_task(request):
         form = TaskForm()
 
     return render(request, "assign_task.html", {"form": form})
-
 
 ## Create Project
 from projects.forms import  ProjectResourceFormSet
@@ -811,12 +873,17 @@ def create_project(request):
 
 ## task_dashboard
 @login_required
-@allowed_roles(allowed_roles=["EMPLOYEE","ADMIN","ADMIN"])
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN", "TEAM_LEAD"])
 def task_dashboard(request):
-    """NEW: Task dashboard showing all tasks in list view (Page 1)"""
+    """Task dashboard showing all tasks in list view (Page 1)"""
     
-    # Get all tasks assigned to current user
-    tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+    # Get tasks based on user role
+    if request.user.role == "EMPLOYEE":
+        # Employees see only their own tasks
+        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+    else:
+        # Admins and Team Leads see ALL tasks
+        tasks = Task.objects.all().order_by('-created_at')
     
     # Statistics
     total_tasks = tasks.count()
@@ -863,8 +930,8 @@ def task_dashboard(request):
         'total_tasks': total_tasks,
         'overdue_tasks': overdue_tasks,
         'selected_count': 0,
+        'user_role': request.user.role,  # Optional: pass role to template
     }
-    
     return render(request, 'task_dashboard.html', context)
 
 
@@ -874,17 +941,25 @@ def task_dashboard(request):
 def add_task_summary(request, task_id):
     task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
     
+    # Optional: Check if task is in correct state
+    if task.status != "ONGOING":
+        messages.error(request, "You can only add summary to ongoing tasks.")
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    
     if request.method == 'POST':
         summary = request.POST.get('summary')
-        if summary:
-            task.summary = summary
+        if summary and summary.strip():  # Check if summary is not empty
+            task.summary = summary.strip()
             task.save()
-            messages.success(request, "Summary added!")
-            return redirect('complete_task', task_id=task.id)
+            messages.success(request, "Summary added successfully! You can now complete the task.")
+            # Redirect back to task detail
+            return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
         else:
-            messages.error(request, "Please enter a summary.")
+            messages.error(request, "Please enter a valid summary.")
     
     return render(request, 'add_task_summary.html', {'task': task})
+
+
 
 
 
@@ -893,56 +968,23 @@ import math
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "TEAM_LEAD", "ADMIN"])
 def employee_tasks(request):
-    # Check if a specific task ID is requested
     task_id = request.GET.get('task_id')
+    employee_id = request.GET.get('employee_id')  # Add this for team lead view
     
-    if task_id:
-        # SINGLE TASK VIEW - Show specific task by ID
-        try:
-            task = Task.objects.get(id=task_id)
-            
-            # Permission check:
-            # - EMPLOYEE can only see tasks assigned to them
-            # - ADMIN/TEAM_LEAD can see any task
-            if request.user.role == "EMPLOYEE" and task.assigned_to != request.user:
-                messages.error(request, "You don't have permission to view this task.")
-                return redirect('task_dashboard')
-            
-            tasks = [task]  # Put in list for template
-            
-            # Calculate time display for this task
-            if task.status == "ONGOING" and task.start_time:
-                elapsed = timezone.now() - task.start_time
-                if task.total_paused_duration:
-                    elapsed = elapsed - task.total_paused_duration
-                if task.paused_time:
-                    current_pause = timezone.now() - task.paused_time
-                    elapsed = elapsed - current_pause
-                
-                total_seconds = int(elapsed.total_seconds())
-                hours = total_seconds // 3600
-                minutes = (total_seconds % 3600) // 60
-                seconds = total_seconds % 60
-                task.current_display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                task.progress_percentage = min(100, int((total_seconds / 14400) * 100))
-            
-            elif task.status == "COMPLETED" and task.total_time:
-                total_seconds = int(task.total_time.total_seconds())
-                hours = total_seconds // 3600
-                minutes = (total_seconds % 3600) // 60
-                seconds = total_seconds % 60
-                task.total_time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-            
-        except Task.DoesNotExist:
-            messages.error(request, f"Task with ID {task_id} not found.")
-            return redirect('task_dashboard')
-    
-    else:
-        # TASK LIST VIEW - Show all tasks assigned to current user
-        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+    # Case 1: Team lead viewing specific employee's tasks
+    if employee_id and request.user.role in ['TEAM_LEAD', 'ADMIN']:
+        employee = get_object_or_404(User, id=employee_id)
+        tasks = Task.objects.filter(assigned_to=employee).order_by('-created_at')
         
-        # Calculate time display for each task (for list view)
+        # Add calculated fields for each task
         for task in tasks:
+            if task.estimated_time:
+                hours = task.estimated_time // 3600
+                minutes = (task.estimated_time % 3600) // 60
+                task.estimated_display = f"{hours:02d}:{minutes:02d}:00"
+            else:
+                task.estimated_display = "01:00:00"
+            
             if task.status == "ONGOING" and task.start_time:
                 elapsed = timezone.now() - task.start_time
                 if task.total_paused_duration:
@@ -956,7 +998,6 @@ def employee_tasks(request):
                 minutes = (total_seconds % 3600) // 60
                 seconds = total_seconds % 60
                 task.current_display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                task.progress_percentage = min(100, int((total_seconds / 14400) * 100))
             
             elif task.status == "COMPLETED" and task.total_time:
                 total_seconds = int(task.total_time.total_seconds())
@@ -964,13 +1005,69 @@ def employee_tasks(request):
                 minutes = (total_seconds % 3600) // 60
                 seconds = total_seconds % 60
                 task.total_time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
+        return render(request, "employee_tasks.html", {
+            'tasks': tasks,
+            'current_time': timezone.now(),
+            'viewing_employee': employee  # Optional: pass employee info to template
+        })
     
-    context = {
+    # Case 2: Viewing single task by ID
+    elif task_id:
+        task = get_object_or_404(Task, id=task_id)
+        
+        # Permission check: Employee can only view their own tasks
+        if request.user.role == "EMPLOYEE" and task.assigned_to != request.user:
+            messages.error(request, "You don't have permission to view this task.")
+            return redirect('task_dashboard')
+        
+        tasks = [task]
+        
+        # Format estimated time for display
+        if task.estimated_time:
+            hours = task.estimated_time // 3600
+            minutes = (task.estimated_time % 3600) // 60
+            task.estimated_display = f"{hours:02d}:{minutes:02d}:00"
+        else:
+            task.estimated_display = "01:00:00"
+        
+        # Calculate current time for ongoing tasks
+        if task.status == "ONGOING" and task.start_time:
+            elapsed = timezone.now() - task.start_time
+            if task.total_paused_duration:
+                elapsed = elapsed - task.total_paused_duration
+            if task.paused_time:
+                current_pause = timezone.now() - task.paused_time
+                elapsed = elapsed - current_pause
+            
+            total_seconds = int(elapsed.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            task.current_display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
+        # Format completed task time
+        elif task.status == "COMPLETED" and task.total_time:
+            total_seconds = int(task.total_time.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            task.total_time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    # Case 3: Employee viewing their own tasks list
+    else:
+        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+        for task in tasks:
+            if task.estimated_time:
+                hours = task.estimated_time // 3600
+                minutes = (task.estimated_time % 3600) // 60
+                task.estimated_display = f"{hours:02d}:{minutes:02d}:00"
+    
+    return render(request, "employee_tasks.html", {
         'tasks': tasks,
-        'current_time': timezone.now(),
-        'is_single_task': task_id is not None  # Optional: for template to know if single view
-    }
-    return render(request, "employee_tasks.html", context)
+        'current_time': timezone.now()
+    })
+
 
 ## update task status
 @login_required
@@ -1093,6 +1190,12 @@ def complete_task(request, task_id):
     if task.status == "COMPLETED":
         messages.error(request, 'Task is already completed.')
         return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
+
+    # IMPORTANT: Check if summary exists
+    if not task.summary:
+        messages.error(request, 'Please add a task summary before completing.')
+        return redirect('add_task_summary', task_id=task.id)
+
 
     # If task is ongoing, calculate final time
     if task.status == "ONGOING" and task.start_time:

@@ -124,9 +124,18 @@
                             <div class="font-medium text-gray-800">{{ task.name }}</div>
                             <div class="text-xs text-gray-500">ID: {{ task.id }}</div>
                         </td>
+                        
+                        <!-- FIXED: Assigned To (Multiple users) -->
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
+                            {% if task.assigned_to.all %}
+                                {% for assignee in task.assigned_to.all %}
+                                    {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-gray-400">Unassigned</span>
+                            {% endif %}
                         </td>
+                        
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if task.status == "PENDING" %}
                                 <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
@@ -151,9 +160,9 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             {% if task.status == "ONGOING" and task.start_time %}
-                                {{ task.time_display|default:"00:00" }}
+                                {{ task.time_display }}
                             {% elif task.status == "COMPLETED" and task.total_time %}
-                                {{ task.total_time|time:"H:i:s" }}
+                                {{ task.time_display }}
                             {% else %}
                                 --
                             {% endif %}

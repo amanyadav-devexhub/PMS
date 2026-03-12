@@ -6,7 +6,7 @@
 
 {% block content %}
 
-<div class="max-w-3xl mx-auto">
+<div class="max-w-4xl mx-auto">
 
     <!-- Card -->
     <div class="bg-white shadow-lg rounded-lg p-8">
@@ -20,24 +20,136 @@
 
             {{ form.non_field_errors }}
 
-            {% for field in form %}
+            <!-- Task Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Task Name <span class="text-red-500">*</span>
+                </label>
+                {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.name.errors }}
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Description
+                </label>
+                {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.description.errors }}
+            </div>
+
+            <!-- Project -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Project <span class="text-red-500">*</span>
+                </label>
+                {{ form.project|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.project.errors }}
+            </div>
+
+            <!-- Assigned To (Multiple) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">
+                    Assign to <span class="text-red-500">*</span>
+                </label>
+                <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
+                    {% for user in form.assigned_to.field.queryset %}
+                        <div class="flex items-center space-x-2 py-1">
+                            <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
+                                   id="user_{{ user.id }}"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                   {% if user in form.assigned_to.value %}checked{% endif %}>
+                            <label for="user_{{ user.id }}" class="text-sm text-gray-700">
+                                {{ user.get_full_name|default:user.username }} ({{ user.email }})
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                {{ form.assigned_to.errors }}
+            </div>
+
+            <!-- Task Owner -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Task Owner <span class="text-red-500">*</span>
+                </label>
+                {{ form.assigned_by|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.assigned_by.errors }}
+            </div>
+
+            <!-- Status -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Status <span class="text-red-500">*</span>
+                </label>
+                {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.status.errors }}
+            </div>
+
+            <!-- Start and End Date -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">
-                        {{ field.label }}
+                        Start Date <span class="text-red-500">*</span>
                     </label>
-
-                    {{ field|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-
-                    {% if field.errors %}
-                        <p class="text-red-500 text-sm mt-1">
-                            {{ field.errors }}
-                        </p>
-                    {% endif %}
+                    {{ form.start_date|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                    {{ form.start_date.errors }}
                 </div>
-            {% endfor %}
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">
+                        End Date <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.end_date|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                    {{ form.end_date.errors }}
+                </div>
+            </div>
+
+            <!-- Deadline with time -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Deadline <span class="text-gray-400 text-xs">(with time)</span>
+                </label>
+                {{ form.deadline|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {% if form.deadline.help_text %}
+                    <p class="text-xs text-gray-400 mt-1">{{ form.deadline.help_text }}</p>
+                {% endif %}
+                {{ form.deadline.errors }}
+            </div>
+
+            <!-- Estimated Time -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Estimated Time (seconds) <span class="text-gray-400 text-xs">(3600 = 1 hour)</span>
+                </label>
+                {{ form.estimated_time|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.estimated_time.errors }}
+            </div>
+
+            <!-- Observers (Multiple) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">
+                    Observers
+                </label>
+                <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
+                    {% for user in form.observers.field.queryset %}
+                        <div class="flex items-center space-x-2 py-1">
+                            <input type="checkbox" name="observers" value="{{ user.id }}" 
+                                   id="observer_{{ user.id }}"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                   {% if user in form.observers.value %}checked{% endif %}>
+                            <label for="observer_{{ user.id }}" class="text-sm text-gray-700">
+                                {{ user.get_full_name|default:user.username }} ({{ user.email }})
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple observers</p>
+                {{ form.observers.errors }}
+            </div>
 
             <!-- Buttons -->
-            <div class="flex items-center gap-4 pt-4">
+            <div class="flex items-center gap-4 pt-6 mt-6 border-t border-gray-200">
                 <button type="submit"
                         class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded shadow transition">
                     Assign Task
@@ -45,7 +157,7 @@
 
                 <a href="{% url 'teamlead_dashboard' %}"
                    class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded shadow transition">
-                    Back
+                    Cancel
                 </a>
             </div>
 
