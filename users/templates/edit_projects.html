@@ -62,7 +62,7 @@
                             <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
                                    id="user_{{ user.id }}"
                                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                   {% if user in form.assigned_to.value %}checked{% endif %}>
+                                   {% if user in project.assigned_to.all %}checked{% endif %}>
                             <label for="user_{{ user.id }}" class="text-sm text-gray-700 cursor-pointer flex-1">
                                 <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
                                 <span class="text-xs text-gray-500 ml-2">({{ user.email }})</span>

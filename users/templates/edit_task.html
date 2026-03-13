@@ -5,6 +5,8 @@
 
 {% block content %}
 
+
+
 <div class="max-w-4xl mx-auto">
 
     <!-- Card -->
@@ -125,14 +127,66 @@
                 {{ form.deadline.errors }}
             </div>
 
-            <!-- Estimated Time -->
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">
-                    Estimated Time (seconds) <span class="text-gray-400 text-xs">(3600 = 1 hour)</span>
+            <!-- Estimated Time - HOURS & MINUTES (SIMPLE) -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-600 mb-2">
+                    Estimated Time <span class="text-red-500">*</span>
                 </label>
-                {{ form.estimated_time }}
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <input type="number" name="estimated_hours" id="estimated_hours" 
+                            min="0" max="24" step="1" 
+                            value="1"
+                            class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                            placeholder="Hours">
+                    </div>
+                    <div>
+                        <input type="number" name="estimated_minutes" id="estimated_minutes" 
+                            min="0" max="59" step="1" 
+                            value="0"
+                            class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                            placeholder="Minutes">
+                    </div>
+                </div>
+                
+                <!-- Hidden field to store total seconds - initial value from task -->
+                <input type="hidden" name="estimated_time" id="estimated_time" value="{{ task.estimated_time|default:3600 }}">
+                
+                <p class="text-xs text-gray-400 mt-2">Enter hours and minutes</p>
                 {{ form.estimated_time.errors }}
             </div>
+
+            <script>
+                // Set initial values from the hidden field
+                document.addEventListener('DOMContentLoaded', function() {
+                    const totalSeconds = parseInt(document.getElementById('estimated_time').value) || 3600;
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    
+                    document.getElementById('estimated_hours').value = hours;
+                    document.getElementById('estimated_minutes').value = minutes;
+                });
+
+                // Auto-calculate total seconds when hours/minutes change
+                document.getElementById('estimated_hours').addEventListener('input', updateEstimatedTime);
+                document.getElementById('estimated_minutes').addEventListener('input', updateEstimatedTime);
+                
+                function updateEstimatedTime() {
+                    const hours = parseInt(document.getElementById('estimated_hours').value) || 0;
+                    let minutes = parseInt(document.getElementById('estimated_minutes').value) || 0;
+                    
+                    // Validate minutes (max 59)
+                    if (minutes > 59) {
+                        document.getElementById('estimated_minutes').value = 59;
+                        minutes = 59;
+                    }
+                    
+                    // Convert to seconds for database storage
+                    const totalSeconds = (hours * 3600) + (minutes * 60);
+                    document.getElementById('estimated_time').value = totalSeconds;
+                }
+            </script>
 
             <!-- Observers (Multiple) -->
             <div>
@@ -210,4 +264,28 @@
     </div>
 
 </div>
+
+<script>
+    // Auto-calculate total seconds when hours/minutes change
+    document.getElementById('estimated_hours').addEventListener('input', updateEstimatedTime);
+    document.getElementById('estimated_minutes').addEventListener('input', updateEstimatedTime);
+    
+    function updateEstimatedTime() {
+        const hours = parseInt(document.getElementById('estimated_hours').value) || 0;
+        let minutes = parseInt(document.getElementById('estimated_minutes').value) || 0;
+        
+        // Validate minutes (max 59)
+        if (minutes > 59) {
+            document.getElementById('estimated_minutes').value = 59;
+            minutes = 59;
+        }
+        
+        // Convert to seconds for database storage
+        const totalSeconds = (hours * 3600) + (minutes * 60);
+        document.getElementById('estimated_time').value = totalSeconds;
+        
+        console.log(`Time set to: ${hours}h ${minutes}m (${totalSeconds}s)`);
+    }
+</script>
+
 {% endblock %}

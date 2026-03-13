@@ -86,6 +86,16 @@
         text-align: center;
         color: #dc2626;
     }
+
+    /* New style for inactive account message */
+    .error-inactive {
+        background-color: #fee2e2;
+        border-left: 4px solid #dc2626;
+        padding: 12px;
+        border-radius: 6px;
+        color: #7f1d1d;
+        font-weight: 500;
+    }
 </style>
 </head>
 
@@ -96,42 +106,31 @@
 
     <form id="loginForm">
         {% csrf_token %}
-
         
         <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" autocomplete="email">
         </div>
-
-        <!-- <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" autocomplete="username">
-        </div> -->
 
         <div class="form-group">
             <label for="password">Password</label>
             <input type="password" id="password" autocomplete="current-password">
         </div>
         
-        <!-- <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" autocomplete="email">
-        </div> -->
-
         <button type="submit">Sign In</button>
-        <p id="error"></p>
+        <div id="error"></div>
     </form>
 
     <div class="text-center mt-4">
-            <a href="{% url 'reset_password' %}" class="text-blue-500 hover:text-blue-600 font-medium">Forgot Password?</a>
-        </div>
+        <a href="{% url 'reset_password' %}" class="text-blue-500 hover:text-blue-600 font-medium">Forgot Password?</a>
+    </div>
 </div>
 
 <script>
 const form = document.getElementById("loginForm");
 const passwordInput = document.getElementById("password");
 const emailInput = document.getElementById("email");
-const errorEL = document.getElementById("error");
+const errorDiv = document.getElementById("error");
 
 function getCSRFToken() {
     return document.cookie
@@ -147,16 +146,19 @@ form.addEventListener("submit", function (event) {
     const password = passwordInput.value.trim();
 
     if (!email) {
-        errorEL.textContent = "Email is required";
+        errorDiv.textContent = "Email is required";
+        errorDiv.className = "";
         return;
     }
 
     if (!password) {
-        errorEL.textContent = "Password is required";
+        errorDiv.textContent = "Password is required";
+        errorDiv.className = "";
         return;
     }
 
-    errorEL.textContent = "";
+    errorDiv.textContent = "";
+    errorDiv.className = "";
 
     fetch("/ajax_login/", {
         method: "POST",
@@ -169,7 +171,7 @@ form.addEventListener("submit", function (event) {
     .then(res => res.json())
     .then(data => {
         if (data.status === "success") {
-            // ✅ YOUR REQUESTED LOGIC
+            // Redirect based on role
             if (data.role === "ADMIN") {
                 window.location.href = "/admin_dashboard/";
             } else if (data.role === "TEAM_LEAD") {
@@ -178,11 +180,20 @@ form.addEventListener("submit", function (event) {
                 window.location.href = "/employee_dashboard/";
             }
         } else {
-            errorEL.textContent = data.error || "Login failed";
+            // Show error message
+            errorDiv.textContent = data.error || "Login failed";
+            
+            // Special styling for inactive account message
+            if (data.error && data.error.includes("inactive")) {
+                errorDiv.className = "error-inactive";
+            } else {
+                errorDiv.className = "";
+            }
         }
     })
     .catch(() => {
-        errorEL.textContent = "Server error";
+        errorDiv.textContent = "Server error. Please try again.";
+        errorDiv.className = "";
     });
 });
 </script>

@@ -57,49 +57,8 @@ def login_view(request):
 
 from django.http import JsonResponse
 import json
-## ajax_login
+
 from rest_framework_simplejwt.tokens import RefreshToken
-
-# def ajax_login(request):
-#     if request.method != "POST":
-#         return JsonResponse({
-#             "status": "error",
-#             "message": "Invalid request method"
-#         }, status=405)
-
-#     try:
-#         data = json.loads(request.body)
-#     except json.JSONDecodeError:
-#         return JsonResponse({
-#             "status": "error",
-#             "message": "Invalid JSON"
-#         }, status=400)
-
-#     username = data.get("username")
-#     password = data.get("password")
-
-#     if not username or not password:
-#         return JsonResponse({
-#             "status": "error",
-#             "message": "Username and password required"
-#         }, status=400)
-
-#     user = authenticate(request, username=username, password=password)
-#     if user is None:
-#         return JsonResponse({
-#             "status": "error",
-#             "message": "Invalid credentials"
-#         }, status=401)
-
-#     login(request, user)
-
-#     refresh = RefreshToken.for_user(user)
-
-#     return JsonResponse({
-#         "status": "success",
-#         "access": str(refresh.access_token),
-#         "refresh": str(refresh)
-#     })
 from django.http import JsonResponse
 from django.contrib.auth import authenticate,get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -107,6 +66,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 User = get_user_model()
 
+## ajax login
 @csrf_exempt
 def ajax_login(request):
     if request.method != "POST":
@@ -138,14 +98,23 @@ def ajax_login(request):
             status=400
         )
     
+    # STEP 1: Check if user exists
     try:
-        User.objects.get(email=email)
+        user = User.objects.get(email=email)
     except User.DoesNotExist:
         return JsonResponse(
             {"status": "error", "error": "Email does not exist"},
             status=401
         )
+    
+    # STEP 2: Check if user is inactive
+    if not user.is_active:
+        return JsonResponse(
+            {"status": "error", "error": "⛔ Your account is inactive. Please contact the administrator."},
+            status=403
+        )
 
+    # STEP 3: Authenticate user
     user = authenticate(request, username=email, password=password)
 
     if user is None:
@@ -154,60 +123,21 @@ def ajax_login(request):
             status=401
         )
 
+    # STEP 4: Login successful
     login(request, user)
 
-    # Example role logic — adjust to your model
-    role = getattr(user, "role", "EMPLOYEE")     ## getattr(object, "attribute_name", default_value) -- getattr() is a Python function used to safely get an attribute from an object.
+    # Get user role
+    role = getattr(user, "role", "EMPLOYEE")
 
     return JsonResponse({
         "status": "success",
         "role": role
     })
 
-    # from django.contrib.auth import get_user_model
-    # User = get_user_model()
-
-    # Find user by email or username
-    # try:
-    #     if email:
-    #         user_obj = User.objects.get(email=email)
-    # except User.DoesNotExist:
-    #     return JsonResponse(
-    #         {"status": "error", "message": "User does not exist"},
-    #         status=401
-    #     )
-
-    # # Authenticate using username (Django requires username internally)
-    # user = authenticate(request,username=user_obj, password=password)
-    # print("gghghghg")
-    # if user is None:
-    #     return JsonResponse(
-    #         {"status": "error", "message": "Incorrect password"},
-    #         status=401
-    #     )
-
-
-    # refresh = RefreshToken.for_user(user)
-
-    # return JsonResponse({
-    #     "status": "success",
-    #     "role" : user.role,
-    #     "access": str(refresh.access_token),
-    #     "refresh": str(refresh),
-        
-    # })
-
 # from rest_framework.decorators import api_view, permission_classes
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.response import Response
 
-# @api_view(["GET", "POST"])
-# @permission_classes([IsAuthenticated])
-# def protected_view(request):
-#     return Response({
-#         "status": "success",
-#         "user": request.user.username
-#     })
 
 ## View Projects
 def view_projects(request):
@@ -230,6 +160,7 @@ def view_projects(request):
 
     return render(request, "view_projects.html", context)
 
+
 ## edit Projects
 @login_required
 @allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
@@ -251,7 +182,7 @@ def edit_projects(request,project_id):
     })
 
 
-## edit project
+## edit task
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 def edit_task(request, task_id):
@@ -287,6 +218,7 @@ def edit_task(request, task_id):
     }
     return render(request, 'edit_task.html', context)
 
+
 ## delete task
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
@@ -309,9 +241,7 @@ def delete_task(request, task_id):
 
 
 
-
-
-# ## view_project_details
+### view_project_details
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD", "EMPLOYEE"])
 def view_project_detail(request, project_id):
@@ -647,40 +577,48 @@ If you did not register on our site, please ignore this email.
 @login_required
 @allowed_roles(['ADMIN'])
 def edit_user(request, user_id):
-    ## for understanding
-    # get_object_or_404() requires two arguments:
-    # get_object_or_404(Model, condition)
-    user = get_object_or_404(User,id=user_id)
-    profile, created = UserProfile.objects.get_or_create(user=user) ## it automatically created profile if it is missed
+    # Get user and their profile
+    user = get_object_or_404(User, id=user_id)
+    profile, created = UserProfile.objects.get_or_create(user=user)
+    
+    # Get all departments and designations for dropdowns
     departments = Department.objects.all()
     designations = Designation.objects.all()
 
     if request.method == "POST":
-        user.email = request.POST.get("email")
-        user.username = request.POST.get("username")
-        user.role = request.POST.get("role")
+        # Get form data
+        email = request.POST.get("email")
+        username = request.POST.get("username")
+        role = request.POST.get("role")
+        is_active = request.POST.get("is_active")
+        
+        # Update user
+        user.email = email
+        user.username = username
+        user.role = role
+        user.is_active = (is_active == "True")  # Convert to boolean
         user.save()
 
-        # DROPDOWN LOGIC
+        # Update profile
         profile.department_id = request.POST.get("department")
         profile.designation_id = request.POST.get("designation")
-        profile.employee_id = request.POST.get("employee_id")
-        profile.phone = request.POST.get("phone")
-        profile.date_of_joining = request.POST.get("date_of_joining")
-
+        profile.employee_id = request.POST.get("employee_id") or None  # Empty becomes None
+        profile.phone = request.POST.get("phone") or None
+        profile.date_of_joining = request.POST.get("date_of_joining") or None
         profile.save()
 
         messages.success(request, "User updated successfully")
         return redirect("admin_view_users")
     
+    # For GET request - show the form
     context = {
         "user": user,
         "profile": profile,
         "departments": departments,
         "designations": designations
     }
+    return render(request, "edit_user.html", context)
 
-    return render(request, "edit_user.html",context)
 
 
 ## Members dashboard function
@@ -740,17 +678,43 @@ def create_user(request):
         profile_form = UserProfileForm(request.POST)
 
         if user_form.is_valid() and profile_form.is_valid():
-            # Save User first
-            user = user_form.save(commit=False)
-            user.set_password(user_form.cleaned_data['password1'])
-            user.save()
+            try:
+                # Step 1: Save the User (but don't commit to DB yet)
+                user = user_form.save(commit=False)
+                user.set_password(user_form.cleaned_data['password1'])
+                user.save()  # ✅ Now user is saved to database
+                
+                # Step 2: The SIGNAL automatically creates a UserProfile here!
+                # When user.save() runs, the signal fires and creates a profile
+                
+                # Step 3: Get the existing profile created by the signal
+                profile = user.profile  # ← This gets the profile from the database
+                
+                # Step 4: Update the existing profile with form data
+                profile.employee_id = profile_form.cleaned_data.get('employee_id')
+                profile.phone = profile_form.cleaned_data.get('phone')
+                profile.department = profile_form.cleaned_data.get('department')
+                profile.designation = profile_form.cleaned_data.get('designation')
+                profile.date_of_joining = profile_form.cleaned_data.get('date_of_joining')
+                profile.save()  # ✅ Update the profile with new data
 
-            # Save profile
-            profile = profile_form.save(commit=False)
-            profile.user = user
-            profile.save()
-
-            return redirect("admin_dashboard")
+                messages.success(request, f"User '{user.username}' created successfully!")
+                return redirect("admin_dashboard")
+                
+            except Exception as e:
+                print(f"ERROR: {str(e)}")
+                messages.error(request, f"Error creating user: {str(e)}")
+        else:
+            # Form validation failed
+            if not user_form.is_valid():
+                for field, errors in user_form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"User Form - {field}: {error}")
+            
+            if not profile_form.is_valid():
+                for field, errors in profile_form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"Profile Form - {field}: {error}")
     else:
         user_form = UserRegisterForm()
         profile_form = UserProfileForm()
@@ -759,6 +723,7 @@ def create_user(request):
         "user_form": user_form,
         "profile_form": profile_form
     })
+
 
 ## delete user
 from django.shortcuts import get_object_or_404
@@ -790,16 +755,21 @@ def assign_task(request):
             # Step 1: Save the task instance but don't commit to DB yet
             task = form.save(commit=False)
             
-            # Step 2: Set any additional fields if needed
+            # Step 2: Get estimated time from the hidden field (if using dropdowns)
+            estimated_time = request.POST.get('estimated_time')
+            if estimated_time:
+                task.estimated_time = int(estimated_time)
+            
+            # Step 3: Set any additional fields if needed
             assigner = request.user
             
-            # Step 3: Save the task to DB
+            # Step 4: Save the task to DB
             task.save()
             
-            # Step 4: CRITICAL - Save ALL ManyToMany fields (assigned_to AND observers!)
+            # Step 5: CRITICAL - Save ALL ManyToMany fields (assigned_to AND observers!)
             form.save_m2m()  # This saves BOTH assigned_to and observers relationships
             
-            # Step 5: Create notifications for ALL assigned employees
+            # Step 6: Create notifications for ALL assigned employees
             from notifications.models import Notification
             for employee in task.assigned_to.all():  # Loop through all assigned employees
                 if not Notification.objects.filter(
@@ -811,7 +781,7 @@ def assign_task(request):
                         message=f'Task "{task.name}" has been assigned to you'
                     )
             
-            # Step 6: Create notifications for observers (if any)
+            # Step 7: Create notifications for observers (if any)
             # Create a list of assignee names for the message
             assignee_names = ", ".join([u.get_full_name() or u.username for u in task.assigned_to.all()])
             
@@ -821,7 +791,14 @@ def assign_task(request):
                     message=f'Task "{task.name}" has been assigned to {assignee_names}'
                 )
 
-            messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s) with {task.observers.count()} observer(s)!')
+            # Format estimated time for success message
+            hours = task.estimated_time // 3600
+            minutes = (task.estimated_time % 3600) // 60
+            time_display = f"{hours} hour{'s' if hours != 1 else ''}"
+            if minutes > 0:
+                time_display += f" {minutes} minute{'s' if minutes != 1 else ''}"
+
+            messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s) with {task.observers.count()} observer(s)! (Est. time: {time_display})')
             return redirect("teamlead_dashboard")
         else:
             # Form is invalid, show errors
@@ -832,6 +809,7 @@ def assign_task(request):
         form = TaskForm()
 
     return render(request, "assign_task.html", {"form": form})
+
 
 ## Create Project
 from projects.forms import  ProjectResourceFormSet
@@ -969,7 +947,7 @@ import math
 @allowed_roles(allowed_roles=["EMPLOYEE", "TEAM_LEAD", "ADMIN"])
 def employee_tasks(request):
     task_id = request.GET.get('task_id')
-    employee_id = request.GET.get('employee_id')  # Add this for team lead view
+    employee_id = request.GET.get('employee_id')
     
     # Case 1: Team lead viewing specific employee's tasks
     if employee_id and request.user.role in ['TEAM_LEAD', 'ADMIN']:
@@ -1009,17 +987,19 @@ def employee_tasks(request):
         return render(request, "employee_tasks.html", {
             'tasks': tasks,
             'current_time': timezone.now(),
-            'viewing_employee': employee  # Optional: pass employee info to template
+            'viewing_employee': employee
         })
     
-    # Case 2: Viewing single task by ID
+    # Case 2: Viewing single task by ID - FIXED PERMISSION CHECK
     elif task_id:
         task = get_object_or_404(Task, id=task_id)
         
-        # Permission check: Employee can only view their own tasks
-        if request.user.role == "EMPLOYEE" and task.assigned_to != request.user:
-            messages.error(request, "You don't have permission to view this task.")
-            return redirect('task_dashboard')
+        # FIXED: Permission check for employees with ManyToManyField
+        if request.user.role == "EMPLOYEE":
+            # Check if current user is in the assigned_to list
+            if not task.assigned_to.filter(id=request.user.id).exists():
+                messages.error(request, "You don't have permission to view this task.")
+                return redirect('task_dashboard')
         
         tasks = [task]
         
@@ -1298,6 +1278,7 @@ def delete_department(request, dept_id):
 
 # <!--Designation-->
 # List all designations
+@allowed_roles(['ADMIN'])
 def designations(request):
     designations = Designation.objects.all()
     return render(request, "designation_list.html", {"designations": designations})

@@ -18,13 +18,12 @@
             </div>
             <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
                 <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
-                <p class="text-xs opacity-75 mt-1">System Health: ▰▰▰▰▰▰▰▰▰▰ 100%</p>
             </div>
         </div>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <!-- Total Users -->
         <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 hover:shadow-xl transition duration-300">
             <div class="flex items-center justify-between">
@@ -68,22 +67,6 @@
                 <div class="bg-green-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Health -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition duration-300">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">System Health</p>
-                    <h3 class="text-3xl font-bold text-gray-800">98%</h3>
-                    <p class="text-purple-500 text-sm mt-2">All systems operational</p>
-                </div>
-                <div class="bg-purple-100 p-3 rounded-full">
-                    <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                     </svg>
                 </div>
             </div>
@@ -144,7 +127,7 @@
 
     <!-- Users Table with Stats -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
-        <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-4">
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
             <div class="flex justify-between items-center">
                 <h3 class="text-xl font-bold text-white">User Management</h3>
                 <div class="flex space-x-2">
@@ -251,7 +234,16 @@
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                     <div>
                         <h4 class="font-semibold text-gray-800">{{ task.name }}</h4>
-                        <p class="text-xs text-gray-500">Assigned to: {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</p>
+                        <p class="text-xs text-gray-500">
+                            Assigned to: 
+                            {% if task.assigned_to.all %}
+                                {% for assignee in task.assigned_to.all %}
+                                    {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                Unassigned
+                            {% endif %}
+                        </p>
                     </div>
                     <span class="px-2 py-1 text-xs rounded-full 
                         {% if task.status == 'ONGOING' %}bg-yellow-100 text-yellow-700
@@ -263,10 +255,12 @@
                 {% empty %}
                 <p class="text-gray-500 text-center py-4">No tasks yet</p>
                 {% endfor %}
-            </div>
+            /div>
         </div>
     </div>
     {% endif %}
+</div>
+
 
     <!-- ================= TEAM LEAD DASHBOARD ================= -->
     {% if request.user.role|upper == "TEAM_LEAD" %}

@@ -6,14 +6,7 @@
 
 {% block content %}
 <div class="container mx-auto mt-6">
-    <!-- Messages -->
-    {% if messages %}
-        {% for message in messages %}
-        <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800{% endif %}">
-            {{ message }}
-        </div>
-        {% endfor %}
-    {% endif %}
+  
 
     <!-- Header with Create button and filters -->
     <div class="flex justify-between items-center mb-6">
