@@ -1,61 +1,264 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Dashboard{% endblock %}
-{% block page_title %}Admin Dashboard{% endblock %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
 
 {% block content %}
 
-<!-- Create User Button -->
-<div class="mb-6 flex justify-end">
-    <a href="{% url 'create_user' %}" 
-       class="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded shadow transition">
-        + Create New User
-    </a>
-</div>
+<div class="space-y-6">
 
-<!-- Users Table Card -->
-<div class="bg-white rounded-lg shadow p-6">
-
-    <h2 class="text-xl font-semibold mb-4 text-gray-700">
-        All Users
-    </h2>
-
-    <div class="overflow-x-auto">
-        <table class="min-w-full border border-gray-200">
-
-            <thead class="bg-gray-100">
-                <tr>
-                    <th class="text-left px-4 py-3 border-b">Username</th>
-                    <th class="text-left px-4 py-3 border-b">Role</th>
-                    <th class="text-left px-4 py-3 border-b">Actions</th>
-                </tr>
-            </thead>
-
-            <tbody class="divide-y divide-gray-200">
-
-                {% for user in users %}
-                <tr class="hover:bg-gray-50 transition">
-                    <td class="px-4 py-3">{{ user.username }}</td>
-                    <td class="px-4 py-3 capitalize">{{ user.role }}</td>
-                    <td class="px-4 py-3">
-                        <a href="{% url 'delete_user' user.id %}" 
-                           class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition">
-                            Delete
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="3" class="px-4 py-3 text-center text-gray-500">
-                        No users found.
-                    </td>
-                </tr>
-                {% endfor %}
-
-            </tbody>
-
-        </table>
+    <!-- ================= ADMIN DASHBOARD ================= -->
+    {% if request.user.role|upper == "ADMIN" %}
+    <!-- Welcome Header with Gradient -->
+    <div class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👑</h1>
+                <p class="text-orange-100 text-lg">System Administrator • Full access to all modules</p>
+            </div>
+            <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
+                <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
+            </div>
+        </div>
     </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Total Users -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Users</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_users|default:"0" }}</h3>
+                    <p class="text-green-500 text-sm mt-2">{{ active_users|default:"0" }} active now</p>
+                </div>
+                <div class="bg-orange-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Projects -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Projects</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
+                    <p class="text-blue-500 text-sm mt-2">{{ ongoing_projects|default:"0" }} in progress</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Tasks -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Tasks</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_tasks|default:"0" }}</h3>
+                    <p class="text-green-500 text-sm mt-2">{{ completed_tasks|default:"0" }} completed</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Row -->
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <a href="{% url 'create_user' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1 border-t-4 border-green-500">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-green-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Create User</h3>
+                <p class="text-sm text-gray-500 mt-1">Add new team member</p>
+            </div>
+        </a>
+
+        <a href="{% url 'create_project' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1 border-t-4 border-blue-500">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-blue-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Create Project</h3>
+                <p class="text-sm text-gray-500 mt-1">Start new project</p>
+            </div>
+        </a>
+
+        <a href="{% url 'departments' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1 border-t-4 border-purple-500">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-purple-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Departments</h3>
+                <p class="text-sm text-gray-500 mt-1">Manage departments</p>
+            </div>
+        </a>
+
+        <a href="{% url 'designations' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1 border-t-4 border-pink-500">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-pink-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Designations</h3>
+                <p class="text-sm text-gray-500 mt-1">Manage roles</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- Users Table with Stats -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">User Management</h3>
+                <div class="flex space-x-2">
+                    <span class="bg-green-500 text-white px-3 py-1 rounded-full text-xs">Active: {{ active_users|default:"0" }}</span>
+                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-xs">Inactive: {{ inactive_users|default:"0" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for user in users %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                                        {{ user.username|slice:":1"|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">{{ user.username }}</div>
+                                        <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.email }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs rounded-full 
+                                    {% if user.role == 'ADMIN' %}bg-purple-100 text-purple-800
+                                    {% elif user.role == 'TEAM_LEAD' %}bg-blue-100 text-blue-800
+                                    {% else %}bg-green-100 text-green-800{% endif %}">
+                                    {{ user.role }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs rounded-full {% if user.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <div class="flex space-x-2">
+                                    <a href="{% url 'edit_user' user.id %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition">Edit</a>
+                                    <a href="{% url 'delete_user' user.id %}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition" onclick="return confirm('Delete user {{ user.username }}?')">Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Recent Projects -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Recent Projects</h3>
+                <a href="{% url 'view_projects' %}" class="text-blue-600 hover:text-blue-800 text-sm">View All →</a>
+            </div>
+            <div class="space-y-3">
+                {% for project in recent_projects|slice:":5" %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div>
+                        <h4 class="font-semibold text-gray-800">{{ project.name }}</h4>
+                        <p class="text-xs text-gray-500">Deadline: {{ project.end_date|date:"M d, Y" }}</p>
+                    </div>
+                    <span class="px-2 py-1 text-xs rounded-full 
+                        {% if project.status == 'ONGOING' %}bg-green-100 text-green-700
+                        {% elif project.status == 'PENDING' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ project.status }}
+                    </span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No projects yet</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Tasks -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Recent Tasks</h3>
+                <a href="{% url 'task_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm">View All →</a>
+            </div>
+            <div class="space-y-3">
+                {% for task in recent_tasks|slice:":5" %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div>
+                        <h4 class="font-semibold text-gray-800">{{ task.name }}</h4>
+                        <p class="text-xs text-gray-500">
+                            Assigned to: 
+                            {% if task.assigned_to.all %}
+                                {% for assignee in task.assigned_to.all %}
+                                    {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                Unassigned
+                            {% endif %}
+                        </p>
+                    </div>
+                    <span class="px-2 py-1 text-xs rounded-full 
+                        {% if task.status == 'ONGOING' %}bg-yellow-100 text-yellow-700
+                        {% elif task.status == 'COMPLETED' %}bg-green-100 text-green-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ task.get_status_display }}
+                    </span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No tasks yet</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
 </div>
 

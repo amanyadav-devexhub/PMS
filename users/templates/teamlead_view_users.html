@@ -1,47 +1,197 @@
 {% extends "base.html" %}
 
 {% block title %}Employees Under You{% endblock %}
-{% block page_title %}Employees Under You{% endblock %}
+{% block page_title %}Team Members{% endblock %}
 
 {% block content %}
-<div class="container mx-auto mt-8">
+<div class="container mx-auto px-4 py-6 max-w-6xl">
     
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-semibold text-gray-700">Employees Under You</h2>
-        <div class="bg-red-500 text-white rounded-full px-3 py-1">
-            🔔 {{ users|length }}
+    <!-- Header with Stats -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Team Members</h1>
+            <p class="text-gray-500 mt-1">Manage and view all employees under your supervision</p>
+        </div>
+        <div class="flex items-center space-x-3 mt-4 md:mt-0">
+            <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                <span class="font-semibold">{{ users|length }} Total Members</span>
+            </div>
         </div>
     </div>
 
-    <!-- Table -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border shadow rounded-lg">
-            <thead>
-                <tr class="bg-gray-100 text-left">
-                    <th class="px-4 py-2 border">Username</th>
-                    <th class="px-4 py-2 border">Role</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2 border">{{ user.username }}</td>
-                    <td class="px-4 py-2 border">{{ user.role }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="2" class="text-center px-4 py-2 border">No employees assigned.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Total Employees Card -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Employees</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ users|length }}</h3>
+                    <p class="text-green-500 text-sm mt-2">Under your supervision</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Now Card -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Active Now</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ active_count|default:"0" }}</h3>
+                    <p class="text-green-500 text-sm mt-2">Currently online</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Assigned Card -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Tasks</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_tasks|default:"0" }}</h3>
+                    <p class="text-purple-500 text-sm mt-2">Assigned to team</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="mb-6">
+        <div class="relative">
+            <input type="text" 
+                   id="searchInput"
+                   placeholder="Search employees by name or email..." 
+                   class="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Employees Grid/Table -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <!-- Table Header -->
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-700">Employee List</h3>
+                <span class="text-sm text-gray-500">Showing {{ users|length }} members</span>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="employeeTableBody">
+                    {% for user in users %}
+                    <tr class="hover:bg-gray-50 transition employee-row">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                                        {{ user.username|slice:":1"|upper }}
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ user.username }}</div>
+                                    <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="flex items-center">
+                                <span class="h-2.5 w-2.5 rounded-full {% if user.is_active %}bg-green-500{% else %}bg-red-500{% endif %} mr-2"></span>
+                                <span class="text-sm text-gray-600">{% if user.is_active %}Active{% else %}Inactive{% endif %}</span>
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <div class="flex space-x-2">
+                                <a href="{% url 'employee_tasks' %}?employee_id={{ user.id }}" 
+                                   class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs font-medium transition">
+                                    View Tasks
+                                </a>
+                                <a href="{% url 'assign_task' %}?employee={{ user.id }}" 
+                                   class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-full text-xs font-medium transition">
+                                    Assign Task
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+                            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <p class="text-lg">No employees assigned to you yet.</p>
+                            <p class="text-sm mt-1">When employees are assigned, they will appear here.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
+<!-- Search Functionality -->
+<script>
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        let searchText = this.value.toLowerCase();
+        let rows = document.querySelectorAll('.employee-row');
+        
+        rows.forEach(row => {
+            let username = row.querySelector('.text-gray-900').textContent.toLowerCase();
+            let email = row.querySelector('.text-gray-500').textContent.toLowerCase();
+            
+            if (username.includes(searchText) || email.includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
+
 <style>
-.container {
-    max-width: 900px;
-}
+    .container {
+        max-width: 1200px;
+    }
+    .employee-row {
+        transition: all 0.2s ease;
+    }
+    .employee-row:hover {
+        background-color: #f9fafb;
+    }
 </style>
 {% endblock %}
