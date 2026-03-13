@@ -5,73 +5,214 @@
 
 {% block content %}
 
-<div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
-
-    <div class="mb-6">
-        <h2 class="text-2xl font-semibold text-gray-800">
-            {{ project.name }}
-        </h2>
-        <p class="text-gray-500 mt-1">
-            {{ project.description }}
-        </p>
-    </div>
-
-    <div class="grid grid-cols-2 gap-6">
-
-        <div>
-            <p class="text-sm text-gray-500">Assigned To</p>
-            <p class="font-medium text-gray-800">
-                {% for user in project.assigned_to.all %}
-                    {{ user.username }}{% if not forloop.last %}, {% endif %}
-                        {% empty %}
-                    Not assigned
-                {% endfor %}
+<div class="max-w-6xl mx-auto">
+    <!-- Project Details Card -->
+    <div class="bg-white shadow-lg rounded-lg p-8 mb-8">
+        <div class="mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800">
+                {{ project.name }}
+            </h2>
+            <p class="text-gray-500 mt-1">
+                {{ project.description }}
             </p>
         </div>
 
-        <div>
-            <p class="text-sm text-gray-500">Status</p>
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-500">Assigned To</p>
+                <p class="font-medium text-gray-800">
+                    {% for user in project.assigned_to.all %}
+                        {{ user.get_full_name|default:user.username }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                        Not assigned
+                    {% endfor %}
+                </p>
+            </div>
 
-            {% if project.status == "PENDING" %}
-                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
-                    Pending
-                </span>
-            {% elif project.status == "ONGOING" %}
-                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
-                    Ongoing
-                </span>
-            {% else %}
-                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                    Completed
-                </span>
-            {% endif %}
+            <div>
+                <p class="text-sm text-gray-500">Status</p>
+                {% if project.status == "PENDING" %}
+                    <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        Pending
+                    </span>
+                {% elif project.status == "ONGOING" %}
+                    <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        Ongoing
+                    </span>
+                {% else %}
+                    <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        Completed
+                    </span>
+                {% endif %}
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-500">Start Date</p>
+                <p class="font-medium">{{ project.start_date|date:"M. d, Y" }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-500">End Date</p>
+                <p class="font-medium">{{ project.end_date|date:"M. d, Y" }}</p>
+            </div>
         </div>
 
-        <div>
-            <p class="text-sm text-gray-500">Start Date</p>
-            <p class="font-medium">{{ project.start_date }}</p>
+        <!-- Actions -->
+        <div class="flex gap-4 mt-8">
+            <a href="{% url 'edit_projects' project.id %}"
+               class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow">
+                Edit Project
+            </a>
+            <a href="{% url 'view_projects' %}"
+               class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded shadow">
+                Back
+            </a>
         </div>
-
-        <div>
-            <p class="text-sm text-gray-500">End Date</p>
-            <p class="font-medium">{{ project.end_date }}</p>
-        </div>
-
     </div>
 
-    <!-- Actions -->
-    <div class="flex gap-4 mt-8">
-        <a href="{% url 'edit_projects' project.id %}"
-           class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow">
-            Edit Project
-        </a>
+    <!-- Tasks Section -->
+    <div class="bg-white shadow-lg rounded-lg p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-semibold text-gray-800">Tasks under this project</h3>
+            <a href="{% url 'assign_task' %}?project_id={{ project.id }}" 
+               class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Add Task
+            </a>
+        </div>
 
-        <a href="{% url 'view_projects' %}"
-           class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded shadow">
-            Back
-        </a>
+        <!-- Task Stats -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-50 p-3 rounded-lg text-center">
+                <span class="text-2xl font-bold text-gray-700">{{ total_tasks|default:0 }}</span>
+                <p class="text-xs text-gray-500">Total Tasks</p>
+            </div>
+            <div class="bg-yellow-50 p-3 rounded-lg text-center">
+                <span class="text-2xl font-bold text-yellow-600">{{ pending_tasks|default:0 }}</span>
+                <p class="text-xs text-gray-500">Pending</p>
+            </div>
+            <div class="bg-blue-50 p-3 rounded-lg text-center">
+                <span class="text-2xl font-bold text-blue-600">{{ ongoing_tasks|default:0 }}</span>
+                <p class="text-xs text-gray-500">Ongoing</p>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg text-center">
+                <span class="text-2xl font-bold text-green-600">{{ completed_tasks|default:0 }}</span>
+                <p class="text-xs text-gray-500">Completed</p>
+            </div>
+        </div>
+
+        <!-- Tasks Table -->
+        {% if tasks %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border border-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deadline</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Spent</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for task in tasks %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="font-medium text-gray-800">{{ task.name }}</div>
+                            <div class="text-xs text-gray-500">ID: {{ task.id }}</div>
+                        </td>
+                        
+                        <!-- FIXED: Assigned To (Multiple users) -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if task.assigned_to.all %}
+                                {% for assignee in task.assigned_to.all %}
+                                    {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-gray-400">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if task.status == "PENDING" %}
+                                <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
+                                    Pending
+                                </span>
+                            {% elif task.status == "ONGOING" %}
+                                <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+                                    Ongoing
+                                </span>
+                            {% else %}
+                                <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">
+                                    Completed
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if task.deadline %}
+                                {{ task.deadline|date:"M d, H:i" }}
+                            {% else %}
+                                {{ task.end_date|date:"M d, Y" }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if task.status == "ONGOING" and task.start_time %}
+                                {{ task.time_display }}
+                            {% elif task.status == "COMPLETED" and task.total_time %}
+                                {{ task.time_display }}
+                            {% else %}
+                                --
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <div class="flex space-x-2">
+                                <!-- View Task -->
+                                <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" 
+                                   class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs font-medium">
+                                    View
+                                </a>
+                                
+                                <!-- Edit Task -->
+                                <a href="{% url 'edit_task' task.id %}" 
+                                   class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-full text-xs font-medium">
+                                    Edit
+                                </a>
+                                
+                                <!-- Delete Task -->
+                                <a href="{% url 'delete_task' task.id %}" 
+                                   class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full text-xs font-medium"
+                                   onclick="return confirm('Are you sure you want to delete task "{{ task.name }}"?')">
+                                    Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12 bg-gray-50 rounded-lg">
+            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <p class="text-gray-500 text-lg">No tasks assigned to this project yet.</p>
+            <p class="text-gray-400 text-sm mt-1">Click the "Add Task" button to create your first task.</p>
+            <a href="{% url 'assign_task' %}?project_id={{ project.id }}" class="mt-4 inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm">
+                + Create first task
+            </a>
+        </div>
+        {% endif %}
     </div>
-
 </div>
 
+<!-- Delete Confirmation Script -->
+<script>
+    function confirmDelete(taskName) {
+        return confirm(`Are you sure you want to delete "${taskName}"?`);
+    }
+</script>
 {% endblock %}

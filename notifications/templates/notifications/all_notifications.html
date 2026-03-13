@@ -1,14 +1,81 @@
 {% extends "base.html" %}
+
 {% block title %}All Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
 {% block content %}
-<h2 class="text-xl font-bold mb-4">All Notifications</h2>
-<ul>
-    {% for notification in notifications %}
-        <li class="{% if not notification.is_read %}font-bold{% endif %}">
-            {{ notification.message }} - {{ notification.created_at|date:"M d, H:i" }}
-        </li>
-    {% empty %}
-        <li>No notifications yet.</li>
-    {% endfor %}
-</ul>
+<div class="max-w-4xl mx-auto">
+    
+    <!-- Header with Filter -->
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Notifications</h2>
+        <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-500">Filter and search</span>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        {% for notification in notifications %}
+        <div class="p-6 border-b border-gray-100 hover:bg-gray-50 transition {% if not notification.is_read %}bg-blue-50{% endif %}">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <!-- Notification Message -->
+                    <p class="text-gray-800">{{ notification.message }}</p>
+                    
+                    <!-- Timestamp -->
+                    <p class="text-sm text-gray-400 mt-2">{{ notification.created_at|date:"F j, H:i" }}</p>
+                </div>
+                
+                <!-- Unread Indicator -->
+                {% if not notification.is_read %}
+                <span class="bg-blue-500 w-2 h-2 rounded-full ml-2 mt-2"></span>
+                {% endif %}
+            </div>
+            
+            <!-- Mark as read link (optional) -->
+            {% if not notification.is_read %}
+            <div class="mt-2">
+                <a href="{% url 'mark_as_read' notification.id %}" class="text-xs text-blue-600 hover:text-blue-800">
+                    Mark as read
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="p-12 text-center">
+            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <p class="text-gray-500 text-lg">No notifications yet</p>
+            <p class="text-gray-400 text-sm mt-1">When you get notifications, they'll appear here</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination (if needed) -->
+    {% if notifications.has_other_pages %}
+    <div class="flex justify-between items-center mt-6">
+        <p class="text-sm text-gray-600">Showing {{ notifications|length }} notifications</p>
+        <div class="flex gap-2">
+            {% if notifications.has_previous %}
+            <a href="?page={{ notifications.previous_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Previous</a>
+            {% endif %}
+            {% if notifications.has_next %}
+            <a href="?page={{ notifications.next_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Optional: Auto-refresh notifications every 30 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+</script>
 {% endblock %}

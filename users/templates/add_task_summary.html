@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto mt-8 max-w-2xl">
+    <h1 class="text-2xl font-bold mb-4">Add task status summary</h1>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <textarea name="summary" rows="4" 
+                  class="w-full border rounded-lg p-3 mb-4"
+                  placeholder="Describe what you accomplished..."></textarea>
+        
+        <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded-full">
+            Complete Task
+        </button>
+    </form>
+</div>
+{% endblock %}

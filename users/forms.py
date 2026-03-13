@@ -49,3 +49,5 @@ class UserProfileForm(forms.ModelForm):
             'department': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
             'designation': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
         }
+
+

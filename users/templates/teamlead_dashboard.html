@@ -1,79 +1,250 @@
 {% extends "base.html" %}
 
 {% block title %}Team Lead Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <!-- Dashboard Header -->
-    <div class="dashboard-header text-center">
-        <h1>Team Lead Dashboard</h1>
-        <p>Manage your team efficiently and assign tasks!</p>
+<div class="container mx-auto px-4 py-6">
+    <!-- Dashboard Header with Gradient -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-2xl shadow-xl mb-8">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👋</h1>
+                <p class="text-blue-100 text-lg">Manage your team, assign tasks, and track project progress</p>
+            </div>
+            <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
+                <p class="text-sm opacity-90">{{ request.user.email }}</p>
+                <p class="text-xs opacity-75 mt-1">Team Lead • {{ request.user.department|default:"Management" }}</p>
+            </div>
+        </div>
     </div>
 
-    <!-- Dashboard Cards -->
-    <div class="card-container mt-5 d-flex flex-wrap justify-content-center gap-4">
-        {% if request.user.role == "TEAM_LEAD" %}
-        <div class="dashboard-card">
-            <a href="{% url 'assign_task' %}">Assign Task</a>
-        </div>
-        <div class="dashboard-card">
-            <a href="{% url 'create_project' %}">Create Project</a>
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <!-- Total Projects -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Projects</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
+                    <p class="text-green-500 text-sm mt-2">↑ 12% from last month</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
         </div>
 
-        <div class="dashboard-card">
-            <a href="{% url 'teamlead_view_users' %}">View Employees</a>
+        <!-- Active Tasks -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Active Tasks</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ active_tasks|default:"0" }}</h3>
+                    <p class="text-yellow-500 text-sm mt-2">{{ ongoing_tasks|default:"0" }} in progress</p>
+                </div>
+                <div class="bg-yellow-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
         </div>
-        <!-- Add more cards as needed -->
-        {% endif %}
+
+        <!-- Team Members -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Team Members</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ team_members|default:"0" }}</h3>
+                    <p class="text-green-500 text-sm mt-2">{{ active_members|default:"0" }} active now</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completed Tasks -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Completed</p>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ completed_tasks|default:"0" }}</h3>
+                    <p class="text-purple-500 text-sm mt-2">This month</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Cards -->
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <a href="{% url 'assign_task' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-blue-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Assign Task</h3>
+                <p class="text-sm text-gray-500 mt-1">Create new task for team members</p>
+            </div>
+        </a>
+
+        <a href="{% url 'create_project' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-green-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Create Project</h3>
+                <p class="text-sm text-gray-500 mt-1">Start a new project</p>
+            </div>
+        </a>
+
+        <a href="{% url 'teamlead_view_users' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-purple-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">View Team</h3>
+                <p class="text-sm text-gray-500 mt-1">Manage team members</p>
+            </div>
+        </a>
+
+        <a href="{% url 'task_dashboard' %}" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center">
+                <div class="bg-yellow-100 p-4 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800">Task Board</h3>
+                <p class="text-sm text-gray-500 mt-1">View all tasks</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- Recent Projects and Tasks -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Recent Projects -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Recent Projects</h3>
+                <a href="{% url 'view_projects' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All →</a>
+            </div>
+            <div class="space-y-4">
+                {% for project in recent_projects|slice:":5" %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div>
+                        <h4 class="font-semibold text-gray-800">{{ project.name }}</h4>
+                        <p class="text-xs text-gray-500">Deadline: {{ project.end_date|date:"M d, Y" }}</p>
+                    </div>
+                    <span class="px-3 py-1 text-xs rounded-full 
+                        {% if project.status == 'ONGOING' %}bg-green-100 text-green-700
+                        {% elif project.status == 'PENDING' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ project.status }}
+                    </span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No projects yet</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Tasks -->
+        <!-- Recent Tasks - FIXED VERSION -->
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-gray-800">Pending Tasks</h3>
+        <a href="{% url 'task_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All →</a>
+    </div>
+    <div class="space-y-4">
+        {% for task in pending_tasks|slice:":5" %}
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+            <div>
+                <h4 class="font-semibold text-gray-800">{{ task.name }}</h4>
+                <p class="text-xs text-gray-500">
+                    Assigned to: 
+                    {% if task.assigned_to.all %}
+                        {% for assignee in task.assigned_to.all %}
+                            {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        Unassigned
+                    {% endif %}
+                </p>
+            </div>
+            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                {{ task.get_status_display }}
+            </span>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-center py-4">No pending tasks</p>
+        {% endfor %}
     </div>
 </div>
 
-<!-- Optional: Add some custom card styling -->
+    <!-- Team Members Grid - FIXED VERSION -->
+<!-- Team Members Grid - FIXED -->
+<!-- Team Members Grid - FORCED FULL WIDTH -->
+<div style="width: 100%; clear: both; float: none; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0;" class="mt-8">
+    <h3 class="text-xl font-bold text-gray-800 mb-4">Team Members</h3>
+    
+    {% if team_members_list %}
+    <div style="display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 1rem !important; width: 100% !important;" 
+         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+        {% for member in team_members_list %}
+        <div style="width: 100% !important; box-sizing: border-box !important;" 
+             class="bg-white rounded-xl shadow-lg p-4 flex items-center space-x-4 hover:shadow-xl transition border border-gray-100">
+            <!-- Avatar -->
+            <div class="bg-gradient-to-br from-blue-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                {{ member.get_full_name|default:member.username|slice:":1"|upper }}
+            </div>
+            
+            <!-- Member Info -->
+            <div class="min-w-0 flex-1">
+                <h4 class="font-semibold text-gray-800 truncate">{{ member.get_full_name|default:member.username }}</h4>
+                <p class="text-xs text-gray-500 truncate">{{ member.email }}</p>
+                <div class="flex items-center mt-1">
+                    <span class="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
+                    <span class="text-xs text-green-600">Online</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="width: 100% !important;" class="bg-white rounded-xl shadow-lg p-8 text-center">
+        <p class="text-gray-500">No team members found.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add this to your base template or here for icons -->
 <style>
-.dashboard-header {
-    background: linear-gradient(to right, #0d6efd, #6610f2);
-    color: white;
-    padding: 30px 20px;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    margin-bottom: 30px;
-}
-
-.card-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 30px;
-}
-
-.dashboard-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-    width: 220px;
-    height: 120px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.dashboard-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-}
-
-.dashboard-card a {
-    text-decoration: none;
-    font-size: 18px;
-    font-weight: bold;
-    color: #0d6efd;
-    transition: color 0.3s;
-}
-
-.dashboard-card a:hover {
-    color: #6610f2;
-}
+    /* Additional custom styles if needed */
+    .dashboard-card {
+        transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
 </style>
+
+
 {% endblock %}

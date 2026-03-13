@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
 
-{% block title %}Assign Task{% endblock %}
-{% block page_title %}Assign Task{% endblock %}
+{% block title %}Edit Task{% endblock %}
+{% block page_title %}Edit Task{% endblock %}
 
 {% block content %}
+
+
 
 <div class="max-w-4xl mx-auto">
 
@@ -12,8 +13,15 @@
     <div class="bg-white shadow-lg rounded-lg p-8">
 
         <h2 class="text-2xl font-semibold text-gray-700 mb-6">
-            Assign New Task
+            Edit Task
         </h2>
+
+        <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p class="text-sm text-gray-600">
+                <span class="font-medium">Project:</span> {{ task.project.name }} | 
+                <span class="font-medium">Task ID:</span> {{ task.id }}
+            </p>
+        </div>
 
         <form method="POST" class="space-y-5">
             {% csrf_token %}
@@ -25,16 +33,18 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Task Name <span class="text-red-500">*</span>
                 </label>
-                {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.name }}
                 {{ form.name.errors }}
             </div>
 
-            <!-- Description -->
+            <!-- Description with Box -->
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Description
                 </label>
-                {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                    {{ form.description }}
+                </div>
                 {{ form.description.errors }}
             </div>
 
@@ -43,7 +53,7 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Project <span class="text-red-500">*</span>
                 </label>
-                {{ form.project|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.project }}
                 {{ form.project.errors }}
             </div>
 
@@ -73,7 +83,7 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Task Owner <span class="text-red-500">*</span>
                 </label>
-                {{ form.assigned_by|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.assigned_by }}
                 {{ form.assigned_by.errors }}
             </div>
 
@@ -82,7 +92,7 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Status <span class="text-red-500">*</span>
                 </label>
-                {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.status }}
                 {{ form.status.errors }}
             </div>
 
@@ -92,7 +102,7 @@
                     <label class="block text-sm font-medium text-gray-600 mb-1">
                         Start Date <span class="text-red-500">*</span>
                     </label>
-                    {{ form.start_date|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                    {{ form.start_date }}
                     {{ form.start_date.errors }}
                 </div>
 
@@ -100,7 +110,7 @@
                     <label class="block text-sm font-medium text-gray-600 mb-1">
                         End Date <span class="text-red-500">*</span>
                     </label>
-                    {{ form.end_date|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                    {{ form.end_date }}
                     {{ form.end_date.errors }}
                 </div>
             </div>
@@ -110,14 +120,14 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Deadline <span class="text-gray-400 text-xs">(with time)</span>
                 </label>
-                {{ form.deadline|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                {{ form.deadline }}
                 {% if form.deadline.help_text %}
                     <p class="text-xs text-gray-400 mt-1">{{ form.deadline.help_text }}</p>
                 {% endif %}
                 {{ form.deadline.errors }}
             </div>
 
-            <!-- Estimated Time - HOURS & MINUTES ONLY -->
+            <!-- Estimated Time - HOURS & MINUTES (SIMPLE) -->
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-600 mb-2">
                     Estimated Time <span class="text-red-500">*</span>
@@ -126,25 +136,38 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <input type="number" name="estimated_hours" id="estimated_hours" 
-                            min="0" max="24" step="1" value="1"
+                            min="0" max="24" step="1" 
+                            value="1"
                             class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                             placeholder="Hours">
                     </div>
                     <div>
                         <input type="number" name="estimated_minutes" id="estimated_minutes" 
-                            min="0" max="59" step="1" value="0"
+                            min="0" max="59" step="1" 
+                            value="0"
                             class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                             placeholder="Minutes">
                     </div>
                 </div>
                 
-                <!-- Hidden field to store total seconds for the database -->
-                <input type="hidden" name="estimated_time" id="estimated_time" value="3600">
+                <!-- Hidden field to store total seconds - initial value from task -->
+                <input type="hidden" name="estimated_time" id="estimated_time" value="{{ task.estimated_time|default:3600 }}">
                 
                 <p class="text-xs text-gray-400 mt-2">Enter hours and minutes</p>
+                {{ form.estimated_time.errors }}
             </div>
 
             <script>
+                // Set initial values from the hidden field
+                document.addEventListener('DOMContentLoaded', function() {
+                    const totalSeconds = parseInt(document.getElementById('estimated_time').value) || 3600;
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    
+                    document.getElementById('estimated_hours').value = hours;
+                    document.getElementById('estimated_minutes').value = minutes;
+                });
+
                 // Auto-calculate total seconds when hours/minutes change
                 document.getElementById('estimated_hours').addEventListener('input', updateEstimatedTime);
                 document.getElementById('estimated_minutes').addEventListener('input', updateEstimatedTime);
@@ -162,8 +185,6 @@
                     // Convert to seconds for database storage
                     const totalSeconds = (hours * 3600) + (minutes * 60);
                     document.getElementById('estimated_time').value = totalSeconds;
-                    
-                    console.log(`Time set to: ${hours}h ${minutes}m (${totalSeconds} seconds)`);
                 }
             </script>
 
@@ -192,11 +213,11 @@
             <!-- Buttons -->
             <div class="flex items-center gap-4 pt-6 mt-6 border-t border-gray-200">
                 <button type="submit"
-                        class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded shadow transition">
-                    Assign Task
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow transition">
+                    Update Task
                 </button>
 
-                <a href="{% url 'teamlead_dashboard' %}"
+                <a href="{% url 'view_project_detail' task.project.id %}"
                    class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded shadow transition">
                     Cancel
                 </a>
@@ -205,6 +226,66 @@
         </form>
     </div>
 
+    <!-- Task Info Card -->
+    <div class="mt-6 bg-gray-50 rounded-lg border border-gray-200 p-4">
+        <div class="flex items-start gap-3">
+            <div class="bg-blue-100 p-2 rounded-full">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">
+                    <span class="font-medium">Created:</span> {{ task.created_at|date:"M d, Y H:i" }}
+                </p>
+                <p class="text-sm text-gray-600 mt-1">
+                    <span class="font-medium">Current Status:</span> 
+                    <span class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs
+                        {% if task.status == 'PENDING' %}bg-yellow-100 text-yellow-700
+                        {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700
+                        {% else %}bg-green-100 text-green-700{% endif %}">
+                        {{ task.get_status_display }}
+                    </span>
+                </p>
+                {% if task.observers.all %}
+                <p class="text-sm text-gray-600 mt-2">
+                    <span class="font-medium">Observers:</span>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        {% for observer in task.observers.all %}
+                            <span class="bg-gray-200 px-2 py-1 rounded-full text-xs text-gray-700">
+                                {{ observer.get_full_name|default:observer.username }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<script>
+    // Auto-calculate total seconds when hours/minutes change
+    document.getElementById('estimated_hours').addEventListener('input', updateEstimatedTime);
+    document.getElementById('estimated_minutes').addEventListener('input', updateEstimatedTime);
+    
+    function updateEstimatedTime() {
+        const hours = parseInt(document.getElementById('estimated_hours').value) || 0;
+        let minutes = parseInt(document.getElementById('estimated_minutes').value) || 0;
+        
+        // Validate minutes (max 59)
+        if (minutes > 59) {
+            document.getElementById('estimated_minutes').value = 59;
+            minutes = 59;
+        }
+        
+        // Convert to seconds for database storage
+        const totalSeconds = (hours * 3600) + (minutes * 60);
+        document.getElementById('estimated_time').value = totalSeconds;
+        
+        console.log(`Time set to: ${hours}h ${minutes}m (${totalSeconds}s)`);
+    }
+</script>
 
 {% endblock %}
