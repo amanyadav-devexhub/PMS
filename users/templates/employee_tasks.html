@@ -116,9 +116,9 @@
                     </div>
                 </div>
 
-                <!-- Right Column - FIXED ASSIGNEE SECTION -->
+                <!-- Right Column -->
                 <div class="space-y-5">
-                    <!-- Assignee (FIXED - handles multiple users) -->
+                    <!-- Assignee (handles multiple users) -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
                             <span class="text-gray-500 text-sm font-medium">Assignee:</span>
@@ -205,7 +205,8 @@
                         <div class="flex items-center justify-between mb-2">
                             <h2 class="text-gray-800 font-semibold">Task status summary is required</h2>
                             
-                            {% if task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
+                            <!-- Only show + icon for employees (task doers) -->
+                            {% if request.user.role == 'EMPLOYEE' and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
                             <a href="{% url 'add_task_summary' task.id %}" 
                                class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
                                 +
@@ -224,36 +225,44 @@
                 </div>
             </div>
 
-            <!-- Action Buttons - Only show for single task view -->
+            <!-- Action Buttons - Only for EMPLOYEE and ADMIN (NEVER for Team Lead) -->
             {% if tasks|length == 1 %}
-            <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
-                {% if task.status == "PENDING" %}
-                    <a href="{% url 'start_task' task.id %}" 
-                       class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
-                        Start Task
-                    </a>
-                {% elif task.status == "ONGOING" %}
-                    {% if task.paused_time %}
-                        <a href="{% url 'resume_task' task.id %}" 
+                {% if request.user.role == 'EMPLOYEE' or request.user.role == 'ADMIN' %}
+                <!-- Employee or Admin viewing task - show buttons -->
+                <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
+                    {% if task.status == "PENDING" %}
+                        <a href="{% url 'start_task' task.id %}" 
                            class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
-                            Resume Task
+                            Start Task
                         </a>
-                    {% else %}
-                        <a href="{% url 'pause_task' task.id %}" 
-                           class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
-                            Pause Task
+                    {% elif task.status == "ONGOING" %}
+                        {% if task.paused_time %}
+                            <a href="{% url 'resume_task' task.id %}" 
+                               class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                                Resume Task
+                            </a>
+                        {% else %}
+                            <a href="{% url 'pause_task' task.id %}" 
+                               class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                                Pause Task
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'complete_task' task.id %}" 
+                           class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                            Complete Task
                         </a>
+                    {% elif task.status == "COMPLETED" %}
+                        <span class="bg-gray-400 text-white px-8 py-3 rounded-xl text-sm font-medium">
+                            Task Completed
+                        </span>
                     {% endif %}
-                    <a href="{% url 'complete_task' task.id %}" 
-                       class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
-                        Complete Task
-                    </a>
-                {% elif task.status == "COMPLETED" %}
-                    <span class="bg-gray-400 text-white px-8 py-3 rounded-xl text-sm font-medium">
-                        Task Completed
-                    </span>
+                </div>
+                {% else %}
+                <!-- Team Lead viewing ANY task (own or employee) - NO buttons (read-only) -->
+                <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end">
+                    <span class="text-sm text-gray-500 italic px-4 py-2 bg-gray-100 rounded-lg"></span>
+                </div>
                 {% endif %}
-            </div>
             {% else %}
             <!-- For list view, show View Details link -->
             <div class="mt-6 text-right">

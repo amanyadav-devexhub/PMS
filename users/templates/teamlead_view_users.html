@@ -17,7 +17,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                 </svg>
-                <span class="font-semibold">{{ users|length }} Total Members</span>
+                <span class="font-semibold">{{ total_employees }} Total Members</span>
             </div>
         </div>
     </div>
@@ -29,7 +29,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Employees</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ users|length }}</h3>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_employees }}</h3>
                     <p class="text-green-500 text-sm mt-2">Under your supervision</p>
                 </div>
                 <div class="bg-blue-100 p-3 rounded-full">
@@ -45,7 +45,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Active Now</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ active_count|default:"0" }}</h3>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ active_count }}</h3>
                     <p class="text-green-500 text-sm mt-2">Currently online</p>
                 </div>
                 <div class="bg-green-100 p-3 rounded-full">
@@ -61,7 +61,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Tasks</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ total_tasks|default:"0" }}</h3>
+                    <h3 class="text-3xl font-bold text-gray-800">{{ total_tasks }}</h3>
                     <p class="text-purple-500 text-sm mt-2">Assigned to team</p>
                 </div>
                 <div class="bg-purple-100 p-3 rounded-full">
@@ -153,8 +153,8 @@
                             <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
-                            <p class="text-lg">No employees assigned to you yet.</p>
-                            <p class="text-sm mt-1">When employees are assigned, they will appear here.</p>
+                            <p class="text-lg">No employees found.</p>
+                            <p class="text-sm mt-1">There are no employees in the system yet.</p>
                         </td>
                     </tr>
                     {% endfor %}

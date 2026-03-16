@@ -19,6 +19,13 @@ class Projects(models.Model):
         related_name="projects") 
     start_date = models.DateField()
     end_date = models.DateField()
+    created_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='projects_created'
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
