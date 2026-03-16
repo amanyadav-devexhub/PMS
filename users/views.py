@@ -98,7 +98,6 @@ def ajax_login(request):
             status=400
         )
     
-    # STEP 1: Check if user exists
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
@@ -107,14 +106,12 @@ def ajax_login(request):
             status=401
         )
     
-    # STEP 2: Check if user is inactive
     if not user.is_active:
         return JsonResponse(
-            {"status": "error", "error": "⛔ Your account is inactive. Please contact the administrator."},
+            {"status": "error", "error": "Your account is inactive. Please contact the administrator."},
             status=403
         )
 
-    # STEP 3: Authenticate user
     user = authenticate(request, username=email, password=password)
 
     if user is None:
@@ -123,15 +120,25 @@ def ajax_login(request):
             status=401
         )
 
-    # STEP 4: Login successful
-    login(request, user)
+    # ✅ FIX: Set role for superuser if empty
+    if user.is_superuser and not user.role:
+        user.role = 'ADMIN'
+        user.save()
+        print(f"Set superuser role to ADMIN for {user.username}")
 
-    # Get user role
-    role = getattr(user, "role", "EMPLOYEE")
+    login(request, user)
+    request.session.save()
+    
+    print(f"✅ User {user.username} logged in successfully")
+    print(f"Role: {user.role}")
+    print(f"Is superuser: {user.is_superuser}")
+
+    role = user.role if user.role else 'EMPLOYEE'  # Fallback to EMPLOYEE if no role
 
     return JsonResponse({
         "status": "success",
-        "role": role
+        "role": role,
+        "username": user.username
     })
 
 # from rest_framework.decorators import api_view, permission_classes
@@ -140,74 +147,126 @@ def ajax_login(request):
 
 
 ## View Projects
+@login_required
 def view_projects(request):
-
     search_query = request.GET.get("search", "")
-
-    projects = Projects.objects.all()
+    
+    # Base queryset based on role
+    if request.user.role == "ADMIN":
+        projects = Projects.objects.all()
+    elif request.user.role == "TEAM_LEAD":
+        # Team leads see only projects assigned to them
+        projects = Projects.objects.filter(assigned_to=request.user)
+    else:  # EMPLOYEE
+        projects = Projects.objects.filter(assigned_to=request.user)
 
     if search_query:
         projects = projects.filter(
             Q(name__icontains=search_query) |
             Q(assigned_to__username__icontains=search_query) |
             Q(status__icontains=search_query)
-        )
+        ).distinct()
 
     context = {
         "projects": projects,
         "search_query": search_query
     }
-
     return render(request, "view_projects.html", context)
 
 
 ## edit Projects
 @login_required
 @allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
-def edit_projects(request,project_id):
-    project = get_object_or_404(Projects,id = project_id)
+def edit_projects(request, project_id):
+    project = get_object_or_404(Projects, id=project_id)
+    
+    # Check if team lead can edit (only projects they created)
+    if request.user.role == "TEAM_LEAD" and project.created_by != request.user:
+        messages.error(request, "⛔ You don't have permission to edit this project.")
+        return redirect("view_projects")
 
     if request.method == "POST":
-        form = ProjectForm(request.POST,instance=project)
+        form = ProjectForm(request.POST, instance=project)
+        
+        # Get dates for validation
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        
+        # Validate dates - start must be before end
+        if start_date and end_date:
+            if start_date >= end_date:
+                context = {
+                    "form": form,
+                    "project": project,
+                    "date_error": "❌ End date must be after start date"
+                }
+                return render(request, "edit_projects.html", context)
+        
         if form.is_valid():
             form.save()
+            messages.success(request, "✅ Project updated successfully!")
             return redirect("view_projects")
+        
+        # 🔥 FIX: Add this else clause for invalid forms
+        else:
+            # Form is invalid - show errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+            
+            context = {
+                "form": form,
+                "project": project
+            }
+            return render(request, "edit_projects.html", context)
         
     else:
         form = ProjectForm(instance=project)
 
-    return render(request,"edit_projects.html" , {
+    return render(request, "edit_projects.html", {
         "form": form,
-        "project":project
+        "project": project
     })
 
-
-## edit task
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 def edit_task(request, task_id):
-    """Edit an existing task"""
     task = get_object_or_404(Task, id=task_id)
     
     if request.method == 'POST':
         form = TaskForm(request.POST, instance=task)
+        
+        # Get dates for validation
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        
+        # Validate dates - start must be before end
+        if start_date and end_date:
+            if start_date >= end_date:
+                context = {
+                    'form': form,
+                    'task': task,
+                    'is_edit': True,
+                    'date_error': "❌ End date must be after start date"
+                }
+                return render(request, 'edit_task.html', context)
+        
         if form.is_valid():
-            # Save the task
             updated_task = form.save(commit=False)
             updated_task.save()
-            
-            # Save ManyToMany fields (observers)
             form.save_m2m()
-            
-            messages.success(request, f'Task "{task.name}" updated successfully!')
-            
-            # Redirect back to project details
+            messages.success(request, f'✅ Task "{task.name}" updated successfully!')
             return redirect('view_project_detail', project_id=task.project.id)
         else:
-            # Form is invalid, show errors
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
+            context = {
+                'form': form,
+                'task': task,
+                'is_edit': True
+            }
+            return render(request, 'edit_task.html', context)
     else:
         form = TaskForm(instance=task)
     
@@ -217,7 +276,6 @@ def edit_task(request, task_id):
         'is_edit': True
     }
     return render(request, 'edit_task.html', context)
-
 
 ## delete task
 @login_required
@@ -246,12 +304,18 @@ def delete_task(request, task_id):
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD", "EMPLOYEE"])
 def view_project_detail(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
+    
+    # Check if team lead has access to this project
+    if request.user.role == "TEAM_LEAD" and request.user not in project.assigned_to.all():
+        messages.error(request, "You don't have permission to view this project.")
+        return redirect('view_projects')
+    
     resources = project.resources.all()
     
-    # Get all tasks under this project
+    # Get tasks under this project
     tasks = Task.objects.filter(project=project).order_by('-created_at')
     
-    # Add calculated fields for tasks (for time display)
+    # Add calculated fields for tasks
     from django.utils import timezone
     for task in tasks:
         if task.status == "ONGOING" and task.start_time:
@@ -265,8 +329,7 @@ def view_project_detail(request, project_id):
             task.time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             
         elif task.status == "COMPLETED" and task.total_time:
-            # Format completed task time WITHOUT milliseconds
-            total_seconds = int(task.total_time.total_seconds())  # Convert to int to remove milliseconds
+            total_seconds = int(task.total_time.total_seconds())
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
@@ -292,6 +355,7 @@ def view_project_detail(request, project_id):
         }
     )
     
+
 ## View Users detail
 from users.models import UserProfile
 
@@ -450,26 +514,35 @@ def admin_dashboard(request):
     }
     return render(request, 'admin_dashboard.html', context)
 
-@login_required
+
 # users/views.py
 # users/views.py
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD"])
 def teamlead_dashboard(request):
-    # Get statistics
-    total_projects = Projects.objects.count()
-    active_tasks = Task.objects.filter(status='ONGOING').count()
-    completed_tasks = Task.objects.filter(status='COMPLETED').count()
+    # Get ONLY projects assigned to this team lead
+    my_projects = Projects.objects.filter(assigned_to=request.user)
+    
+    # Get IDs of these projects
+    my_project_ids = my_projects.values_list('id', flat=True)
+    
+    # Get tasks ONLY from team lead's projects
+    tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+    
+    # Statistics - only from team lead's projects
+    total_projects = my_projects.count()
+    active_tasks = tasks_from_my_projects.filter(status='ONGOING').count()
+    completed_tasks = tasks_from_my_projects.filter(status='COMPLETED').count()
+    pending_tasks = tasks_from_my_projects.filter(status='PENDING').order_by('-created_at')[:5]
+    
+    # Team members (all employees - team leads manage all employees)
     team_members = User.objects.filter(role='EMPLOYEE').count()
     active_members = User.objects.filter(role='EMPLOYEE', is_active=True).count()
     
-    # Get recent projects - using start_date or end_date instead of created_at
-    recent_projects = Projects.objects.all().order_by('-start_date')[:5]  # or use '-end_date'
+    # Recent projects - only team lead's projects
+    recent_projects = my_projects.order_by('-start_date')[:5]
     
-    # Get pending tasks
-    pending_tasks = Task.objects.filter(status='PENDING').order_by('-created_at')[:5]
-    
-    # Get team members list
+    # Get team members list for display
     team_members_list = User.objects.filter(role='EMPLOYEE')[:4]
     
     context = {
@@ -481,23 +554,47 @@ def teamlead_dashboard(request):
         'recent_projects': recent_projects,
         'pending_tasks': pending_tasks,
         'team_members_list': team_members_list,
+        'ongoing_tasks': active_tasks,  # For template compatibility
     }
     return render(request, 'teamlead_dashboard.html', context)
+
+
 
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def employee_dashboard(request):
+    print(f"Employee dashboard accessed by: {request.user.username}")
+    print(f"Is authenticated: {request.user.is_authenticated}")
+    print(f"Session key: {request.session.session_key}")
     user = request.user
 
     # Tasks assigned to employee
     tasks = Task.objects.filter(assigned_to=user)
+    tasks_count = tasks.count()
+    ongoing_tasks = tasks.filter(status='ONGOING').count()
+    completed_tasks = tasks.filter(status='COMPLETED').count()
+    pending_tasks = tasks.filter(status='PENDING').count()
+    recent_tasks = tasks.order_by('-created_at')[:5]
 
     # Projects assigned to employee
     projects = Projects.objects.filter(assigned_to=user)
+    projects_count = projects.count()
+    ongoing_projects = projects.filter(status='ONGOING').count()
+    pending_projects = projects.filter(status='PENDING').count()
+    completed_projects = projects.filter(status='COMPLETED').count()
 
     return render(request, "employee_dashboard.html", {
         "tasks": tasks,
-        "projects": projects
+        "tasks_count": tasks_count,
+        "ongoing_tasks": ongoing_tasks,
+        "completed_tasks": completed_tasks,
+        "pending_tasks": pending_tasks,
+        "recent_tasks": recent_tasks,
+        "projects": projects,
+        "projects_count": projects_count,
+        "ongoing_projects": ongoing_projects,
+        "pending_projects": pending_projects,
+        "completed_projects": completed_projects,
     })
 
 
@@ -643,8 +740,24 @@ def admin_view_users(request):
 
 @login_required
 def teamlead_view_users(request):
+    # Team leads see all employees (they manage all employees)
     employees = User.objects.filter(role='EMPLOYEE')
-    return render(request, 'teamlead_view_users.html', {'users': employees})
+    
+    # Calculate statistics
+    total_employees = employees.count()
+    active_count = employees.filter(is_active=True).count()
+    
+    # Calculate total tasks assigned to all employees
+    from Tasks.models import Task
+    total_tasks = Task.objects.filter(assigned_to__in=employees).count()
+    
+    context = {
+        'users': employees,
+        'total_employees': total_employees,  # This is passed correctly
+        'active_count': active_count,
+        'total_tasks': total_tasks,
+    }
+    return render(request, 'teamlead_view_users.html', context)
 
 ## activate_user
 from django.utils.http import urlsafe_base64_decode
@@ -751,6 +864,20 @@ from Tasks.forms import TaskForm
 def assign_task(request):
     if request.method == "POST":
         form = TaskForm(request.POST)
+        
+        # Get dates for validation
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        
+        # Validate dates - start must be before end
+        if start_date and end_date:
+            if start_date >= end_date:
+                context = {
+                    'form': form,
+                    'date_error': "❌ End date must be after start date"
+                }
+                return render(request, "assign_task.html", context)
+        
         if form.is_valid():
             # Step 1: Save the task instance but don't commit to DB yet
             task = form.save(commit=False)
@@ -802,14 +929,12 @@ def assign_task(request):
             return redirect("teamlead_dashboard")
         else:
             # Form is invalid, show errors
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
+            context = {'form': form}
+            return render(request, "assign_task.html", context)
     else:
         form = TaskForm()
 
     return render(request, "assign_task.html", {"form": form})
-
 
 ## Create Project
 from projects.forms import  ProjectResourceFormSet
@@ -821,22 +946,55 @@ def create_project(request):
     if request.method == "POST":
         project_form = ProjectForm(request.POST)
         resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
+        
+        # Get dates for validation
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        
+        # Validate dates - start must be before end
+        if start_date and end_date:
+            if start_date >= end_date:
+                context = {
+                    "form": project_form,
+                    "resource_formset": resource_formset,
+                    "date_error": "❌ End date must be after start date"
+                }
+                return render(request, "create_project.html", context)
 
         if project_form.is_valid() and resource_formset.is_valid():
-            project = project_form.save()
-
+            project = project_form.save(commit=False)
+            project.created_by = request.user
+            project.save()
+            
             for resource_form in resource_formset:
                 if resource_form.cleaned_data:
                     resource = resource_form.save(commit=False)
                     resource.project = project
                     resource.save()
 
-            if request.user.role.upper() == "ADMIN":
-                return redirect("view_projects")
-            else:
-                return redirect("teamlead_dashboard")
+            messages.success(request, "✅ Project created successfully!")
+            return redirect("view_projects" if request.user.role == "ADMIN" else "teamlead_dashboard")
+        
+        # 🔥 FIX: Add else clause for invalid forms
+        else:
+            # Form is invalid - show errors
+            if not project_form.is_valid():
+                for field, errors in project_form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+            
+            if not resource_formset.is_valid():
+                messages.error(request, "Please check the resources section")
+            
+            # Stay on the same page with errors
+            context = {
+                "form": project_form,
+                "resource_formset": resource_formset
+            }
+            return render(request, "create_project.html", context)
+    
+    # GET request - show empty form
     else:
-        # This is the GET request: we need to define both forms here too!
         project_form = ProjectForm()
         resource_formset = ProjectResourceFormSet()
 
@@ -844,73 +1002,137 @@ def create_project(request):
         "form": project_form,
         "resource_formset": resource_formset
     }
-
     return render(request, "create_project.html", context)
-
-
 
 ## task_dashboard
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN", "TEAM_LEAD"])
 def task_dashboard(request):
-    """Task dashboard showing all tasks in list view (Page 1)"""
+    """Task dashboard showing all tasks in list view"""
     
     # Get tasks based on user role
     if request.user.role == "EMPLOYEE":
         # Employees see only their own tasks
         tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
-    else:
-        # Admins and Team Leads see ALL tasks
+    
+    elif request.user.role == "TEAM_LEAD":
+        # Team Leads see tasks from projects they are assigned to
+        my_projects = Projects.objects.filter(assigned_to=request.user)
+        my_project_ids = my_projects.values_list('id', flat=True)
+        tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
+    
+    else:  # ADMIN
+        # Admins see ALL tasks
         tasks = Task.objects.all().order_by('-created_at')
     
     # Statistics
     total_tasks = tasks.count()
-    overdue_tasks = tasks.filter(
-        status__in=['PENDING', 'ONGOING'],
-        deadline__lt=timezone.now()
-    ).count()
+    ongoing_count = tasks.filter(status='ONGOING').count()
+    completed_count = tasks.filter(status='COMPLETED').count()
     
-    # Add calculated fields for each task
+    # Calculate overdue count and send notifications
+    now = timezone.now()
+    overdue_count = 0
+    from notifications.models import Notification
+    
     for task in tasks:
-        # Format time tracking display
+        # Calculate current time spent
         if task.status == 'ONGOING' and task.start_time:
-            elapsed = timezone.now() - task.start_time
+            elapsed = now - task.start_time
             if task.total_paused_duration:
                 elapsed = elapsed - task.total_paused_duration
-            total_seconds = int(elapsed.total_seconds())
+            current_seconds = int(elapsed.total_seconds())
         elif task.status == 'COMPLETED' and task.total_time:
-            total_seconds = int(task.total_time.total_seconds())
+            current_seconds = int(task.total_time.total_seconds())
         else:
-            total_seconds = 0
+            current_seconds = 0
         
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
+        # Format time spent display
+        hours = current_seconds // 3600
+        minutes = (current_seconds % 3600) // 60
+        seconds = current_seconds % 60
         task.time_spent_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         
-        # Format deadline display
-        if task.deadline:
-            if task.deadline.date() == timezone.now().date():
-                task.deadline_display = f"Today, {task.deadline.strftime('%H:%M')}"
-            else:
-                task.deadline_display = task.deadline.strftime('%b %d, %H:%M')
+        # Format estimated time display
+        if task.estimated_time:
+            est_hours = task.estimated_time // 3600
+            est_minutes = (task.estimated_time % 3600) // 60
+            task.estimated_display = f"{est_hours:02d}:{est_minutes:02d}:00"
         else:
-            task.deadline_display = "No deadline"
+            task.estimated_display = "04:00:00"
         
-        # Format created date
-        task.created_display = task.created_at.strftime('%b %d, %H:%M')
-        
-        # Estimated time (default 04:00)
-        task.estimated_display = "04:00"
+        # Check if task is overdue
+        if task.status != 'COMPLETED' and task.estimated_time:
+            if current_seconds > task.estimated_time:
+                task.is_overdue = True
+                overdue_count += 1
+                
+                # 🔔 SEND NOTIFICATIONS FOR OVERDUE TASK
+                
+                # 1. Notify task owner (assigned_by)
+                if task.assigned_by:
+                    # Check if already notified recently (optional)
+                    existing = Notification.objects.filter(
+                        user=task.assigned_by,
+                        message__icontains=f"Task '{task.name}' is overdue",
+                        created_at__date=now.date()
+                    ).exists()
+                    
+                    if not existing:
+                        Notification.objects.create(
+                            user=task.assigned_by,
+                            message=f"⚠️ Task '{task.name}' (Project: {task.project.name}) is overdue!",
+                            is_read=False
+                        )
+                
+                # 2. Notify all assignees
+                for assignee in task.assigned_to.all():
+                    existing = Notification.objects.filter(
+                        user=assignee,
+                        message__icontains=f"Task '{task.name}'",
+                        created_at__date=now.date()
+                    ).exists()
+                    
+                    if not existing:
+                        Notification.objects.create(
+                            user=assignee,
+                            message=f"⚠️ Task '{task.name}' assigned to you is overdue!",
+                            is_read=False
+                        )
+                
+                # 3. Notify all observers
+                for observer in task.observers.all():
+                    existing = Notification.objects.filter(
+                        user=observer,
+                        message__icontains=f"Task '{task.name}'",
+                        created_at__date=now.date()
+                    ).exists()
+                    
+                    if not existing:
+                        Notification.objects.create(
+                            user=observer,
+                            message=f"⚠️ Task '{task.name}' (Project: {task.project.name}) is overdue!",
+                            is_read=False
+                        )
+                
+                print(f"🔔 Overdue notifications sent for task: {task.name}")
+            else:
+                task.is_overdue = False
+        else:
+            task.is_overdue = False
+    
+    print(f"Total overdue count: {overdue_count}")
     
     context = {
         'tasks': tasks,
         'total_tasks': total_tasks,
-        'overdue_tasks': overdue_tasks,
-        'selected_count': 0,
-        'user_role': request.user.role,  # Optional: pass role to template
+        'ongoing_count': ongoing_count,
+        'completed_count': completed_count,
+        'overdue_count': overdue_count,
+        'now': now,
     }
     return render(request, 'task_dashboard.html', context)
+
 
 
 ## TaskSummary 
@@ -1078,16 +1300,22 @@ def update_task_status(request, task_id):
 
 ## start task
 from django.utils import timezone
+from django.urls import reverse
 import datetime
+## START TASK
 @login_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def start_task(request, task_id):
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    # Allow admins to access any task, employees only their own
+    if request.user.role == "ADMIN":
+        task = get_object_or_404(Task, id=task_id)
+    else:
+        task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
     # Check if task can be started
     if task.status != "PENDING":
         messages.error(request, f'Task cannot be started because it is {task.get_status_display()}.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
     # COMPLETELY RESET the task for fresh start
     task.status = "ONGOING"
@@ -1104,24 +1332,26 @@ def start_task(request, task_id):
     messages.success(request, f'Task "{task.name}" started successfully!')
     return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
-## pause task
-from django.urls import reverse
+
+## PAUSE TASK
 @login_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def pause_task(request, task_id):
     """Pause an ongoing task - records the pause time"""
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    # Allow admins to access any task, employees only their own
+    if request.user.role == "ADMIN":
+        task = get_object_or_404(Task, id=task_id)
+    else:
+        task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
     # Check if task can be paused
     if task.status != "ONGOING":
         messages.error(request, 'Only ongoing tasks can be paused.')
-        # FIX: Redirect back to the same task detail page
         return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
     # Check if task is already paused
     if task.paused_time is not None:
         messages.error(request, 'Task is already paused.')
-        # FIX: Redirect back to the same task detail page
         return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
     # Pause the task
@@ -1129,18 +1359,24 @@ def pause_task(request, task_id):
     task.save()
 
     messages.info(request, f'Task "{task.name}" paused.')
-    # FIX: Redirect back to the same task detail page
     return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
-## Resume task
+
+## RESUME TASK
+@login_required
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def resume_task(request, task_id):
     """Resume a paused task - calculates paused duration and clears pause time"""
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    # Allow admins to access any task, employees only their own
+    if request.user.role == "ADMIN":
+        task = get_object_or_404(Task, id=task_id)
+    else:
+        task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
     # Check if task is paused
     if task.status != "ONGOING" or task.paused_time is None:
         messages.error(request, 'Task is not paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
     # Calculate paused duration
     paused_duration = timezone.now() - task.paused_time
@@ -1159,23 +1395,26 @@ def resume_task(request, task_id):
     return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
 
-## complete task
+## COMPLETE TASK
 @login_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def complete_task(request, task_id):
     """Complete a task - calculates total time spent and marks as COMPLETED"""
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    # Allow admins to access any task, employees only their own
+    if request.user.role == "ADMIN":
+        task = get_object_or_404(Task, id=task_id)
+    else:
+        task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
     # Check if task can be completed
     if task.status == "COMPLETED":
         messages.error(request, 'Task is already completed.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")  # FIXED
+        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
 
     # IMPORTANT: Check if summary exists
     if not task.summary:
         messages.error(request, 'Please add a task summary before completing.')
         return redirect('add_task_summary', task_id=task.id)
-
 
     # If task is ongoing, calculate final time
     if task.status == "ONGOING" and task.start_time:
@@ -1221,6 +1460,8 @@ def complete_task(request, task_id):
 
     messages.success(request, f'Task "{task.name}" completed! Total time: {time_display}')
     return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+
+
 
 from .models import Department, Designation
 from .forms import UserProfileForm

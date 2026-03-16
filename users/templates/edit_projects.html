@@ -18,17 +18,16 @@
         <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p class="text-sm text-gray-600">
                 <span class="font-medium">Project ID:</span> {{ project.id }} | 
-                <span class="font-medium">Current Status:</span> 
-                <span class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs
-                    {% if project.status == 'PENDING' %}bg-yellow-100 text-yellow-700
-                    {% elif project.status == 'ONGOING' %}bg-blue-100 text-blue-700
-                    {% else %}bg-green-100 text-green-700{% endif %}">
-                    {{ project.get_status_display }}
-                </span>
+                <span class="font-medium">Created by:</span> 
+                {% if project.created_by %}
+                    {{ project.created_by.get_full_name|default:project.created_by.username }}
+                {% else %}
+                    <span class="text-gray-400">Unknown</span>
+                {% endif %}
             </p>
         </div>
 
-        <form method="POST" class="space-y-5">
+        <form method="POST" class="space-y-5" id="editProjectForm">
             {% csrf_token %}
 
             {{ form.non_field_errors }}
@@ -39,7 +38,11 @@
                     Name <span class="text-red-500">*</span>
                 </label>
                 {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                {{ form.name.errors }}
+                {% if form.name.errors %}
+                    {% for error in form.name.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
             </div>
 
             <!-- Description -->
@@ -48,53 +51,72 @@
                     Description <span class="text-red-500">*</span>
                 </label>
                 {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                {{ form.description.errors }}
+                {% if form.description.errors %}
+                    {% for error in form.description.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
             </div>
 
-            <!-- Assigned to (Multiple) - with checkboxes -->
+            <!-- Assigned to (Multiple) -->
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-2">
                     Assigned to
                 </label>
-                <div class="border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto bg-gray-50">
+                <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
                     {% for user in form.assigned_to.field.queryset %}
-                        <div class="flex items-center space-x-3 py-2 px-2 hover:bg-white rounded transition">
+                        <div class="flex items-center space-x-2 py-1">
                             <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
                                    id="user_{{ user.id }}"
-                                   class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                    {% if user in project.assigned_to.all %}checked{% endif %}>
-                            <label for="user_{{ user.id }}" class="text-sm text-gray-700 cursor-pointer flex-1">
-                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
-                                <span class="text-xs text-gray-500 ml-2">({{ user.email }})</span>
+                            <label for="user_{{ user.id }}" class="text-sm text-gray-700">
+                                {{ user.get_full_name|default:user.username }} ({{ user.email }})
                             </label>
                         </div>
                     {% endfor %}
                 </div>
-                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Check multiple boxes to assign multiple users
-                </p>
                 {{ form.assigned_to.errors }}
             </div>
 
             <!-- Start and End Date -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Start Date -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">
                         Start date <span class="text-red-500">*</span>
                     </label>
-                    {{ form.start_date|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                    {{ form.start_date.errors }}
+                    <input type="date" name="start_date" id="start_date" 
+                           value="{{ form.start_date.value|date:'Y-m-d'|default:project.start_date|date:'Y-m-d' }}"
+                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none
+                           {% if date_error %}border-red-500 bg-red-50{% endif %}">
+                    {% if date_error %}
+                    <p class="text-red-500 text-xs mt-1 flex items-center date-error">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        {{ date_error }}
+                    </p>
+                    {% endif %}
                 </div>
 
+                <!-- End Date -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">
                         End date <span class="text-red-500">*</span>
                     </label>
-                    {{ form.end_date|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                    {{ form.end_date.errors }}
+                    <input type="date" name="end_date" id="end_date" 
+                           value="{{ form.end_date.value|date:'Y-m-d'|default:project.end_date|date:'Y-m-d' }}"
+                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none
+                           {% if date_error %}border-red-500 bg-red-50{% endif %}">
+                    {% if date_error %}
+                    <p class="text-red-500 text-xs mt-1 flex items-center date-error">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        {{ date_error }}
+                    </p>
+                    {% endif %}
                 </div>
             </div>
 
@@ -104,44 +126,63 @@
                     Status <span class="text-red-500">*</span>
                 </label>
                 {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                {{ form.status.errors }}
+                {% if form.status.errors %}
+                    {% for error in form.status.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
             </div>
 
             <!-- Buttons -->
             <div class="flex items-center gap-4 pt-6 mt-6 border-t border-gray-200">
                 <button type="submit"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow transition font-medium">
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow transition">
                     Update Project
                 </button>
 
                 <a href="{% url 'view_projects' %}"
-                   class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded shadow transition font-medium">
+                   class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded shadow transition">
                     Cancel
                 </a>
             </div>
 
         </form>
     </div>
-
-    <!-- Project Info Card -->
-    <div class="mt-6 bg-gray-50 rounded-lg border border-gray-200 p-4">
-        <div class="flex items-start gap-3">
-            <div class="bg-blue-100 p-2 rounded-full">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-            </div>
-            <div>
-                <p class="text-sm text-gray-600">
-                    <span class="font-medium">Created:</span> {{ project.created_at|date:"M d, Y H:i" }}
-                </p>
-                <p class="text-sm text-gray-600 mt-1">
-                    <span class="font-medium">Last Updated:</span> {{ project.updated_at|date:"M d, Y H:i" }}
-                </p>
-            </div>
-        </div>
-    </div>
-
 </div>
 
+<!-- JavaScript for date validation -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
+        
+        function validateDates() {
+            if (startDate && endDate && startDate.value && endDate.value) {
+                if (startDate.value >= endDate.value) {
+                    endDate.classList.add('border-red-500', 'bg-red-50');
+                    startDate.classList.add('border-red-500', 'bg-red-50');
+                    
+                    const existingError = endDate.parentNode.querySelector('.date-error');
+                    if (!existingError) {
+                        const errorMsg = document.createElement('p');
+                        errorMsg.className = 'text-red-500 text-xs mt-1 flex items-center date-error';
+                        errorMsg.innerHTML = '<svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></svg>End date must be after start date';
+                        endDate.parentNode.appendChild(errorMsg);
+                    }
+                } else {
+                    endDate.classList.remove('border-red-500', 'bg-red-50');
+                    startDate.classList.remove('border-red-500', 'bg-red-50');
+                    
+                    const errorMsg = endDate.parentNode.querySelector('.date-error');
+                    if (errorMsg) errorMsg.remove();
+                }
+            }
+        }
+        
+        if (startDate && endDate) {
+            startDate.addEventListener('change', validateDates);
+            endDate.addEventListener('change', validateDates);
+        }
+    });
+</script>
 {% endblock %}
