@@ -1572,6 +1572,65 @@ def delete_designation(request, desig_id):
     
 #     return render(request,"edit_user.html",{"user":user})
 
+
+# Only logged-in users can access
+# Allow POST requests from our forms
+# users/views.py
+from services.gemini_service import GeminiService
+@login_required 
+@csrf_exempt    
+def ai_generate_description(request):
+    """
+    API endpoint for AI-powered task descriptions.
+    
+    Why this structure?
+    - POST only (we're creating something)
+    - Returns JSON (for JavaScript to use)
+    - Has clear success/error format
+    """
+    
+    # Step 1: Check if it's a POST request
+    if request.method != "POST":
+        return JsonResponse({
+            'success': False,
+            'error': 'This endpoint only accepts POST requests'
+        }, status=405)  # 405 = Method Not Allowed
+    
+    # Step 2: Try to parse the JSON data
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON format'
+        }, status=400)  # 400 = Bad Request
+    
+    # Step 3: Extract data from request
+    task_name = data.get('task_name', '').strip()
+    project_name = data.get('project_name', '')
+    current_description = data.get('current_description', '')
+    action = data.get('action', 'generate')
+    
+    # Step 4: Validate required fields
+    if not task_name:
+        return JsonResponse({
+            'success': False,
+            'error': 'Task name is required'
+        }, status=400)
+    
+    # Step 5: Initialize AI service
+    ai_service = GeminiService()
+    
+    # Step 6: Perform the requested action
+    if action == 'enhance' and current_description:
+        result = ai_service.enhance_description(current_description, task_name)
+    else:
+        result = ai_service.gen_task_description(task_name, project_name)
+    
+    # Step 7: Return the result
+    return JsonResponse(result)
+
+
 ## home page
 def home(request):
     return render(request, "home.html")
