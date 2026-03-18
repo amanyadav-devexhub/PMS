@@ -242,7 +242,7 @@ def edit_task(request, task_id):
         
         # Validate dates - start must be before end
         if start_date and end_date:
-            if start_date >= end_date:
+            if start_date > end_date:
                 context = {
                     'form': form,
                     'task': task,
@@ -871,7 +871,7 @@ def assign_task(request):
         
         # Validate dates - start must be before end
         if start_date and end_date:
-            if start_date >= end_date:
+            if start_date > end_date:
                 context = {
                     'form': form,
                     'date_error': "❌ End date must be after start date"
@@ -926,7 +926,11 @@ def assign_task(request):
                 time_display += f" {minutes} minute{'s' if minutes != 1 else ''}"
 
             messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s) with {task.observers.count()} observer(s)! (Est. time: {time_display})')
-            return redirect("teamlead_dashboard")
+            # Redirect based on user role
+            if request.user.role == "ADMIN":
+                return redirect("admin_dashboard")
+            else:
+                return redirect("teamlead_dashboard")
         else:
             # Form is invalid, show errors
             context = {'form': form}
@@ -1137,28 +1141,45 @@ def task_dashboard(request):
 
 ## TaskSummary 
 @login_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def add_task_summary(request, task_id):
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    """Add summary to a task"""
     
-    # Optional: Check if task is in correct state
+    print(f"\n📝 ADD TASK SUMMARY")
+    print(f"Task ID: {task_id}")
+    print(f"User: {request.user.username}")
+    print(f"User Role: {request.user.role}")
+    
+    try:
+        # Allow admins to access any task
+        if request.user.role == "ADMIN":
+            task = get_object_or_404(Task, id=task_id)
+            print(f"Admin accessing task: {task.name}")
+        else:
+            task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+            print(f"Employee accessing their task: {task.name}")
+    except Exception as e:
+        print(f"Error finding task: {e}")
+        messages.error(request, f"Task with ID {task_id} not found.")
+        return redirect('task_dashboard')
+    
+    # Check if task is in correct state
     if task.status != "ONGOING":
         messages.error(request, "You can only add summary to ongoing tasks.")
         return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
     
     if request.method == 'POST':
         summary = request.POST.get('summary')
-        if summary and summary.strip():  # Check if summary is not empty
+        if summary and summary.strip():
             task.summary = summary.strip()
             task.save()
+            
             messages.success(request, "Summary added successfully! You can now complete the task.")
-            # Redirect back to task detail
             return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
         else:
             messages.error(request, "Please enter a valid summary.")
     
     return render(request, 'add_task_summary.html', {'task': task})
-
 
 
 

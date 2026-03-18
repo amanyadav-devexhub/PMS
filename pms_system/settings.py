@@ -162,4 +162,4 @@ LOGIN_URL = "/render_login/"
 ## settings for AI features
 import os
 
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY','AIzaSyAwIZLxp6TIYGxPu7O14htCxjTLIGGxNv4')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY','AIzaSyDsR7_Lz8CgzVfrthUhJMSKCfQEGS1_3Hg')
