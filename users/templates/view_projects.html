@@ -51,10 +51,10 @@
                     </tr>
                 </thead>
 
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200" id="projects-table-body">
 
                     {% for project in projects %}
-                    <tr class="hover:bg-gray-50 transition">
+                    <tr class="hover:bg-gray-50 transition" id="project-row-{{ project.id }}">
                         <td class="px-6 py-4 text-sm text-gray-700">
                             {{ forloop.counter }}
                         </td>
@@ -102,11 +102,13 @@
                                 View
                             </a>
                         
-                            <a href="{% url 'delete_project' project.id %}"
-                               class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow"
-                               onclick="return confirm('Are you sure you want to delete this project?')">
+                            <!-- AJAX DELETE BUTTON -->
+                            <button type="button" 
+                                    onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
+                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
+                                    id="delete-project-{{ project.id }}">
                                 Delete
-                            </a>
+                            </button>
 
                         </td>
                     </tr>
@@ -142,5 +144,82 @@
     </div>
 
 </div>
+
+<!-- AJAX Delete Project JavaScript -->
+<script>
+function deleteProject(projectId, projectName) {
+    // Show confirmation with warning about tasks
+    if (!confirm(`Are you sure you want to delete project "${projectName}"? This will also delete ALL tasks under this project.`)) {
+        return;
+    }
+    
+    // Get the button and row
+    const btn = document.getElementById(`delete-project-${projectId}`);
+    const row = document.getElementById(`project-row-${projectId}`);
+    const originalText = btn.textContent;
+    
+    // Show loading state
+    btn.textContent = 'Deleting...';
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    // Make AJAX request
+    fetch(`/delete_project/${projectId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Success! Remove the row from the table
+            if (row) {
+                row.remove();
+            }
+            
+            // Show success message
+            alert('✅ ' + data.message);
+            
+            // Optional: Update the "Showing X projects" count
+            const remainingRows = document.querySelectorAll('#projects-table-body tr').length;
+            const showingText = document.querySelector('.text-sm.text-gray-600');
+            if (showingText) {
+                showingText.textContent = `Showing ${remainingRows} projects`;
+            }
+            
+            // If no projects left, show empty state
+            if (remainingRows === 0) {
+                const tableBody = document.getElementById('projects-table-body');
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-6 text-gray-500">
+                            No projects found.
+                        </td>
+                    </tr>
+                `;
+            }
+        } else {
+            alert('❌ ' + (data.error || 'Something went wrong'));
+            // Reset button
+            resetProjectButton(btn, originalText);
+        }
+    })
+    .catch(error => {
+        alert('Network error. Please try again.');
+        console.error('Error:', error);
+        // Reset button
+        resetProjectButton(btn, originalText);
+    });
+}
+
+// Helper function to reset button
+function resetProjectButton(btn, originalText) {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+}
+</script>
 
 {% endblock %}

@@ -225,42 +225,51 @@
                 </div>
             </div>
 
-            <!-- Action Buttons - Only for EMPLOYEE and ADMIN (NEVER for Team Lead) -->
+            <!-- Action Buttons - All AJAX now -->
             {% if tasks|length == 1 %}
                 {% if request.user.role == 'EMPLOYEE' or request.user.role == 'ADMIN' %}
-                <!-- Employee or Admin viewing task - show buttons -->
                 <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
                     {% if task.status == "PENDING" %}
-                        <a href="{% url 'start_task' task.id %}" 
-                           class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                        <!-- AJAX START BUTTON -->
+                        <button type="button" 
+                                onclick="startTask({{ task.id }}, '{{ task.name|escapejs }}')"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                id="start-btn-{{ task.id }}">
                             Start Task
-                        </a>
+                        </button>
+                        
                     {% elif task.status == "ONGOING" %}
                         {% if task.paused_time %}
-                            <a href="{% url 'resume_task' task.id %}" 
-                               class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                            <!-- AJAX RESUME BUTTON -->
+                            <button type="button" 
+                                    onclick="resumeTask({{ task.id }}, '{{ task.name|escapejs }}')"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                    id="resume-btn-{{ task.id }}">
                                 Resume Task
-                            </a>
+                            </button>
                         {% else %}
-                            <a href="{% url 'pause_task' task.id %}" 
-                               class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                            <!-- AJAX PAUSE BUTTON -->
+                            <button type="button" 
+                                    onclick="pauseTask({{ task.id }}, '{{ task.name|escapejs }}')"
+                                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                    id="pause-btn-{{ task.id }}">
                                 Pause Task
-                            </a>
+                            </button>
                         {% endif %}
-                        <a href="{% url 'complete_task' task.id %}" 
-                           class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg">
+                        
+                        <!-- AJAX COMPLETE BUTTON -->
+                        <button type="button" 
+                                onclick="completeTask({{ task.id }}, '{{ task.name|escapejs }}')"
+                                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                id="complete-btn-{{ task.id }}">
                             Complete Task
-                        </a>
-                    {% elif task.status == "COMPLETED" %}
-                        <span class="bg-gray-400 text-white px-8 py-3 rounded-xl text-sm font-medium">
-                            Task Completed
-                        </span>
+                        </button>
                     {% endif %}
                 </div>
                 {% else %}
-                <!-- Team Lead viewing ANY task (own or employee) - NO buttons (read-only) -->
+                <!-- Team Lead viewing ANY task - read-only -->
                 <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end">
-                    <span class="text-sm text-gray-500 italic px-4 py-2 bg-gray-100 rounded-lg"></span>
+                    <span class="text-sm text-gray-500 italic px-4 py-2 bg-gray-100 rounded-lg">Viewing in read-only mode</span>
                 </div>
                 {% endif %}
             {% else %}
@@ -327,5 +336,151 @@
 </script>
 {% endif %}
 {% endfor %}
+
+<!-- AJAX Task Action JavaScript - Complete, Start, Pause, Resume -->
+<script>
+// Helper function to reset button
+function resetButton(btn, originalText) {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+}
+
+// START TASK
+function startTask(taskId, taskName) {
+    const btn = document.getElementById(`start-btn-${taskId}`);
+    const originalText = btn.textContent;
+    
+    btn.textContent = 'Starting...';
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    fetch(`/task/${taskId}/start/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            location.reload();
+        } else {
+            alert('❌ ' + data.error);
+            resetButton(btn, originalText);
+        }
+    })
+    .catch(error => {
+        alert('Network error. Please try again.');
+        resetButton(btn, originalText);
+    });
+}
+
+// PAUSE TASK
+function pauseTask(taskId, taskName) {
+    const btn = document.getElementById(`pause-btn-${taskId}`);
+    const originalText = btn.textContent;
+    
+    btn.textContent = 'Pausing...';
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    fetch(`/task/${taskId}/pause/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('⏸️ ' + data.message);
+            location.reload();
+        } else {
+            alert('❌ ' + data.error);
+            resetButton(btn, originalText);
+        }
+    })
+    .catch(error => {
+        alert('Network error. Please try again.');
+        resetButton(btn, originalText);
+    });
+}
+
+// RESUME TASK
+function resumeTask(taskId, taskName) {
+    const btn = document.getElementById(`resume-btn-${taskId}`);
+    const originalText = btn.textContent;
+    
+    btn.textContent = 'Resuming...';
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    fetch(`/task/${taskId}/resume/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('▶️ ' + data.message);
+            location.reload();
+        } else {
+            alert('❌ ' + data.error);
+            resetButton(btn, originalText);
+        }
+    })
+    .catch(error => {
+        alert('Network error. Please try again.');
+        resetButton(btn, originalText);
+    });
+}
+
+// COMPLETE TASK
+function completeTask(taskId, taskName) {
+    const btn = document.getElementById(`complete-btn-${taskId}`);
+    const originalText = btn.textContent;
+    
+    btn.textContent = 'Completing...';
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    fetch(`/task/${taskId}/complete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            location.reload();
+        } else {
+            if (data.redirect_url) {
+                if (confirm(`Task "${taskName}" needs a summary. Add it now?`)) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    resetButton(btn, originalText);
+                }
+            } else {
+                alert('❌ ' + (data.error || 'Something went wrong'));
+                resetButton(btn, originalText);
+            }
+        }
+    })
+    .catch(error => {
+        alert('Network error. Please try again.');
+        resetButton(btn, originalText);
+    });
+}
+</script>
 
 {% endblock %}

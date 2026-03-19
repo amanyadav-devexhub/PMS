@@ -281,20 +281,32 @@ def edit_task(request, task_id):
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 def delete_task(request, task_id):
-    """Delete a task"""
+    """Delete a task - AJAX enabled"""
+    
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     task = get_object_or_404(Task, id=task_id)
     project_id = task.project.id
     task_name = task.name
     
     if request.method == 'POST':
         task.delete()
-        messages.success(request, f'Task "{task_name}" deleted successfully!')
-        return redirect('view_project_detail', project_id=project_id)
+        
+        # If AJAX request, return JSON
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': f'Task "{task_name}" deleted successfully!',
+                'project_id': project_id
+            })
+        else:
+            # Regular form submission fallback
+            messages.success(request, f'Task "{task_name}" deleted successfully!')
+            return redirect('view_project_detail', project_id=project_id)
     
-    # GET request - show confirmation page
-    context = {
-        'task': task
-    }
+    # GET request - show confirmation page (for non-AJAX fallback)
+    context = {'task': task}
     return render(request, 'delete_task_confirm.html', context)
 
 
@@ -428,14 +440,34 @@ def add_project_resource(request, project_id):
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD", "ADMIN"])
 def delete_project(request, id):
+    """Delete a project - AJAX enabled"""
+    
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     project = get_object_or_404(Projects, id=id)
-    project.delete()
-
-    # role-based redirect
-    if request.user.role == "ADMIN":
-        return redirect("view_projects")
-    else:
-        return redirect("teamlead_dashboard")
+    project_name = project.name
+    
+    if request.method == 'POST':
+        project.delete()
+        
+        # If AJAX request, return JSON
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': f'Project "{project_name}" deleted successfully!'
+            })
+        else:
+            # Regular form submission fallback
+            messages.success(request, f'Project "{project_name}" deleted successfully!')
+            if request.user.role == "ADMIN":
+                return redirect("view_projects")
+            else:
+                return redirect("teamlead_dashboard")
+    
+    # GET request - redirect to list (for non-AJAX fallback)
+    # Since this view doesn't have a confirmation template, we'll redirect
+    return redirect("view_projects")
     
 
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -1140,47 +1172,66 @@ def task_dashboard(request):
 
 
 ## TaskSummary 
+from django.http import JsonResponse
+
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def add_task_summary(request, task_id):
-    """Add summary to a task"""
-    
-    print(f"\n📝 ADD TASK SUMMARY")
-    print(f"Task ID: {task_id}")
-    print(f"User: {request.user.username}")
-    print(f"User Role: {request.user.role}")
+    """Add summary to a task - AJAX enabled"""
     
     try:
         # Allow admins to access any task
         if request.user.role == "ADMIN":
             task = get_object_or_404(Task, id=task_id)
-            print(f"Admin accessing task: {task.name}")
         else:
             task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
-            print(f"Employee accessing their task: {task.name}")
-    except Exception as e:
-        print(f"Error finding task: {e}")
-        messages.error(request, f"Task with ID {task_id} not found.")
-        return redirect('task_dashboard')
+    except:
+        return JsonResponse({
+            'success': False,
+            'error': 'Task not found'
+        }, status=404)
     
     # Check if task is in correct state
     if task.status != "ONGOING":
-        messages.error(request, "You can only add summary to ongoing tasks.")
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'You can only add summary to ongoing tasks.'
+        }, status=400)
     
     if request.method == 'POST':
-        summary = request.POST.get('summary')
-        if summary and summary.strip():
-            task.summary = summary.strip()
-            task.save()
-            
-            messages.success(request, "Summary added successfully! You can now complete the task.")
-            return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        # Check if it's an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                data = json.loads(request.body)
+                summary = data.get('summary', '').strip()
+            except:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid JSON'
+                }, status=400)
         else:
-            messages.error(request, "Please enter a valid summary.")
+            # Regular form submission (fallback)
+            summary = request.POST.get('summary', '').strip()
+        
+        if not summary:
+            return JsonResponse({
+                'success': False,
+                'errors': {
+                    'summary': ['Please enter a valid summary.']
+                }
+            }, status=400)
+        
+        task.summary = summary
+        task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Summary added successfully!',
+            'task_id': task.id
+        })
     
+    # GET request - render template
     return render(request, 'add_task_summary.html', {'task': task})
-
 
 
 
@@ -1323,10 +1374,12 @@ def update_task_status(request, task_id):
 from django.utils import timezone
 from django.urls import reverse
 import datetime
-## START TASK
+## START TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def start_task(request, task_id):
+    """Start a task - AJAX enabled"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1335,10 +1388,12 @@ def start_task(request, task_id):
 
     # Check if task can be started
     if task.status != "PENDING":
-        messages.error(request, f'Task cannot be started because it is {task.get_status_display()}.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Task cannot be started because it is {task.get_status_display()}.'
+        }, status=400)
 
-    # COMPLETELY RESET the task for fresh start
+    # Reset the task for fresh start
     task.status = "ONGOING"
     task.start_time = timezone.now()
     task.paused_time = None
@@ -1350,15 +1405,22 @@ def start_task(request, task_id):
         'status', 'start_time', 'paused_time', 
         'total_paused_duration', 'total_time', 'end_time'
     ])
-    messages.success(request, f'Task "{task.name}" started successfully!')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" started successfully!',
+        'task_id': task.id,
+        'status': 'ONGOING',
+        'start_time': task.start_time.isoformat()
+    })
 
 
-## PAUSE TASK
+## PAUSE TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def pause_task(request, task_id):
-    """Pause an ongoing task - records the pause time"""
+    """Pause an ongoing task - AJAX enabled"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1367,27 +1429,36 @@ def pause_task(request, task_id):
 
     # Check if task can be paused
     if task.status != "ONGOING":
-        messages.error(request, 'Only ongoing tasks can be paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Only ongoing tasks can be paused.'
+        }, status=400)
 
     # Check if task is already paused
     if task.paused_time is not None:
-        messages.error(request, 'Task is already paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Task is already paused.'
+        }, status=400)
 
     # Pause the task
     task.paused_time = timezone.now()
     task.save()
 
-    messages.info(request, f'Task "{task.name}" paused.')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" paused.',
+        'task_id': task.id,
+        'paused_time': task.paused_time.isoformat()
+    })
 
 
-## RESUME TASK
+## RESUME TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def resume_task(request, task_id):
-    """Resume a paused task - calculates paused duration and clears pause time"""
+    """Resume a paused task - AJAX enabled"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1396,8 +1467,10 @@ def resume_task(request, task_id):
 
     # Check if task is paused
     if task.status != "ONGOING" or task.paused_time is None:
-        messages.error(request, 'Task is not paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Task is not paused.'
+        }, status=400)
 
     # Calculate paused duration
     paused_duration = timezone.now() - task.paused_time
@@ -1412,15 +1485,19 @@ def resume_task(request, task_id):
     task.paused_time = None
     task.save()
 
-    messages.success(request, f'Task "{task.name}" resumed.')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" resumed.',
+        'task_id': task.id
+    })
 
 
-## COMPLETE TASK
+## COMPLETE TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def complete_task(request, task_id):
-    """Complete a task - calculates total time spent and marks as COMPLETED"""
+    """Complete a task - AJAX enabled with JSON response"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1429,13 +1506,18 @@ def complete_task(request, task_id):
 
     # Check if task can be completed
     if task.status == "COMPLETED":
-        messages.error(request, 'Task is already completed.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Task is already completed.'
+        }, status=400)
 
     # IMPORTANT: Check if summary exists
     if not task.summary:
-        messages.error(request, 'Please add a task summary before completing.')
-        return redirect('add_task_summary', task_id=task.id)
+        return JsonResponse({
+            'success': False,
+            'error': 'Please add a task summary before completing.',
+            'redirect_url': reverse('add_task_summary', args=[task.id])
+        }, status=400)
 
     # If task is ongoing, calculate final time
     if task.status == "ONGOING" and task.start_time:
@@ -1479,8 +1561,14 @@ def complete_task(request, task_id):
     for user in observers:
         Notification.objects.create(user=user, message=message)
 
-    messages.success(request, f'Task "{task.name}" completed! Total time: {time_display}')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    # Return JSON response instead of redirect
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" completed! Total time: {time_display}',
+        'task_id': task.id,
+        'time_display': time_display,
+        'status': 'COMPLETED'
+    })
 
 
 
