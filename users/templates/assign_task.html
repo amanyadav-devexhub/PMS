@@ -472,4 +472,104 @@
     }
 </script>
 
+<!-- AJAX Form Submission -->
+<script>
+document.getElementById('taskForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Get form data
+    const formData = new FormData(this);
+    
+    // Get submit button
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // Show loading state
+    submitBtn.textContent = 'Assigning...';
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-50');
+    
+    // Remove existing error messages
+    document.querySelectorAll('.field-error').forEach(el => el.remove());
+    document.querySelectorAll('.border-red-500, .bg-red-50').forEach(el => {
+        el.classList.remove('border-red-500', 'bg-red-50');
+    });
+    
+    // Make AJAX request
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('✅ ' + data.message);
+            // Redirect based on role
+            {% if request.user.role == "ADMIN" %}
+                window.location.href = "{% url 'admin_dashboard' %}";
+            {% else %}
+                window.location.href = "{% url 'teamlead_dashboard' %}";
+            {% endif %}
+        } else {
+            // Handle errors
+            if (data.errors) {
+                // Field-specific errors
+                Object.keys(data.errors).forEach(field => {
+                    const fieldElement = document.querySelector(`[name="${field}"]`);
+                    if (fieldElement) {
+                        fieldElement.classList.add('border-red-500', 'bg-red-50');
+                        const errorDiv = document.createElement('p');
+                        errorDiv.className = 'field-error text-red-500 text-xs mt-1';
+                        errorDiv.textContent = data.errors[field][0];
+                        fieldElement.parentNode.appendChild(errorDiv);
+                    } else {
+                        // For checkbox groups (assigned_to, observers)
+                        const fieldContainer = document.querySelector(`[name="${field}"]`).closest('div');
+                        if (fieldContainer) {
+                            const errorDiv = document.createElement('p');
+                            errorDiv.className = 'field-error text-red-500 text-xs mt-1';
+                            errorDiv.textContent = data.errors[field][0];
+                            fieldContainer.parentNode.appendChild(errorDiv);
+                        }
+                    }
+                });
+            } else if (data.error && data.field === 'end_date') {
+                const endDateField = document.querySelector('[name="end_date"]');
+                if (endDateField) {
+                    endDateField.classList.add('border-red-500', 'bg-red-50');
+                    const errorDiv = document.createElement('p');
+                    errorDiv.className = 'field-error text-red-500 text-xs mt-1';
+                    errorDiv.textContent = data.error;
+                    endDateField.parentNode.appendChild(errorDiv);
+                }
+            } else if (data.error) {
+                // General error at top of form
+                const form = document.getElementById('taskForm');
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'field-error bg-red-100 text-red-800 p-3 rounded-lg mb-4';
+                errorDiv.textContent = '❌ ' + data.error;
+                form.insertBefore(errorDiv, form.firstChild);
+            }
+            
+            // Reset button
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50');
+        }
+    })
+    .catch(error => {
+        alert('Network error. Please try again.');
+        console.error('Error:', error);
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-50');
+    });
+});
+</script>
+
 {% endblock %}

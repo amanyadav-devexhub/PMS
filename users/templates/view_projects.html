@@ -19,21 +19,42 @@
         </a>
     </div>
 
-    <!-- Search Bar-->
-     <form method="GET" class="mb-4 flex gap-2">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+        </div>
+    </div>
 
-    <input type="text"
-           name="search"
-           value="{{ search_query }}"
-           placeholder="Search project or member..."
-           class="border border-gray-300 px-4 py-2 rounded w-72">
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
 
-    <button type="submit"
-            class="bg-indigo-500 text-white px-4 py-2 rounded">
-        Search
-    </button>
+    <!-- Search Bar with AJAX -->
+    <div class="mb-4 flex gap-2">
+        <input type="text"
+               id="searchInput"
+               name="search"
+               value="{{ search_query }}"
+               placeholder="Search project or member..."
+               class="border border-gray-300 px-4 py-2 rounded w-72 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+        
+        <button type="button"
+                id="searchBtn"
+                class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded transition">
+            Search
+        </button>
+        
+        <button type="button"
+                id="clearSearchBtn"
+                class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded transition hidden">
+            Clear
+        </button>
+    </div>
 
-    </form>
+    <!-- Results Info -->
+    <div id="resultsInfo" class="mb-4 text-sm text-gray-600">
+        Showing <span id="projectCount">{{ projects|length }}</span> projects
+    </div>
 
     <!-- Card -->
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -52,7 +73,6 @@
                 </thead>
 
                 <tbody class="divide-y divide-gray-200" id="projects-table-body">
-
                     {% for project in projects %}
                     <tr class="hover:bg-gray-50 transition" id="project-row-{{ project.id }}">
                         <td class="px-6 py-4 text-sm text-gray-700">
@@ -74,42 +94,33 @@
                         </td>
 
                         <td class="px-6 py-4">
-                        {% if project.status == "PENDING" %}
-                            <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                {{ project.get_status_display }}
-                            </span>
-
-                        {% elif project.status == "ONGOING" %}
-                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                {{ project.get_status_display }}
-                            </span>
-
-                        {% elif project.status == "COMPLETED" %}
-                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                {{ project.get_status_display }}
-                            </span>
-                        {% endif %}
-                    </td>
+                            {% if project.status == "PENDING" %}
+                                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                    {{ project.get_status_display }}
+                                </span>
+                            {% elif project.status == "ONGOING" %}
+                                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                    {{ project.get_status_display }}
+                                </span>
+                            {% elif project.status == "COMPLETED" %}
+                                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                    {{ project.get_status_display }}
+                                </span>
+                            {% endif %}
+                        </td>
 
                         <td class="px-6 py-4 text-center space-x-2">
-                            <!-- <a href="{% url 'edit_projects' project.id %}"
-                               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow">
-                                Edit
-                            </a> -->
-
                             <a href="{% url 'view_project_detail' project.id %}"
-                               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow">
+                               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
                                 View
                             </a>
                         
-                            <!-- AJAX DELETE BUTTON -->
                             <button type="button" 
                                     onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
                                     class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
                                     id="delete-project-{{ project.id }}">
                                 Delete
                             </button>
-
                         </td>
                     </tr>
                     {% empty %}
@@ -119,107 +130,407 @@
                         </td>
                     </tr>
                     {% endfor %}
-
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Pagination (ready for server-side later) -->
+    <!-- Pagination -->
     <div class="flex justify-between items-center mt-6">
-
-        <p class="text-sm text-gray-600">
-            Showing {{ projects|length }} projects
+        <p class="text-sm text-gray-600" id="paginationInfo">
+            Showing <span id="showingCount">{{ projects|length }}</span> projects
         </p>
 
         <div class="flex gap-2">
-            <button class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">
+            <button id="prevPage" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                 Previous
             </button>
-            <button class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">
+            <button id="nextPage" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                 Next
             </button>
         </div>
-
     </div>
 
 </div>
 
-<!-- AJAX Delete Project JavaScript -->
+<!-- AJAX JavaScript -->
 <script>
-function deleteProject(projectId, projectName) {
-    // Show confirmation with warning about tasks
-    if (!confirm(`Are you sure you want to delete project "${projectName}"? This will also delete ALL tasks under this project.`)) {
-        return;
+    // Get CSRF token from cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
     
-    // Get the button and row
-    const btn = document.getElementById(`delete-project-${projectId}`);
-    const row = document.getElementById(`project-row-${projectId}`);
-    const originalText = btn.textContent;
+    const csrftoken = getCookie('csrftoken');
     
-    // Show loading state
-    btn.textContent = 'Deleting...';
-    btn.disabled = true;
-    btn.classList.add('opacity-50', 'cursor-not-allowed');
-    
-    // Make AJAX request
-    fetch(`/delete_project/${projectId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Success! Remove the row from the table
-            if (row) {
-                row.remove();
-            }
-            
-            // Show success message
-            alert('✅ ' + data.message);
-            
-            // Optional: Update the "Showing X projects" count
-            const remainingRows = document.querySelectorAll('#projects-table-body tr').length;
-            const showingText = document.querySelector('.text-sm.text-gray-600');
-            if (showingText) {
-                showingText.textContent = `Showing ${remainingRows} projects`;
-            }
-            
-            // If no projects left, show empty state
-            if (remainingRows === 0) {
-                const tableBody = document.getElementById('projects-table-body');
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="text-center py-6 text-gray-500">
-                            No projects found.
-                        </td>
-                    </tr>
-                `;
-            }
-        } else {
-            alert('❌ ' + (data.error || 'Something went wrong'));
-            // Reset button
-            resetProjectButton(btn, originalText);
-        }
-    })
-    .catch(error => {
-        alert('Network error. Please try again.');
-        console.error('Error:', error);
-        // Reset button
-        resetProjectButton(btn, originalText);
-    });
-}
+    let currentSearchQuery = '{{ search_query }}';
+    let currentProjects = [];
+    let currentPage = 1;
+    let itemsPerPage = 10;
 
-// Helper function to reset button
-function resetProjectButton(btn, originalText) {
-    btn.textContent = originalText;
-    btn.disabled = false;
-    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-}
+    // Function to show notification
+    function showNotification(message, type = 'success') {
+        const notificationContainer = document.getElementById('notificationContainer');
+        const notification = document.createElement('div');
+        notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white`;
+        notification.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        ${type === 'success' ? 
+                            '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                            '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                        }
+                    </svg>
+                    <span>${escapeHtml(message)}</span>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+        notificationContainer.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Function to load projects via AJAX
+    async function loadProjects(search = '') {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.remove('hidden');
+        
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('search', search);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                currentProjects = data.projects;
+                currentSearchQuery = data.search_query;
+                currentPage = 1;
+                
+                renderProjectsTable();
+                updatePagination();
+                updateSearchUI();
+                
+                // Update results info
+                document.getElementById('projectCount').textContent = data.total;
+                document.getElementById('showingCount').textContent = data.total;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error loading projects. Please try again.', 'error');
+        } finally {
+            loadingOverlay.classList.add('hidden');
+        }
+    }
+    
+    // Function to render projects table
+    function renderProjectsTable() {
+        const tableBody = document.getElementById('projects-table-body');
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageProjects = currentProjects.slice(startIndex, endIndex);
+        
+        if (pageProjects.length === 0 && currentProjects.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-6 text-gray-500">
+                        No projects found.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        if (pageProjects.length === 0 && currentProjects.length > 0) {
+            if (currentPage > 1) {
+                currentPage--;
+                renderProjectsTable();
+                updatePagination();
+            }
+            return;
+        }
+        
+        let html = '';
+        pageProjects.forEach((project, index) => {
+            const counter = startIndex + index + 1;
+            // Use the correct URLs based on your urlpatterns
+            const viewDetailUrl = `/view_project_detail/${project.id}/`;
+            const deleteUrl = `/delete_project/${project.id}/`;
+            
+            html += `
+                <tr class="hover:bg-gray-50 transition" id="project-row-${project.id}">
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        ${counter}
+                    </td>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-800">
+                        ${escapeHtml(project.name)}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        ${escapeHtml(project.assigned_to_display)}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="${project.status_class} px-3 py-1 rounded-full text-xs font-semibold">
+                            ${escapeHtml(project.status_display)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center space-x-2">
+                        <a href="${viewDetailUrl}"
+                           class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
+                            View
+                        </a>
+                        <button type="button" 
+                                onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
+                                class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
+                                id="delete-project-${project.id}">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableBody.innerHTML = html;
+    }
+    
+    // Function to update pagination buttons
+    function updatePagination() {
+        const totalPages = Math.ceil(currentProjects.length / itemsPerPage);
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        
+        if (prevBtn) {
+            prevBtn.disabled = currentPage <= 1;
+        }
+        if (nextBtn) {
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+        
+        const paginationDiv = document.querySelector('.flex.gap-2');
+        if (paginationDiv) {
+            paginationDiv.style.display = totalPages <= 1 ? 'none' : 'flex';
+        }
+    }
+    
+    // Function to update search UI
+    function updateSearchUI() {
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearSearchBtn');
+        
+        if (currentSearchQuery) {
+            searchInput.value = currentSearchQuery;
+            clearBtn.classList.remove('hidden');
+        } else {
+            searchInput.value = '';
+            clearBtn.classList.add('hidden');
+        }
+    }
+    
+    // Delete project function (AJAX)
+    function deleteProject(projectId, projectName) {
+        if (!confirm(`Are you sure you want to delete project "${projectName}"? This will also delete ALL tasks under this project.`)) {
+            return;
+        }
+        
+        const btn = document.getElementById(`delete-project-${projectId}`);
+        if (!btn) return;
+        
+        const originalText = btn.textContent;
+        
+        btn.textContent = 'Deleting...';
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        
+        fetch(`/delete_project/${projectId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('✅ ' + data.message, 'success');
+                
+                // Remove from currentProjects array
+                currentProjects = currentProjects.filter(p => p.id !== projectId);
+                
+                // Update counts
+                document.getElementById('projectCount').textContent = currentProjects.length;
+                document.getElementById('showingCount').textContent = currentProjects.length;
+                
+                // Re-render table
+                if (currentProjects.length === 0) {
+                    renderProjectsTable();
+                } else {
+                    // Adjust current page if needed
+                    const totalPages = Math.ceil(currentProjects.length / itemsPerPage);
+                    if (currentPage > totalPages) {
+                        currentPage = totalPages;
+                    }
+                    renderProjectsTable();
+                    updatePagination();
+                }
+            } else {
+                showNotification('❌ ' + (data.error || 'Something went wrong'), 'error');
+                resetDeleteButton(btn, originalText);
+            }
+        })
+        .catch(error => {
+            showNotification('Network error. Please try again.', 'error');
+            console.error('Error:', error);
+            resetDeleteButton(btn, originalText);
+        });
+    }
+    
+    function resetDeleteButton(btn, originalText) {
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+    
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearBtn = document.getElementById('clearSearchBtn');
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        
+        // Initialize projects from initial data
+        const initialProjects = [];
+        {% for project in projects %}
+        initialProjects.push({
+            id: {{ project.id }},
+            name: "{{ project.name|escapejs }}",
+            assigned_to_display: "{% for user in project.assigned_to.all %}{{ user.get_full_name|default:user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}",
+            status_display: "{{ project.get_status_display }}",
+            status_class: "{% if project.status == 'PENDING' %}bg-yellow-100 text-yellow-700{% elif project.status == 'ONGOING' %}bg-blue-100 text-blue-700{% else %}bg-green-100 text-green-700{% endif %}"
+        });
+        {% endfor %}
+        currentProjects = initialProjects;
+        renderProjectsTable();
+        updatePagination();
+        
+        // Search button click
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function() {
+                const searchValue = searchInput.value.trim();
+                loadProjects(searchValue);
+            });
+        }
+        
+        // Clear button click
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                loadProjects('');
+            });
+        }
+        
+        // Enter key in search input
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const searchValue = searchInput.value.trim();
+                    loadProjects(searchValue);
+                }
+            });
+        }
+        
+        // Pagination
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderProjectsTable();
+                    updatePagination();
+                }
+            });
+        }
+        
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                const totalPages = Math.ceil(currentProjects.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderProjectsTable();
+                    updatePagination();
+                }
+            });
+        }
+    });
 </script>
+
+<style>
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    #notificationContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    tr {
+        transition: all 0.2s ease;
+    }
+    
+    input:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+</style>
 
 {% endblock %}
