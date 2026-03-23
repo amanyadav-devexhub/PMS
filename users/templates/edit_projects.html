@@ -27,7 +27,17 @@
             </p>
         </div>
 
-        <form method="POST" class="space-y-5" id="editProjectForm">
+        <!-- Add loading overlay -->
+        <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+            </div>
+        </div>
+
+        <!-- Add notification container -->
+        <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
+
+        <form method="POST" class="space-y-5" id="editProjectForm" data-redirect-url="{% url 'view_projects' %}">
             {% csrf_token %}
 
             {{ form.non_field_errors }}
@@ -38,6 +48,7 @@
                     Name <span class="text-red-500">*</span>
                 </label>
                 {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 {% if form.name.errors %}
                     {% for error in form.name.errors %}
                     <p class="text-red-500 text-xs mt-1">{{ error }}</p>
@@ -51,6 +62,7 @@
                     Description <span class="text-red-500">*</span>
                 </label>
                 {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 {% if form.description.errors %}
                     {% for error in form.description.errors %}
                     <p class="text-red-500 text-xs mt-1">{{ error }}</p>
@@ -76,6 +88,7 @@
                         </div>
                     {% endfor %}
                 </div>
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 {{ form.assigned_to.errors }}
             </div>
 
@@ -88,16 +101,8 @@
                     </label>
                     <input type="date" name="start_date" id="start_date" 
                            value="{{ form.start_date.value|date:'Y-m-d'|default:project.start_date|date:'Y-m-d' }}"
-                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none
-                           {% if date_error %}border-red-500 bg-red-50{% endif %}">
-                    {% if date_error %}
-                    <p class="text-red-500 text-xs mt-1 flex items-center date-error">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        {{ date_error }}
-                    </p>
-                    {% endif %}
+                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 </div>
 
                 <!-- End Date -->
@@ -107,16 +112,8 @@
                     </label>
                     <input type="date" name="end_date" id="end_date" 
                            value="{{ form.end_date.value|date:'Y-m-d'|default:project.end_date|date:'Y-m-d' }}"
-                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none
-                           {% if date_error %}border-red-500 bg-red-50{% endif %}">
-                    {% if date_error %}
-                    <p class="text-red-500 text-xs mt-1 flex items-center date-error">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        {{ date_error }}
-                    </p>
-                    {% endif %}
+                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 </div>
             </div>
 
@@ -126,6 +123,7 @@
                     Status <span class="text-red-500">*</span>
                 </label>
                 {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 {% if form.status.errors %}
                     {% for error in form.status.errors %}
                     <p class="text-red-500 text-xs mt-1">{{ error }}</p>
@@ -150,39 +148,225 @@
     </div>
 </div>
 
-<!-- JavaScript for date validation -->
+<!-- AJAX JavaScript -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const startDate = document.getElementById('start_date');
-        const endDate = document.getElementById('end_date');
+        const form = document.getElementById('editProjectForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const notificationContainer = document.getElementById('notificationContainer');
         
+        // Function to show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white`;
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            ${type === 'success' ? 
+                                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                                '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                            }
+                        </svg>
+                        <span>${message}</span>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            notificationContainer.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        // Function to clear all error messages
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.classList.add('hidden');
+                el.innerHTML = '';
+            });
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.classList.remove('border-red-500', 'bg-red-50');
+            });
+        }
+        
+        // Function to display errors
+        function displayErrors(errors) {
+            clearErrors();
+            
+            for (const [field, errorList] of Object.entries(errors)) {
+                const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
+                
+                if (field === 'date_error') {
+                    // Handle date error
+                    const startDate = document.getElementById('start_date');
+                    const endDate = document.getElementById('end_date');
+                    if (startDate && endDate) {
+                        startDate.classList.add('border-red-500', 'bg-red-50');
+                        endDate.classList.add('border-red-500', 'bg-red-50');
+                        
+                        // Add error message after end date
+                        const errorDiv = endDate.parentElement.querySelector('.error-message');
+                        if (errorDiv) {
+                            errorDiv.innerHTML = errorMessage;
+                            errorDiv.classList.remove('hidden');
+                        }
+                    }
+                } else {
+                    // Handle form field errors
+                    const fieldElement = form.querySelector(`[name="${field}"]`);
+                    if (fieldElement) {
+                        fieldElement.classList.add('border-red-500', 'bg-red-50');
+                        
+                        // Find the error container for this field
+                        const parentDiv = fieldElement.closest('div');
+                        const errorDiv = parentDiv ? parentDiv.querySelector('.error-message') : null;
+                        
+                        if (errorDiv) {
+                            errorDiv.innerHTML = errorMessage;
+                            errorDiv.classList.remove('hidden');
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Date validation function
         function validateDates() {
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
+            
             if (startDate && endDate && startDate.value && endDate.value) {
                 if (startDate.value >= endDate.value) {
                     endDate.classList.add('border-red-500', 'bg-red-50');
                     startDate.classList.add('border-red-500', 'bg-red-50');
                     
-                    const existingError = endDate.parentNode.querySelector('.date-error');
-                    if (!existingError) {
-                        const errorMsg = document.createElement('p');
-                        errorMsg.className = 'text-red-500 text-xs mt-1 flex items-center date-error';
-                        errorMsg.innerHTML = '<svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></svg>End date must be after start date';
-                        endDate.parentNode.appendChild(errorMsg);
+                    const endDateError = endDate.parentElement.querySelector('.error-message');
+                    if (endDateError) {
+                        endDateError.innerHTML = 'End date must be after start date';
+                        endDateError.classList.remove('hidden');
                     }
+                    return false;
                 } else {
                     endDate.classList.remove('border-red-500', 'bg-red-50');
                     startDate.classList.remove('border-red-500', 'bg-red-50');
                     
-                    const errorMsg = endDate.parentNode.querySelector('.date-error');
-                    if (errorMsg) errorMsg.remove();
+                    const endDateError = endDate.parentElement.querySelector('.error-message');
+                    if (endDateError) {
+                        endDateError.classList.add('hidden');
+                        endDateError.innerHTML = '';
+                    }
                 }
             }
+            return true;
         }
+        
+        // Add date validation listeners
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
         
         if (startDate && endDate) {
             startDate.addEventListener('change', validateDates);
             endDate.addEventListener('change', validateDates);
         }
+        
+        // Handle form submission with AJAX
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Clear previous errors
+            clearErrors();
+            
+            // Validate dates
+            if (!validateDates()) {
+                return;
+            }
+            
+            // Show loading overlay
+            loadingOverlay.classList.remove('hidden');
+            
+            // Get form data
+            const formData = new FormData(form);
+            const redirectUrl = form.dataset.redirectUrl;
+            formData.append('redirect_url', redirectUrl);
+            
+            try {
+                // Send AJAX request
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': form.querySelector('[name="csrfmiddlewaretoken"]').value
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Success!
+                    showNotification(data.message, 'success');
+                    
+                    // Redirect after success
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                } else {
+                    // Error handling
+                    if (data.errors) {
+                        displayErrors(data.errors);
+                    }
+                    showNotification(data.message || 'Error updating project. Please check the form for errors.', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred. Please try again.', 'error');
+            } finally {
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+            }
+        });
     });
 </script>
+
+<style>
+    /* Loading overlay styles */
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+    
+    /* Notification animation */
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    #notificationContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    /* Form field transitions */
+    input, select, textarea {
+        transition: all 0.2s ease;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+        transform: translateY(-1px);
+    }
+</style>
+
 {% endblock %}
