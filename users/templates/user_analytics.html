@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="p-6 space-y-6">
+
+<!-- TOP BAR -->
+<div class="flex justify-between items-center">
+    <div>
+        <h1 class="text-2xl font-semibold text-gray-800">Analytics</h1>
+        <p class="text-sm text-gray-500">
+            {% if selected_user %}
+                {{ selected_user.username }} performance overview
+            {% else %}
+                Overall system performance
+            {% endif %}
+        </p>
+    </div>
+
+    <form method="GET">
+        <select name="user_id" onchange="this.form.submit()"
+            class="border px-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 shadow-sm">
+            <option value="">All Users</option>
+            {% for user in users %}
+                <option value="{{ user.id }}"
+                {% if selected_user and user.id == selected_user.id %}selected{% endif %}>
+                    {{ user.username }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+{% if analytics %}
+
+<!-- HERO SECTION -->
+<div class="grid md:grid-cols-3 gap-6">
+
+    <!-- PERFORMANCE CARD -->
+    <div class="col-span-2 bg-gradient-to-r from-orange-500 to-orange-400 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+        <p class="text-sm opacity-80">Performance Score</p>
+        <h1 id="performanceCount" class="text-5xl font-bold mt-2">0</h1>
+        <div class="mt-4 text-sm opacity-90">
+            Completed {{ analytics.completed }} out of {{ analytics.total }} tasks
+        </div>
+        <div class="absolute right-[-40px] bottom-[-40px] w-40 h-40 bg-white opacity-10 rounded-full"></div>
+    </div>
+
+    <!-- MINI STATS -->
+    <div class="space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
+            <p class="text-xs text-gray-500">Avg Time</p>
+            <h3 class="text-lg font-semibold text-blue-600 mt-1">{{ analytics.avg_time }}</h3>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
+            <p class="text-xs text-gray-500">Last 7 Days</p>
+            <h3 class="text-lg font-semibold text-green-600 mt-1">{{ analytics.recent_completed }}</h3>
+        </div>
+    </div>
+
+</div>
+
+<!-- KPI ROW -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    {% for card in analytics.cards %}
+    <div class="bg-white p-4 rounded-xl shadow hover:-translate-y-1 transition">
+        <p class="text-xs text-gray-500">{{ card.label }}</p>
+        <h3 class="text-xl font-bold {% if card.color != 'gray' %}text-{{ card.color }}-600{% endif %} counter" data-value="{{ card.value }}">0</h3>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- CHARTS -->
+<div class="grid md:grid-cols-2 gap-6">
+
+    <!-- BAR CHART -->
+    <div class="bg-white p-6 rounded-2xl shadow">
+        <h4 class="text-sm font-semibold text-gray-600 mb-4">Task Distribution</h4>
+        <canvas id="barChart"></canvas>
+    </div>
+
+    <!-- DONUT CHART -->
+    <div class="bg-white p-6 rounded-2xl shadow">
+        <h4 class="text-sm font-semibold text-gray-600 mb-4">Completion Ratio</h4>
+        <canvas id="pieChart"></canvas>
+    </div>
+
+</div>
+
+{% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+{% if analytics %}
+
+// COUNTERS ANIMATION
+document.querySelectorAll('.counter').forEach(counter => {
+    let target = +counter.dataset.value;
+    let count = 0;
+    let step = target / 25;
+    function run() {
+        count += step;
+        if (count < target) {
+            counter.innerText = Math.floor(count);
+            requestAnimationFrame(run);
+        } else {
+            counter.innerText = target;
+        }
+    }
+    run();
+});
+
+// PERFORMANCE ANIMATION
+let perf = document.getElementById('performanceCount');
+let targetPerf = {{ analytics.performance }};
+let c = 0;
+let stepPerf = targetPerf / 25;
+function animatePerf() {
+    c += stepPerf;
+    if (c < targetPerf) {
+        perf.innerText = Math.floor(c);
+        requestAnimationFrame(animatePerf);
+    } else {
+        perf.innerText = targetPerf;
+    }
+}
+animatePerf();
+
+// BAR CHART
+new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Completed','Ongoing','Pending','Overdue'],
+        datasets: [{
+            data: [
+                {{ analytics.completed }},
+                {{ analytics.ongoing }},
+                {{ analytics.pending }},
+                {{ analytics.overdue }}
+            ],
+            backgroundColor: ['#22c55e','#3b82f6','#facc15','#ef4444'],
+            borderRadius: 8
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        responsive: true
+    }
+});
+
+// DONUT CHART
+new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Completed','Remaining'],
+        datasets: [{
+            data: [{{ analytics.completed }}, {{ analytics.remaining }}],
+            backgroundColor: ['#22c55e','#e5e7eb'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        cutout: '70%',
+        plugins: { legend: { position: 'bottom' } },
+        responsive: true
+    }
+});
+
+{% endif %}
+</script>
+
+{% endblock %}

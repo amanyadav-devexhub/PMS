@@ -15,7 +15,8 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
-
+from datetime import timedelta
+from django.db.models import Avg
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
@@ -149,13 +150,79 @@ def ajax_login(request):
 ## View Projects
 @login_required
 def view_projects(request):
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        search_query = request.GET.get("search", "").strip()
+        
+        # Base queryset based on role
+        if request.user.role == "ADMIN":
+            projects = Projects.objects.all()
+        elif request.user.role == "TEAM_LEAD":
+            projects = Projects.objects.filter(assigned_to=request.user)
+        else:  # EMPLOYEE
+            projects = Projects.objects.filter(assigned_to=request.user)
+
+        # Apply search filter
+        if search_query:
+            projects = projects.filter(
+                Q(name__icontains=search_query) |
+                Q(assigned_to__username__icontains=search_query) |
+                Q(assigned_to__first_name__icontains=search_query) |
+                Q(assigned_to__last_name__icontains=search_query) |
+                Q(status__icontains=search_query)
+            ).distinct()
+
+        # Order projects
+        projects = projects.order_by('-start_date')
+        
+        # Prepare data for JSON response
+        projects_data = []
+        for project in projects:
+            # Get assigned users
+            assigned_users = []
+            for user in project.assigned_to.all():
+                assigned_users.append({
+                    'id': user.id,
+                    'name': user.get_full_name() or user.username,
+                    'email': user.email
+                })
+            
+            # Get status badge class and text
+            status_info = {
+                'PENDING': {'class': 'bg-yellow-100 text-yellow-700', 'text': 'Pending'},
+                'ONGOING': {'class': 'bg-blue-100 text-blue-700', 'text': 'Ongoing'},
+                'COMPLETED': {'class': 'bg-green-100 text-green-700', 'text': 'Completed'}
+            }
+            status = status_info.get(project.status, {'class': 'bg-gray-100 text-gray-700', 'text': project.status})
+            
+            projects_data.append({
+                'id': project.id,
+                'name': project.name,
+                'assigned_to': assigned_users,
+                'assigned_to_display': ', '.join([u['name'] for u in assigned_users]) if assigned_users else 'Not assigned',
+                'status': project.status,
+                'status_display': status['text'],
+                'status_class': status['class'],
+                'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
+                'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+                'view_url': f"/project-detail/{project.id}/",
+                'delete_url': f"/delete_project/{project.id}/"
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'projects': projects_data,
+            'total': len(projects_data),
+            'search_query': search_query
+        })
+    
+    # Handle regular (non-AJAX) request
     search_query = request.GET.get("search", "")
     
     # Base queryset based on role
     if request.user.role == "ADMIN":
         projects = Projects.objects.all()
     elif request.user.role == "TEAM_LEAD":
-        # Team leads see only projects assigned to them
         projects = Projects.objects.filter(assigned_to=request.user)
     else:  # EMPLOYEE
         projects = Projects.objects.filter(assigned_to=request.user)
@@ -173,8 +240,13 @@ def view_projects(request):
     }
     return render(request, "view_projects.html", context)
 
-
 ## edit Projects
+import json
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.core.exceptions import ValidationError
+
 @login_required
 @allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
 def edit_projects(request, project_id):
@@ -182,9 +254,85 @@ def edit_projects(request, project_id):
     
     # Check if team lead can edit (only projects they created)
     if request.user.role == "TEAM_LEAD" and project.created_by != request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': "You don't have permission to edit this project."
+            }, status=403)
         messages.error(request, "⛔ You don't have permission to edit this project.")
         return redirect("view_projects")
 
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.method == "POST":
+            form = ProjectForm(request.POST, instance=project)
+            
+            # Get dates for validation
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            
+            # Validate dates - start must be before end
+            if start_date and end_date:
+                if start_date >= end_date:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {
+                            'date_error': 'End date must be after start date'
+                        }
+                    }, status=400)
+            
+            if form.is_valid():
+                saved_project = form.save()
+                return JsonResponse({
+                    'success': True,
+                    'message': '✅ Project updated successfully!',
+                    'redirect_url': request.POST.get('redirect_url', '/projects/'),
+                    'project': {
+                        'id': saved_project.id,
+                        'name': saved_project.name,
+                        'description': saved_project.description,
+                        'status': saved_project.status,
+                        'start_date': saved_project.start_date.strftime('%Y-%m-%d') if saved_project.start_date else None,
+                        'end_date': saved_project.end_date.strftime('%Y-%m-%d') if saved_project.end_date else None,
+                        'assigned_to': [{
+                            'id': user.id,
+                            'name': user.get_full_name() or user.username,
+                            'email': user.email
+                        } for user in saved_project.assigned_to.all()]
+                    }
+                })
+            else:
+                # Return form errors as JSON
+                errors = {}
+                for field, error_list in form.errors.items():
+                    errors[field] = error_list
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors
+                }, status=400)
+        
+        # GET request - return project data
+        elif request.method == "GET":
+            form = ProjectForm(instance=project)
+            return JsonResponse({
+                'success': True,
+                'project': {
+                    'id': project.id,
+                    'name': project.name,
+                    'description': project.description,
+                    'status': project.status,
+                    'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
+                    'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+                    'assigned_to': [user.id for user in project.assigned_to.all()],
+                    'assigned_to_details': [{
+                        'id': user.id,
+                        'name': user.get_full_name() or user.username,
+                        'email': user.email
+                    } for user in project.assigned_to.all()]
+                }
+            })
+    
+    # Handle regular (non-AJAX) request
     if request.method == "POST":
         form = ProjectForm(request.POST, instance=project)
         
@@ -206,8 +354,6 @@ def edit_projects(request, project_id):
             form.save()
             messages.success(request, "✅ Project updated successfully!")
             return redirect("view_projects")
-        
-        # 🔥 FIX: Add this else clause for invalid forms
         else:
             # Form is invalid - show errors
             for field, errors in form.errors.items():
@@ -231,7 +377,12 @@ def edit_projects(request, project_id):
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 def edit_task(request, task_id):
+    """Edit Task - AJAX enabled"""
+    
     task = get_object_or_404(Task, id=task_id)
+    
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     if request.method == 'POST':
         form = TaskForm(request.POST, instance=task)
@@ -242,31 +393,58 @@ def edit_task(request, task_id):
         
         # Validate dates - start must be before end
         if start_date and end_date:
-            if start_date >= end_date:
-                context = {
-                    'form': form,
-                    'task': task,
-                    'is_edit': True,
-                    'date_error': "❌ End date must be after start date"
-                }
-                return render(request, 'edit_task.html', context)
+            if start_date > end_date:
+                if is_ajax:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'End date must be after start date',
+                        'field': 'end_date'
+                    }, status=400)
+                else:
+                    context = {
+                        'form': form,
+                        'task': task,
+                        'is_edit': True,
+                        'date_error': "❌ End date must be after start date"
+                    }
+                    return render(request, 'edit_task.html', context)
         
         if form.is_valid():
             updated_task = form.save(commit=False)
             updated_task.save()
             form.save_m2m()
-            messages.success(request, f'✅ Task "{task.name}" updated successfully!')
-            return redirect('view_project_detail', project_id=task.project.id)
+            
+            # AJAX response
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'✅ Task "{task.name}" updated successfully!',
+                    'task_id': task.id,
+                    'task_name': task.name,
+                    'project_id': task.project.id
+                })
+            else:
+                messages.success(request, f'✅ Task "{task.name}" updated successfully!')
+                return redirect('view_project_detail', project_id=task.project.id)
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
-            context = {
-                'form': form,
-                'task': task,
-                'is_edit': True
-            }
-            return render(request, 'edit_task.html', context)
+            # Form is invalid
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+                context = {
+                    'form': form,
+                    'task': task,
+                    'is_edit': True
+                }
+                return render(request, 'edit_task.html', context)
+    
+    # GET request - show form
     else:
         form = TaskForm(instance=task)
     
@@ -277,24 +455,37 @@ def edit_task(request, task_id):
     }
     return render(request, 'edit_task.html', context)
 
+
 ## delete task
 @login_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 def delete_task(request, task_id):
-    """Delete a task"""
+    """Delete a task - AJAX enabled"""
+    
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     task = get_object_or_404(Task, id=task_id)
     project_id = task.project.id
     task_name = task.name
     
     if request.method == 'POST':
         task.delete()
-        messages.success(request, f'Task "{task_name}" deleted successfully!')
-        return redirect('view_project_detail', project_id=project_id)
+        
+        # If AJAX request, return JSON
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': f'Task "{task_name}" deleted successfully!',
+                'project_id': project_id
+            })
+        else:
+            # Regular form submission fallback
+            messages.success(request, f'Task "{task_name}" deleted successfully!')
+            return redirect('view_project_detail', project_id=project_id)
     
-    # GET request - show confirmation page
-    context = {
-        'task': task
-    }
+    # GET request - show confirmation page (for non-AJAX fallback)
+    context = {'task': task}
     return render(request, 'delete_task_confirm.html', context)
 
 
@@ -428,16 +619,36 @@ def add_project_resource(request, project_id):
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD", "ADMIN"])
 def delete_project(request, id):
-    project = get_object_or_404(Projects, id=id)
-    project.delete()
-
-    # role-based redirect
-    if request.user.role == "ADMIN":
-        return redirect("view_projects")
-    else:
-        return redirect("teamlead_dashboard")
+    """Delete a project - AJAX enabled"""
     
-
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    project = get_object_or_404(Projects, id=id)
+    project_name = project.name
+    
+    if request.method == 'POST':
+        project.delete()
+        
+        # If AJAX request, return JSON
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': f'Project "{project_name}" deleted successfully!'
+            })
+        else:
+            # Regular form submission fallback
+            messages.success(request, f'Project "{project_name}" deleted successfully!')
+            if request.user.role == "ADMIN":
+                return redirect("view_projects")
+            else:
+                return redirect("teamlead_dashboard")
+    
+    # GET request - redirect to list (for non-AJAX fallback)
+    # Since this view doesn't have a confirmation template, we'll redirect
+    return redirect("view_projects")
+    
+## login page......
 from django.views.decorators.csrf import ensure_csrf_cookie
 @ensure_csrf_cookie
 def login_page(request):
@@ -674,6 +885,8 @@ If you did not register on our site, please ignore this email.
 @login_required
 @allowed_roles(['ADMIN'])
 def edit_user(request, user_id):
+    """Edit User - AJAX enabled"""
+    
     # Get user and their profile
     user = get_object_or_404(User, id=user_id)
     profile, created = UserProfile.objects.get_or_create(user=user)
@@ -681,6 +894,9 @@ def edit_user(request, user_id):
     # Get all departments and designations for dropdowns
     departments = Department.objects.all()
     designations = Designation.objects.all()
+    
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == "POST":
         # Get form data
@@ -689,25 +905,56 @@ def edit_user(request, user_id):
         role = request.POST.get("role")
         is_active = request.POST.get("is_active")
         
+        # Validate required fields
+        errors = {}
+        if not email:
+            errors['email'] = ['Email is required']
+        if not username:
+            errors['username'] = ['Username is required']
+        if not role:
+            errors['role'] = ['Role is required']
+        
+        if errors:
+            if is_ajax:
+                return JsonResponse({'success': False, 'errors': errors}, status=400)
+            else:
+                for field, err_list in errors.items():
+                    for err in err_list:
+                        messages.error(request, f"{field}: {err}")
+                context = {
+                    "user": user,
+                    "profile": profile,
+                    "departments": departments,
+                    "designations": designations
+                }
+                return render(request, "edit_user.html", context)
+        
         # Update user
         user.email = email
         user.username = username
         user.role = role
-        user.is_active = (is_active == "True")  # Convert to boolean
+        user.is_active = (is_active == "True")
         user.save()
 
         # Update profile
         profile.department_id = request.POST.get("department")
         profile.designation_id = request.POST.get("designation")
-        profile.employee_id = request.POST.get("employee_id") or None  # Empty becomes None
+        profile.employee_id = request.POST.get("employee_id") or None
         profile.phone = request.POST.get("phone") or None
         profile.date_of_joining = request.POST.get("date_of_joining") or None
         profile.save()
 
-        messages.success(request, "User updated successfully")
-        return redirect("admin_view_users")
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': f'User "{user.username}" updated successfully!',
+                'user_id': user.id
+            })
+        else:
+            messages.success(request, "User updated successfully")
+            return redirect("admin_view_users")
     
-    # For GET request - show the form
+    # GET request - show the form
     context = {
         "user": user,
         "profile": profile,
@@ -715,7 +962,6 @@ def edit_user(request, user_id):
         "designations": designations
     }
     return render(request, "edit_user.html", context)
-
 
 
 ## Members dashboard function
@@ -783,9 +1029,107 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-@login_required
-@allowed_roles(allowed_roles=["ADMIN"])
 def create_user(request):
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.method == "POST":
+            user_form = UserRegisterForm(request.POST)
+            profile_form = UserProfileForm(request.POST)
+
+            errors = {}
+            
+            # Validate forms
+            if not user_form.is_valid():
+                for field, error_list in user_form.errors.items():
+                    errors[f'user_{field}'] = error_list
+            
+            if not profile_form.is_valid():
+                for field, error_list in profile_form.errors.items():
+                    errors[f'profile_{field}'] = error_list
+            
+            # If there are validation errors
+            if errors:
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors
+                }, status=400)
+            
+            # Forms are valid, proceed with user creation
+            try:
+                # Step 1: Save the User (but don't commit to DB yet)
+                user = user_form.save(commit=False)
+                user.set_password(user_form.cleaned_data['password1'])
+                user.save()  # ✅ Now user is saved to database
+                
+                # Step 2: The SIGNAL automatically creates a UserProfile here!
+                # When user.save() runs, the signal fires and creates a profile
+                
+                # Step 3: Get the existing profile created by the signal
+                profile = user.profile  # ← This gets the profile from the database
+                
+                # Step 4: Update the existing profile with form data
+                profile.employee_id = profile_form.cleaned_data.get('employee_id')
+                profile.phone = profile_form.cleaned_data.get('phone')
+                profile.department = profile_form.cleaned_data.get('department')
+                profile.designation = profile_form.cleaned_data.get('designation')
+                profile.date_of_joining = profile_form.cleaned_data.get('date_of_joining')
+                profile.save()  # ✅ Update the profile with new data
+
+                # Return success response with user data
+                return JsonResponse({
+                    'success': True,
+                    'message': f"User '{user.username}' created successfully!",
+                    'redirect_url': request.POST.get('redirect_url', '/admin-dashboard/'),
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                        'role': user.role,
+                        'employee_id': profile.employee_id,
+                        'department': profile.department
+                    }
+                })
+                
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {
+                        'system_error': [f"Error creating user: {str(e)}"]
+                    }
+                }, status=500)
+        
+        # GET request - return form structure if needed
+        elif request.method == "GET":
+            user_form = UserRegisterForm()
+            profile_form = UserProfileForm()
+            
+            # Get field definitions for dynamic form rendering
+            user_fields = {}
+            for field_name, field in user_form.fields.items():
+                user_fields[field_name] = {
+                    'label': str(field.label),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'type': field.widget.__class__.__name__
+                }
+            
+            profile_fields = {}
+            for field_name, field in profile_form.fields.items():
+                profile_fields[field_name] = {
+                    'label': str(field.label),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'type': field.widget.__class__.__name__
+                }
+            
+            return JsonResponse({
+                'success': True,
+                'user_fields': user_fields,
+                'profile_fields': profile_fields
+            })
+    
+    # Handle regular (non-AJAX) request
     if request.method == "POST":
         user_form = UserRegisterForm(request.POST)
         profile_form = UserProfileForm(request.POST)
@@ -837,7 +1181,6 @@ def create_user(request):
         "profile_form": profile_form
     })
 
-
 ## delete user
 from django.shortcuts import get_object_or_404
 
@@ -862,6 +1205,11 @@ from Tasks.forms import TaskForm
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD","ADMIN"])
 def assign_task(request):
+    """Assign Task - AJAX enabled"""
+    
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if request.method == "POST":
         form = TaskForm(request.POST)
         
@@ -871,34 +1219,38 @@ def assign_task(request):
         
         # Validate dates - start must be before end
         if start_date and end_date:
-            if start_date >= end_date:
-                context = {
-                    'form': form,
-                    'date_error': "❌ End date must be after start date"
-                }
-                return render(request, "assign_task.html", context)
+            if start_date > end_date:
+                if is_ajax:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'End date must be after start date',
+                        'field': 'end_date'
+                    }, status=400)
+                else:
+                    context = {
+                        'form': form,
+                        'date_error': "❌ End date must be after start date"
+                    }
+                    return render(request, "assign_task.html", context)
         
         if form.is_valid():
             # Step 1: Save the task instance but don't commit to DB yet
             task = form.save(commit=False)
             
-            # Step 2: Get estimated time from the hidden field (if using dropdowns)
+            # Step 2: Get estimated time from the hidden field
             estimated_time = request.POST.get('estimated_time')
             if estimated_time:
                 task.estimated_time = int(estimated_time)
             
-            # Step 3: Set any additional fields if needed
-            assigner = request.user
-            
-            # Step 4: Save the task to DB
+            # Step 3: Save the task to DB
             task.save()
             
-            # Step 5: CRITICAL - Save ALL ManyToMany fields (assigned_to AND observers!)
-            form.save_m2m()  # This saves BOTH assigned_to and observers relationships
+            # Step 4: Save ManyToMany fields
+            form.save_m2m()
             
-            # Step 6: Create notifications for ALL assigned employees
+            # Step 5: Create notifications for assigned employees
             from notifications.models import Notification
-            for employee in task.assigned_to.all():  # Loop through all assigned employees
+            for employee in task.assigned_to.all():
                 if not Notification.objects.filter(
                     user=employee, 
                     message=f'Task "{task.name}" has been assigned to you'
@@ -908,10 +1260,8 @@ def assign_task(request):
                         message=f'Task "{task.name}" has been assigned to you'
                     )
             
-            # Step 7: Create notifications for observers (if any)
-            # Create a list of assignee names for the message
+            # Step 6: Create notifications for observers
             assignee_names = ", ".join([u.get_full_name() or u.username for u in task.assigned_to.all()])
-            
             for observer in task.observers.all():
                 Notification.objects.create(
                     user=observer,
@@ -925,12 +1275,34 @@ def assign_task(request):
             if minutes > 0:
                 time_display += f" {minutes} minute{'s' if minutes != 1 else ''}"
 
-            messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s) with {task.observers.count()} observer(s)! (Est. time: {time_display})')
-            return redirect("teamlead_dashboard")
+            # AJAX response
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s)!',
+                    'task_id': task.id,
+                    'task_name': task.name,
+                    'time_display': time_display
+                })
+            else:
+                # Regular form submission fallback
+                messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s)!')
+                if request.user.role == "ADMIN":
+                    return redirect("admin_dashboard")
+                else:
+                    return redirect("teamlead_dashboard")
         else:
-            # Form is invalid, show errors
-            context = {'form': form}
-            return render(request, "assign_task.html", context)
+            # Form is invalid
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+            else:
+                context = {'form': form}
+                return render(request, "assign_task.html", context)
+    
+    # GET request - show empty form
     else:
         form = TaskForm()
 
@@ -943,6 +1315,119 @@ from users.forms import ProjectForm
 @login_required
 @allowed_roles(["ADMIN", "TEAM_LEAD"])
 def create_project(request):
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.method == "POST":
+            project_form = ProjectForm(request.POST)
+            resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
+            
+            errors = {}
+            
+            # Get dates for validation
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            
+            # Validate dates - start must be before end
+            if start_date and end_date and start_date >= end_date:
+                errors['date_error'] = ['End date must be after start date']
+            
+            # Validate forms
+            if not project_form.is_valid():
+                for field, error_list in project_form.errors.items():
+                    errors[f'project_{field}'] = error_list
+            
+            if not resource_formset.is_valid():
+                for form_index, form_errors in enumerate(resource_formset.errors):
+                    if form_errors:
+                        for field, error_list in form_errors.items():
+                            errors[f'resource_{form_index}_{field}'] = error_list
+            
+            # If there are validation errors
+            if errors:
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors
+                }, status=400)
+            
+            # Forms are valid, proceed with project creation
+            try:
+                project = project_form.save(commit=False)
+                project.created_by = request.user
+                project.save()
+                
+                # Save resources
+                resource_count = 0
+                for resource_form in resource_formset:
+                    if resource_form.cleaned_data and not resource_form.cleaned_data.get('DELETE', False):
+                        resource = resource_form.save(commit=False)
+                        resource.project = project
+                        resource.save()
+                        resource_count += 1
+                
+                # Determine redirect URL based on user role
+                redirect_url = request.POST.get('redirect_url', '')
+                if not redirect_url:
+                    redirect_url = "view_projects" if request.user.role == "ADMIN" else "teamlead_dashboard"
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'✅ Project "{project.name}" created successfully with {resource_count} resource(s)!',
+                    'redirect_url': redirect_url,
+                    'project': {
+                        'id': project.id,
+                        'name': project.name,
+                        'description': project.description,
+                        'status': project.status,
+                        'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
+                        'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+                        'assigned_to': [{
+                            'id': user.id,
+                            'name': user.get_full_name() or user.username,
+                            'email': user.email
+                        } for user in project.assigned_to.all()],
+                        'resource_count': resource_count
+                    }
+                })
+                
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {
+                        'system_error': [f'Error creating project: {str(e)}']
+                    }
+                }, status=500)
+        
+        # GET request - return form structure if needed
+        elif request.method == "GET":
+            project_form = ProjectForm()
+            resource_formset = ProjectResourceFormSet()
+            
+            # Get field definitions for dynamic form rendering
+            project_fields = {}
+            for field_name, field in project_form.fields.items():
+                project_fields[field_name] = {
+                    'label': str(field.label),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'type': field.widget.__class__.__name__
+                }
+            
+            # Render initial resource forms as HTML
+            resource_forms_html = []
+            for i, form in enumerate(resource_formset):
+                resource_forms_html.append(render_to_string('partials/resource_form.html', {
+                    'form': form,
+                    'index': i
+                }, request=request))
+            
+            return JsonResponse({
+                'success': True,
+                'project_fields': project_fields,
+                'resource_forms_html': resource_forms_html,
+                'total_forms': len(resource_formset)
+            })
+    
+    # Handle regular (non-AJAX) request
     if request.method == "POST":
         project_form = ProjectForm(request.POST)
         resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
@@ -967,7 +1452,7 @@ def create_project(request):
             project.save()
             
             for resource_form in resource_formset:
-                if resource_form.cleaned_data:
+                if resource_form.cleaned_data and not resource_form.cleaned_data.get('DELETE', False):
                     resource = resource_form.save(commit=False)
                     resource.project = project
                     resource.save()
@@ -975,7 +1460,6 @@ def create_project(request):
             messages.success(request, "✅ Project created successfully!")
             return redirect("view_projects" if request.user.role == "ADMIN" else "teamlead_dashboard")
         
-        # 🔥 FIX: Add else clause for invalid forms
         else:
             # Form is invalid - show errors
             if not project_form.is_valid():
@@ -986,7 +1470,6 @@ def create_project(request):
             if not resource_formset.is_valid():
                 messages.error(request, "Please check the resources section")
             
-            # Stay on the same page with errors
             context = {
                 "form": project_form,
                 "resource_formset": resource_formset
@@ -1003,6 +1486,7 @@ def create_project(request):
         "resource_formset": resource_formset
     }
     return render(request, "create_project.html", context)
+
 
 ## task_dashboard
 @login_required
@@ -1136,30 +1620,66 @@ def task_dashboard(request):
 
 
 ## TaskSummary 
+from django.http import JsonResponse
+
 @login_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def add_task_summary(request, task_id):
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    """Add summary to a task - AJAX enabled"""
     
-    # Optional: Check if task is in correct state
+    try:
+        # Allow admins to access any task
+        if request.user.role == "ADMIN":
+            task = get_object_or_404(Task, id=task_id)
+        else:
+            task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+    except:
+        return JsonResponse({
+            'success': False,
+            'error': 'Task not found'
+        }, status=404)
+    
+    # Check if task is in correct state
     if task.status != "ONGOING":
-        messages.error(request, "You can only add summary to ongoing tasks.")
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'You can only add summary to ongoing tasks.'
+        }, status=400)
     
     if request.method == 'POST':
-        summary = request.POST.get('summary')
-        if summary and summary.strip():  # Check if summary is not empty
-            task.summary = summary.strip()
-            task.save()
-            messages.success(request, "Summary added successfully! You can now complete the task.")
-            # Redirect back to task detail
-            return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        # Check if it's an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                data = json.loads(request.body)
+                summary = data.get('summary', '').strip()
+            except:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid JSON'
+                }, status=400)
         else:
-            messages.error(request, "Please enter a valid summary.")
+            # Regular form submission (fallback)
+            summary = request.POST.get('summary', '').strip()
+        
+        if not summary:
+            return JsonResponse({
+                'success': False,
+                'errors': {
+                    'summary': ['Please enter a valid summary.']
+                }
+            }, status=400)
+        
+        task.summary = summary
+        task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Summary added successfully!',
+            'task_id': task.id
+        })
     
+    # GET request - render template
     return render(request, 'add_task_summary.html', {'task': task})
-
-
 
 
 
@@ -1302,10 +1822,12 @@ def update_task_status(request, task_id):
 from django.utils import timezone
 from django.urls import reverse
 import datetime
-## START TASK
+## START TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def start_task(request, task_id):
+    """Start a task - AJAX enabled"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1314,10 +1836,12 @@ def start_task(request, task_id):
 
     # Check if task can be started
     if task.status != "PENDING":
-        messages.error(request, f'Task cannot be started because it is {task.get_status_display()}.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Task cannot be started because it is {task.get_status_display()}.'
+        }, status=400)
 
-    # COMPLETELY RESET the task for fresh start
+    # Reset the task for fresh start
     task.status = "ONGOING"
     task.start_time = timezone.now()
     task.paused_time = None
@@ -1329,15 +1853,22 @@ def start_task(request, task_id):
         'status', 'start_time', 'paused_time', 
         'total_paused_duration', 'total_time', 'end_time'
     ])
-    messages.success(request, f'Task "{task.name}" started successfully!')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" started successfully!',
+        'task_id': task.id,
+        'status': 'ONGOING',
+        'start_time': task.start_time.isoformat()
+    })
 
 
-## PAUSE TASK
+## PAUSE TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def pause_task(request, task_id):
-    """Pause an ongoing task - records the pause time"""
+    """Pause an ongoing task - AJAX enabled"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1346,27 +1877,36 @@ def pause_task(request, task_id):
 
     # Check if task can be paused
     if task.status != "ONGOING":
-        messages.error(request, 'Only ongoing tasks can be paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Only ongoing tasks can be paused.'
+        }, status=400)
 
     # Check if task is already paused
     if task.paused_time is not None:
-        messages.error(request, 'Task is already paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Task is already paused.'
+        }, status=400)
 
     # Pause the task
     task.paused_time = timezone.now()
     task.save()
 
-    messages.info(request, f'Task "{task.name}" paused.')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" paused.',
+        'task_id': task.id,
+        'paused_time': task.paused_time.isoformat()
+    })
 
 
-## RESUME TASK
+## RESUME TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def resume_task(request, task_id):
-    """Resume a paused task - calculates paused duration and clears pause time"""
+    """Resume a paused task - AJAX enabled"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1375,8 +1915,10 @@ def resume_task(request, task_id):
 
     # Check if task is paused
     if task.status != "ONGOING" or task.paused_time is None:
-        messages.error(request, 'Task is not paused.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Task is not paused.'
+        }, status=400)
 
     # Calculate paused duration
     paused_duration = timezone.now() - task.paused_time
@@ -1391,15 +1933,19 @@ def resume_task(request, task_id):
     task.paused_time = None
     task.save()
 
-    messages.success(request, f'Task "{task.name}" resumed.')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" resumed.',
+        'task_id': task.id
+    })
 
 
-## COMPLETE TASK
+## COMPLETE TASK - AJAX VERSION
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def complete_task(request, task_id):
-    """Complete a task - calculates total time spent and marks as COMPLETED"""
+    """Complete a task - AJAX enabled with JSON response"""
+    
     # Allow admins to access any task, employees only their own
     if request.user.role == "ADMIN":
         task = get_object_or_404(Task, id=task_id)
@@ -1408,13 +1954,18 @@ def complete_task(request, task_id):
 
     # Check if task can be completed
     if task.status == "COMPLETED":
-        messages.error(request, 'Task is already completed.')
-        return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Task is already completed.'
+        }, status=400)
 
     # IMPORTANT: Check if summary exists
     if not task.summary:
-        messages.error(request, 'Please add a task summary before completing.')
-        return redirect('add_task_summary', task_id=task.id)
+        return JsonResponse({
+            'success': False,
+            'error': 'Please add a task summary before completing.',
+            'redirect_url': reverse('add_task_summary', args=[task.id])
+        }, status=400)
 
     # If task is ongoing, calculate final time
     if task.status == "ONGOING" and task.start_time:
@@ -1458,8 +2009,14 @@ def complete_task(request, task_id):
     for user in observers:
         Notification.objects.create(user=user, message=message)
 
-    messages.success(request, f'Task "{task.name}" completed! Total time: {time_display}')
-    return redirect(f"{reverse('employee_tasks')}?task_id={task.id}")
+    # Return JSON response instead of redirect
+    return JsonResponse({
+        'success': True,
+        'message': f'Task "{task.name}" completed! Total time: {time_display}',
+        'task_id': task.id,
+        'time_display': time_display,
+        'status': 'COMPLETED'
+    })
 
 
 
@@ -1571,6 +2128,159 @@ def delete_designation(request, desig_id):
 #         return redirect("admin_dashboard")
     
 #     return render(request,"edit_user.html",{"user":user})
+
+
+# Only logged-in users can access
+# Allow POST requests from our forms
+# users/views.py
+from services.gemini_service import GeminiService
+@login_required 
+@csrf_exempt    
+def ai_generate_description(request):
+    """
+    API endpoint for AI-powered task descriptions.
+    
+    Why this structure?
+    - POST only (we're creating something)
+    - Returns JSON (for JavaScript to use)
+    - Has clear success/error format
+    """
+    
+    # Step 1: Check if it's a POST request
+    if request.method != "POST":
+        return JsonResponse({
+            'success': False,
+            'error': 'This endpoint only accepts POST requests'
+        }, status=405)  # 405 = Method Not Allowed
+    
+    # Step 2: Try to parse the JSON data
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON format'
+        }, status=400)  # 400 = Bad Request
+    
+    # Step 3: Extract data from request
+    task_name = data.get('task_name', '').strip()
+    project_name = data.get('project_name', '')
+    current_description = data.get('current_description', '')
+    action = data.get('action', 'generate')
+    
+    # Step 4: Validate required fields
+    if not task_name:
+        return JsonResponse({
+            'success': False,
+            'error': 'Task name is required'
+        }, status=400)
+    
+    # Step 5: Initialize AI service
+    ai_service = GeminiService()
+    
+    # Step 6: Perform the requested action
+    if action == 'enhance' and current_description:
+        result = ai_service.enhance_description(current_description, task_name)
+    else:
+        result = ai_service.gen_task_description(task_name, project_name)
+    
+    # Step 7: Return the result
+    return JsonResponse(result)
+
+## User Analytics
+@login_required
+@allowed_roles(['ADMIN'])
+def user_analytics(request):
+    users = User.objects.all().order_by('username')
+    selected_user_id = request.GET.get('user_id')
+
+    selected_user = None
+
+    # 🔥 KEY CHANGE (default = ALL users)
+    if selected_user_id:
+        selected_user = get_object_or_404(User, id=selected_user_id)
+        tasks = Task.objects.filter(assigned_to=selected_user)
+        projects = Projects.objects.filter(assigned_to=selected_user)
+    else:
+        tasks = Task.objects.all()
+        projects = Projects.objects.all()
+
+    # ===== COUNTS =====
+    total_tasks = tasks.count()
+    completed = tasks.filter(status='COMPLETED').count()
+    ongoing = tasks.filter(status='ONGOING').count()
+    pending = tasks.filter(status='PENDING').count()
+
+    overdue = tasks.filter(
+        deadline__lt=timezone.now()
+    ).exclude(status='COMPLETED').count()
+
+    # ===== PERFORMANCE =====
+    performance = int((completed / total_tasks) * 100) if total_tasks > 0 else 0
+
+    # ===== PROGRESS CIRCLE =====
+    stroke_offset = 283 - (performance * 2.83)
+
+    # ===== WEEKLY =====
+    last_7_days = timezone.now() - timedelta(days=7)
+    recent_completed = tasks.filter(
+        status='COMPLETED',
+        end_time__gte=last_7_days
+    ).count()
+
+    # ===== AVG TIME =====
+    avg_time = tasks.filter(
+        total_time__isnull=False
+    ).aggregate(avg=Avg('total_time'))['avg']
+
+    def format_duration(duration):
+        if not duration:
+            return "00:00:00"
+        total_seconds = int(duration.total_seconds())
+        h = total_seconds // 3600
+        m = (total_seconds % 3600) // 60
+        s = total_seconds % 60
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    avg_time_formatted = format_duration(avg_time)
+
+    # ===== PROJECT COUNT =====
+    projects_count = projects.count()
+
+    # ===== REMAINING =====
+    remaining = total_tasks - completed
+
+    # ===== KPI CARDS =====
+    cards = [
+        {"label": "Total", "value": total_tasks, "color": "gray"},
+        {"label": "Completed", "value": completed, "color": "green"},
+        {"label": "Ongoing", "value": ongoing, "color": "blue"},
+        {"label": "Pending", "value": pending, "color": "yellow"},
+        {"label": "Overdue", "value": overdue, "color": "red"},
+        {"label": "Projects", "value": projects_count, "color": "gray"},
+    ]
+
+    analytics = {
+        'total': total_tasks,
+        'completed': completed,
+        'ongoing': ongoing,
+        'pending': pending,
+        'overdue': overdue,
+        'projects': projects_count,
+        'performance': performance,
+        'stroke_offset': stroke_offset,
+        'recent_completed': recent_completed,
+        'avg_time': avg_time_formatted,
+        'remaining': remaining,
+        'cards': cards,
+    }
+
+    return render(request, 'user_analytics.html', {
+        'users': users,
+        'selected_user': selected_user,
+        'analytics': analytics
+    })
+
 
 ## home page
 def home(request):
