@@ -70,7 +70,8 @@ urlpatterns = [
     path('task/<int:task_id>/edit/', views.edit_task, name='edit_task'),
     path('task/<int:task_id>/delete/', views.delete_task, name='delete_task'),
     path('task/<int:task_id>/add-summary/', views.add_task_summary, name='add_task_summary'),
-    path('ai/generate-description/', views.ai_generate_description, name='ai_generate_description')
+    path('ai/generate-description/', views.ai_generate_description, name='ai_generate_description'),
+    path('user-analytics/', views.user_analytics, name='user_analytics'),
 ]
 
 

@@ -15,7 +15,8 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
-
+from datetime import timedelta
+from django.db.models import Avg
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
@@ -2185,6 +2186,100 @@ def ai_generate_description(request):
     
     # Step 7: Return the result
     return JsonResponse(result)
+
+## User Analytics
+@login_required
+@allowed_roles(['ADMIN'])
+def user_analytics(request):
+    users = User.objects.all().order_by('username')
+    selected_user_id = request.GET.get('user_id')
+
+    selected_user = None
+
+    # 🔥 KEY CHANGE (default = ALL users)
+    if selected_user_id:
+        selected_user = get_object_or_404(User, id=selected_user_id)
+        tasks = Task.objects.filter(assigned_to=selected_user)
+        projects = Projects.objects.filter(assigned_to=selected_user)
+    else:
+        tasks = Task.objects.all()
+        projects = Projects.objects.all()
+
+    # ===== COUNTS =====
+    total_tasks = tasks.count()
+    completed = tasks.filter(status='COMPLETED').count()
+    ongoing = tasks.filter(status='ONGOING').count()
+    pending = tasks.filter(status='PENDING').count()
+
+    overdue = tasks.filter(
+        deadline__lt=timezone.now()
+    ).exclude(status='COMPLETED').count()
+
+    # ===== PERFORMANCE =====
+    performance = int((completed / total_tasks) * 100) if total_tasks > 0 else 0
+
+    # ===== PROGRESS CIRCLE =====
+    stroke_offset = 283 - (performance * 2.83)
+
+    # ===== WEEKLY =====
+    last_7_days = timezone.now() - timedelta(days=7)
+    recent_completed = tasks.filter(
+        status='COMPLETED',
+        end_time__gte=last_7_days
+    ).count()
+
+    # ===== AVG TIME =====
+    avg_time = tasks.filter(
+        total_time__isnull=False
+    ).aggregate(avg=Avg('total_time'))['avg']
+
+    def format_duration(duration):
+        if not duration:
+            return "00:00:00"
+        total_seconds = int(duration.total_seconds())
+        h = total_seconds // 3600
+        m = (total_seconds % 3600) // 60
+        s = total_seconds % 60
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    avg_time_formatted = format_duration(avg_time)
+
+    # ===== PROJECT COUNT =====
+    projects_count = projects.count()
+
+    # ===== REMAINING =====
+    remaining = total_tasks - completed
+
+    # ===== KPI CARDS =====
+    cards = [
+        {"label": "Total", "value": total_tasks, "color": "gray"},
+        {"label": "Completed", "value": completed, "color": "green"},
+        {"label": "Ongoing", "value": ongoing, "color": "blue"},
+        {"label": "Pending", "value": pending, "color": "yellow"},
+        {"label": "Overdue", "value": overdue, "color": "red"},
+        {"label": "Projects", "value": projects_count, "color": "gray"},
+    ]
+
+    analytics = {
+        'total': total_tasks,
+        'completed': completed,
+        'ongoing': ongoing,
+        'pending': pending,
+        'overdue': overdue,
+        'projects': projects_count,
+        'performance': performance,
+        'stroke_offset': stroke_offset,
+        'recent_completed': recent_completed,
+        'avg_time': avg_time_formatted,
+        'remaining': remaining,
+        'cards': cards,
+    }
+
+    return render(request, 'user_analytics.html', {
+        'users': users,
+        'selected_user': selected_user,
+        'analytics': analytics
+    })
 
 
 ## home page
