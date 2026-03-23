@@ -1,33 +1,91 @@
 {% extends "base.html" %}
 {% block title %}Designation Members{% endblock %}
-{% block page_title %}Designation: {{ designation.name }}{% endblock %}
+{% block page_title %}Designation: <span id="designationName">{{ designation.name }}</span>{% endblock %}
 
 {% block content %}
 <div class="container mx-auto mt-8">
 
-    {% if users %}
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {% for user in users %}
-            <div class="bg-white shadow-lg rounded-lg p-5 hover:shadow-2xl transition transform hover:-translate-y-2">
-                <h3 class="text-xl font-semibold mb-2">{{ user.username }}</h3>
-                <p class="text-gray-600 mb-1"><strong>Email:</strong> {{ user.email }}</p>
-                <p class="text-gray-600 mb-1"><strong>Role:</strong> {{ user.role }}</p>
-                <p class="text-gray-600 mb-1">
-                    <strong>Department:</strong>
-                    {% if user.profile.department %}
-                        {{ user.profile.department.name }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </p>
-            </div>
-            {% endfor %}
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
         </div>
-    {% else %}
-        <div class="text-center mt-10">
-            <h4 class="text-gray-500 font-semibold text-lg">No users found for this designation.</h4>
-        </div>
-    {% endif %}
+    </div>
+
+    <!-- Users will be loaded here via AJAX -->
+    <div id="usersContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
 
 </div>
+
+<script>
+function loadDesignationUsers(desigId) {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    loadingOverlay.classList.remove('hidden');
+    
+    fetch(`/designation_detail/${desigId}/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Update designation name
+            document.getElementById('designationName').innerText = data.designation;
+
+            const container = document.getElementById('usersContainer');
+            container.innerHTML = '';
+
+            if(data.users.length > 0){
+                data.users.forEach(user => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white shadow-lg rounded-lg p-5 hover:shadow-2xl transition transform hover:-translate-y-2";
+                    card.innerHTML = `
+                        <h3 class="text-xl font-semibold mb-2">${escapeHtml(user.full_name)}</h3>
+                        <p class="text-gray-600 mb-1"><strong>Username:</strong> ${escapeHtml(user.username)}</p>
+                        <p class="text-gray-600 mb-1"><strong>Email:</strong> ${escapeHtml(user.email)}</p>
+                        <p class="text-gray-600 mb-1"><strong>Role:</strong> ${escapeHtml(user.role_display)}</p>
+                        <p class="text-gray-600 mb-1"><strong>Department:</strong> ${escapeHtml(user.department)}</p>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = '<div class="text-center mt-10"><h4 class="text-gray-500 font-semibold text-lg">No users found for this designation.</h4></div>';
+            }
+        }
+        loadingOverlay.classList.add('hidden');
+    })
+    .catch(err => {
+        console.error("Error loading designation users:", err);
+        loadingOverlay.classList.add('hidden');
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Load users for current designation on page load
+loadDesignationUsers({{ designation.id }});
+</script>
+
+<style>
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+    
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+</style>
+
 {% endblock %}
