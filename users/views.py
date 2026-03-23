@@ -43,18 +43,12 @@ def login_view(request):
 
 
             # Role-based redirect
-            role = user.role
-            if not role and user.is_superuser:
-                role = "ADMIN"
-
-            if role == "ADMIN":
+            if user.role == "ADMIN":
                 return redirect("admin_dashboard")
-            elif role == "TEAM_LEAD":
+            elif user.role == "TEAM_LEAD":
                 return redirect("teamlead_dashboard")
-            elif role == "EMPLOYEE":
+            elif user.role == "EMPLOYEE":
                 return redirect("employee_dashboard")
-            else:
-                return redirect("dashboard")
     else:
             messages.error(request, "Invalid username or password")
 
@@ -455,19 +449,13 @@ def login_page(request):
 def dashboard(request):
     context = {}
 
-    role = request.user.role.upper() if request.user.role else ""
-    if not role and request.user.is_superuser:
-        role = "ADMIN"
+    role = request.user.role.upper()  # convert to uppercase to match checks
 
     if role == "ADMIN":
         context['total_users'] = User.objects.count()
         context['total_projects'] = Projects.objects.count()
         context['total_tasks'] = Task.objects.count()
         context['users'] = User.objects.all()
-        # Add stats for admin_dashboard context just in case it's used
-        context['active_users'] = User.objects.filter(is_active=True).count()
-        context['ongoing_projects'] = Projects.objects.filter(status='ONGOING').count()
-        context['completed_tasks'] = Task.objects.filter(status='COMPLETED').count()
 
     elif role == "TEAMLEAD":
     # Flag to indicate Team Lead dashboard
