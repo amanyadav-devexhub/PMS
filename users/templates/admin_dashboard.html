@@ -5,6 +5,13 @@
 
 {% block content %}
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+    </div>
+</div>
+
 <div class="space-y-6">
 
     <!-- ================= ADMIN DASHBOARD ================= -->
@@ -23,7 +30,7 @@
     </div>
 
     <a href="{% url 'user_analytics' %}">
-    <button>User Analytics</button>
+        <button>User Analytics</button>
     </a>
 
     <!-- Statistics Cards -->
@@ -33,8 +40,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Users</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ total_users|default:"0" }}</h3>
-                    <p class="text-green-500 text-sm mt-2">{{ active_users|default:"0" }} active now</p>
+                    <h3 id="totalUsers" class="text-3xl font-bold text-gray-800">{{ total_users|default:"0" }}</h3>
+                    <p id="activeUsersText" class="text-green-500 text-sm mt-2">{{ active_users|default:"0" }} active now</p>
                 </div>
                 <div class="bg-orange-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,8 +56,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Projects</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
-                    <p class="text-blue-500 text-sm mt-2">{{ ongoing_projects|default:"0" }} in progress</p>
+                    <h3 id="totalProjects" class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
+                    <p id="ongoingProjectsText" class="text-blue-500 text-sm mt-2">{{ ongoing_projects|default:"0" }} in progress</p>
                 </div>
                 <div class="bg-blue-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,8 +72,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Tasks</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ total_tasks|default:"0" }}</h3>
-                    <p class="text-green-500 text-sm mt-2">{{ completed_tasks|default:"0" }} completed</p>
+                    <h3 id="totalTasks" class="text-3xl font-bold text-gray-800">{{ total_tasks|default:"0" }}</h3>
+                    <p id="completedTasksText" class="text-green-500 text-sm mt-2">{{ completed_tasks|default:"0" }} completed</p>
                 </div>
                 <div class="bg-green-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,8 +142,8 @@
             <div class="flex justify-between items-center">
                 <h3 class="text-xl font-bold text-white">User Management</h3>
                 <div class="flex space-x-2">
-                    <span class="bg-green-500 text-white px-3 py-1 rounded-full text-xs">Active: {{ active_users|default:"0" }}</span>
-                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-xs">Inactive: {{ inactive_users|default:"0" }}</span>
+                    <span id="activeBadge" class="bg-green-500 text-white px-3 py-1 rounded-full text-xs">Active: {{ active_users|default:"0" }}</span>
+                    <span id="inactiveBadge" class="bg-red-500 text-white px-3 py-1 rounded-full text-xs">Inactive: {{ inactive_users|default:"0" }}</span>
                 </div>
             </div>
         </div>
@@ -153,9 +160,9 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
                         {% for user in users %}
-                        <tr class="hover:bg-gray-50 transition">
+                        <tr class="hover:bg-gray-50 transition" id="user-row-{{ user.id }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
@@ -166,7 +173,7 @@
                                         <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
                                     </div>
                                 </div>
-                            </td>
+                             </div>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.email }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 py-1 text-xs rounded-full 
@@ -196,6 +203,38 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Users Table Pagination -->
+            <div class="mt-4 flex justify-between items-center">
+                <div class="text-sm text-gray-600" id="usersShowingInfo">
+                    Showing <span id="usersStartCount">0</span> - <span id="usersEndCount">0</span> of <span id="usersTotalCount">0</span> users
+                </div>
+                
+                <div class="flex gap-2 items-center">
+                    <select id="usersPageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                        <option value="10">10 per page</option>
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                    
+                    <button id="usersPrevPageBtn" 
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            disabled>
+                        ← Prev
+                    </button>
+                    
+                    <span id="usersPageIndicator" class="text-sm text-gray-600 mx-2">
+                        Page 1 of 1
+                    </span>
+                    
+                    <button id="usersNextPageBtn" 
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            disabled>
+                        Next →
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -207,7 +246,7 @@
                 <h3 class="text-lg font-bold text-gray-800">Recent Projects</h3>
                 <a href="{% url 'view_projects' %}" class="text-blue-600 hover:text-blue-800 text-sm">View All →</a>
             </div>
-            <div class="space-y-3">
+            <div id="recentProjectsContainer" class="space-y-3">
                 {% for project in recent_projects|slice:":5" %}
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                     <div>
@@ -233,7 +272,7 @@
                 <h3 class="text-lg font-bold text-gray-800">Recent Tasks</h3>
                 <a href="{% url 'task_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm">View All →</a>
             </div>
-            <div class="space-y-3">
+            <div id="recentTasksContainer" class="space-y-3">
                 {% for task in recent_tasks|slice:":5" %}
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                     <div>
@@ -265,5 +304,270 @@
     {% endif %}
 
 </div>
+
+<!-- AJAX Script to Load Data with Users Pagination -->
+<script>
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Loading overlay
+const loadingOverlay = document.getElementById('loadingOverlay');
+
+// Users table pagination variables
+let usersCurrentPage = 1;
+let usersCurrentPageSize = 10;
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Function to load users table data
+function loadUsersTable(page = 1, pageSize = 10) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('users_page', page);
+    url.searchParams.set('users_page_size', pageSize);
+    
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            usersCurrentPage = data.users_pagination.current_page;
+            usersCurrentPageSize = data.users_pagination.page_size;
+            
+            // Update users table
+            renderUsersTable(data.users);
+            
+            // Update users pagination UI
+            updateUsersPaginationUI(data.users_pagination);
+            
+            // Update users showing info
+            const startIndex = (data.users_pagination.current_page - 1) * data.users_pagination.page_size + 1;
+            const endIndex = Math.min(data.users_pagination.current_page * data.users_pagination.page_size, data.users_pagination.total);
+            const usersShowingInfo = document.getElementById('usersShowingInfo');
+            if (usersShowingInfo) {
+                usersShowingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.users_pagination.total} users`;
+            }
+            document.getElementById('usersStartCount').textContent = startIndex;
+            document.getElementById('usersEndCount').textContent = endIndex;
+            document.getElementById('usersTotalCount').textContent = data.users_pagination.total;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading users:', error);
+    });
+}
+
+function renderUsersTable(users) {
+    const tableBody = document.getElementById('usersTableBody');
+    
+    if (!users || users.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    users.forEach(user => {
+        const roleClass = user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 
+                         user.role === 'TEAM_LEAD' ? 'bg-blue-100 text-blue-800' : 
+                         'bg-green-100 text-green-800';
+        const statusClass = user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+        const statusText = user.is_active ? 'Active' : 'Inactive';
+        
+        html += `
+            <tr class="hover:bg-gray-50 transition" id="user-row-${user.id}">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                            ${escapeHtml(user.username.charAt(0).toUpperCase())}
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</div>
+                            <div class="text-xs text-gray-500">ID: ${user.id}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(user.email)}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full ${roleClass}">
+                        ${escapeHtml(user.role)}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <div class="flex space-x-2">
+                        <a href="${user.edit_url}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition">Edit</a>
+                        <a href="${user.delete_url}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition" onclick="return confirm('Delete user ${escapeHtml(user.username)}?')">Delete</a>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+function updateUsersPaginationUI(paginationData) {
+    const prevBtn = document.getElementById('usersPrevPageBtn');
+    const nextBtn = document.getElementById('usersNextPageBtn');
+    const pageIndicator = document.getElementById('usersPageIndicator');
+    
+    if (prevBtn) {
+        prevBtn.disabled = !paginationData.has_previous;
+        if (paginationData.has_previous) {
+            prevBtn.onclick = () => loadUsersTable(paginationData.previous_page_number, usersCurrentPageSize);
+        }
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = !paginationData.has_next;
+        if (paginationData.has_next) {
+            nextBtn.onclick = () => loadUsersTable(paginationData.next_page_number, usersCurrentPageSize);
+        }
+    }
+    
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${paginationData.current_page} of ${paginationData.total_pages}`;
+    }
+}
+
+function loadDashboardData() {
+    loadingOverlay.classList.remove('hidden');
+    
+    fetch(window.location.href, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update stats
+            document.getElementById('totalUsers').innerText = data.stats.total_users;
+            document.getElementById('activeUsersText').innerHTML = `${data.stats.active_users} active now`;
+            document.getElementById('totalProjects').innerText = data.stats.total_projects;
+            document.getElementById('ongoingProjectsText').innerHTML = `${data.stats.ongoing_projects} in progress`;
+            document.getElementById('totalTasks').innerText = data.stats.total_tasks;
+            document.getElementById('completedTasksText').innerHTML = `${data.stats.completed_tasks} completed`;
+            document.getElementById('activeBadge').innerHTML = `Active: ${data.stats.active_users}`;
+            document.getElementById('inactiveBadge').innerHTML = `Inactive: ${data.stats.inactive_users}`;
+            
+            // Update recent projects
+            const projectsContainer = document.getElementById('recentProjectsContainer');
+            if (projectsContainer && data.recent_projects.length > 0) {
+                projectsContainer.innerHTML = '';
+                data.recent_projects.forEach(project => {
+                    let statusClass = '';
+                    if (project.status === 'ONGOING') statusClass = 'bg-green-100 text-green-700';
+                    else if (project.status === 'PENDING') statusClass = 'bg-yellow-100 text-yellow-700';
+                    else statusClass = 'bg-blue-100 text-blue-700';
+                    
+                    projectsContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${escapeHtml(project.name)}</h4>
+                                <p class="text-xs text-gray-500">Deadline: ${escapeHtml(project.end_date)}</p>
+                            </div>
+                            <span class="px-2 py-1 text-xs rounded-full ${statusClass}">
+                                ${escapeHtml(project.status)}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Update recent tasks
+            const tasksContainer = document.getElementById('recentTasksContainer');
+            if (tasksContainer && data.recent_tasks.length > 0) {
+                tasksContainer.innerHTML = '';
+                data.recent_tasks.forEach(task => {
+                    let statusClass = '';
+                    if (task.status === 'ONGOING') statusClass = 'bg-yellow-100 text-yellow-700';
+                    else if (task.status === 'COMPLETED') statusClass = 'bg-green-100 text-green-700';
+                    else statusClass = 'bg-blue-100 text-blue-700';
+                    
+                    const assigneesText = task.assignees.length > 0 ? task.assignees.join(', ') : 'Unassigned';
+                    
+                    tasksContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${escapeHtml(task.name)}</h4>
+                                <p class="text-xs text-gray-500">Assigned to: ${escapeHtml(assigneesText)}</p>
+                            </div>
+                            <span class="px-2 py-1 text-xs rounded-full ${statusClass}">
+                                ${escapeHtml(task.status_display)}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Load users table with current pagination
+            loadUsersTable(1, usersCurrentPageSize);
+        }
+        loadingOverlay.classList.add('hidden');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingOverlay.classList.add('hidden');
+    });
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Users table page size change
+    const usersPageSizeSelect = document.getElementById('usersPageSizeSelect');
+    if (usersPageSizeSelect) {
+        usersPageSizeSelect.addEventListener('change', function() {
+            usersCurrentPageSize = parseInt(this.value);
+            loadUsersTable(1, usersCurrentPageSize);
+        });
+    }
+    
+    // Load dashboard data on page load only (no auto-refresh)
+    loadDashboardData();
+});
+</script>
+
+<style>
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+</style>
 
 {% endblock %}

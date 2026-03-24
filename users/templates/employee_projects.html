@@ -5,6 +5,17 @@
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-7xl">
 
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
@@ -92,6 +103,40 @@
         </div>
     </div>
 
+    <!-- Pagination Controls -->
+    <div class="mt-8 flex justify-between items-center">
+        <div class="text-sm text-gray-600" id="showingInfo">
+            Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> projects
+        </div>
+        
+        <div class="flex gap-2 items-center">
+            <!-- Page Size Selector -->
+            <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                <option value="9">9 per page (3x3)</option>
+                <option value="12">12 per page (4x3)</option>
+                <option value="15">15 per page (5x3)</option>
+                <option value="18">18 per page (6x3)</option>
+            </select>
+            
+            <!-- Pagination Buttons -->
+            <button id="prevPageBtn" 
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                ← Prev
+            </button>
+            
+            <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+                Page 1 of 1
+            </span>
+            
+            <button id="nextPageBtn" 
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                Next →
+            </button>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -113,6 +158,11 @@ function getCookie(name) {
 
 const csrftoken = getCookie('csrftoken');
 
+// Pagination variables
+let currentPage = 1;
+let currentPageSize = 9;
+let currentSearchQuery = '';
+
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -120,11 +170,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function loadEmployeeProjects() {
+function loadEmployeeProjects(search = '', page = 1, pageSize = 9) {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
     
-    fetch(window.location.href, {
+    const url = new URL(window.location.href);
+    if (search) {
+        url.searchParams.set('search', search);
+    } else {
+        url.searchParams.delete('search');
+    }
+    url.searchParams.set('page', page);
+    url.searchParams.set('page_size', pageSize);
+    
+    fetch(url, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
@@ -132,6 +191,10 @@ function loadEmployeeProjects() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            currentPage = data.current_page;
+            currentPageSize = data.page_size;
+            currentSearchQuery = data.search_query;
+            
             // Update stats
             document.getElementById('totalProjects').innerText = data.total_projects;
             document.getElementById('ongoingProjects').innerText = data.ongoing_projects;
@@ -140,6 +203,17 @@ function loadEmployeeProjects() {
             
             // Render projects
             renderProjects(data.projects);
+            
+            // Update pagination UI
+            updatePaginationUI(data);
+            
+            // Update showing info
+            const startIndex = (data.current_page - 1) * data.page_size + 1;
+            const endIndex = Math.min(data.current_page * data.page_size, data.total_projects);
+            const showingInfo = document.getElementById('showingInfo');
+            if (showingInfo) {
+                showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total_projects} projects`;
+            }
         }
         loadingOverlay.classList.add('hidden');
     })
@@ -152,6 +226,30 @@ function loadEmployeeProjects() {
         `;
         loadingOverlay.classList.add('hidden');
     });
+}
+
+function updatePaginationUI(data) {
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const pageIndicator = document.getElementById('pageIndicator');
+    
+    if (prevBtn) {
+        prevBtn.disabled = !data.has_previous;
+        if (data.has_previous) {
+            prevBtn.onclick = () => loadEmployeeProjects(currentSearchQuery, data.previous_page_number, currentPageSize);
+        }
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = !data.has_next;
+        if (data.has_next) {
+            nextBtn.onclick = () => loadEmployeeProjects(currentSearchQuery, data.next_page_number, currentPageSize);
+        }
+    }
+    
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+    }
 }
 
 function renderProjects(projects) {
@@ -228,23 +326,31 @@ function renderProjects(projects) {
     grid.innerHTML = html;
 }
 
-// Search functionality
-document.getElementById('searchInput')?.addEventListener('keyup', function() {
-    let searchText = this.value.toLowerCase();
-    let cards = document.querySelectorAll('.project-card');
-    
-    cards.forEach(card => {
-        let projectName = card.querySelector('.project-name').textContent.toLowerCase();
-        if (projectName.includes(searchText)) {
-            card.style.display = '';
-        } else {
-            card.style.display = 'none';
-        }
+// Search functionality with AJAX
+let searchTimeout;
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    searchInput.addEventListener('keyup', function() {
+        clearTimeout(searchTimeout);
+        const searchText = this.value.trim();
+        searchTimeout = setTimeout(() => {
+            currentSearchQuery = searchText;
+            loadEmployeeProjects(searchText, 1, currentPageSize);
+        }, 300);
     });
-});
+}
+
+// Page size change
+const pageSizeSelect = document.getElementById('pageSizeSelect');
+if (pageSizeSelect) {
+    pageSizeSelect.addEventListener('change', function() {
+        currentPageSize = parseInt(this.value);
+        loadEmployeeProjects(currentSearchQuery, 1, currentPageSize);
+    });
+}
 
 // Load projects on page load
-loadEmployeeProjects();
+loadEmployeeProjects('', 1, 9);
 </script>
 
 <style>

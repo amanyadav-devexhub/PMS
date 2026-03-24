@@ -83,10 +83,7 @@ class TaskForm(forms.ModelForm):
         # Show admins and team leads for assigned_by (task owner)
         if 'assigned_by' in self.fields:
             self.fields['assigned_by'].queryset = User.objects.filter(role__in=['ADMIN', 'TEAM_LEAD'])
-            self.fields['assigned_by'].widget.attrs.update({'class': 'form-control'})
             self.fields['assigned_by'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.username})"
-            # Make it required
-            self.fields['assigned_by'].required = True
         
         # Show all users for observers
         if 'observers' in self.fields:

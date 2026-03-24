@@ -6,6 +6,17 @@
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-7xl">
 
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+
     <!-- Simple Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
@@ -175,33 +186,41 @@
         </div>
     </div>
 
-    <!-- Simple Footer -->
-    <div class="flex justify-between items-center mt-6 text-sm text-gray-600">
-        <div>Showing {{ tasks|length }} of {{ total_tasks }} tasks</div>
-        <div class="flex space-x-2">
-            <span class="px-3 py-1 bg-gray-100 rounded-lg">Page 1 of 1</span>
-        </div>
+    <!-- Pagination Controls -->
+<div class="flex justify-between items-center mt-6">
+    <div class="text-sm text-gray-600" id="showingInfo">
+        Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> tasks
+    </div>
+    
+    <div class="flex gap-2 items-center">
+        <!-- Page Size Selector -->
+        <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+            <option value="10">10 per page</option>
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+        </select>
+        
+        <!-- Pagination Buttons -->
+        <button id="prevPageBtn" 
+                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                disabled>
+            ← Prev
+        </button>
+        
+        <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+            Page 1 of 1
+        </span>
+        
+        <button id="nextPageBtn" 
+                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                disabled>
+            Next →
+        </button>
     </div>
 </div>
 
-<!-- Simple Client-side Search -->
-<script>
-    document.getElementById('searchInput').addEventListener('keyup', function() {
-        let searchText = this.value.toLowerCase();
-        let rows = document.querySelectorAll('#taskTableBody tr');
-        
-        rows.forEach(row => {
-            let taskName = row.querySelector('td:first-child .font-medium');
-            if (taskName && taskName.textContent.toLowerCase().includes(searchText)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    });
-</script>
-
-<!-- AJAX Loader - Only added this section, everything above unchanged -->
+<!-- AJAX Loader with Pagination -->
 <script>
 // Get CSRF token
 function getCookie(name) {
@@ -219,6 +238,11 @@ function getCookie(name) {
     return cookieValue;
 }
 
+// Pagination variables
+let currentPage = 1;
+let currentPageSize = 10;
+let currentSearchQuery = '';
+
 // Loading overlay
 const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loadingOverlay';
@@ -226,10 +250,14 @@ loadingOverlay.className = 'hidden fixed inset-0 bg-gray-600 bg-opacity-50 overf
 loadingOverlay.innerHTML = '<div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div></div>';
 document.body.appendChild(loadingOverlay);
 
-function loadTasks() {
+function loadTasks(page = 1, pageSize = 10) {
     loadingOverlay.classList.remove('hidden');
     
-    fetch(window.location.href, {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', page);
+    url.searchParams.set('page_size', pageSize);
+    
+    fetch(url, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
@@ -237,14 +265,28 @@ function loadTasks() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            currentPage = data.current_page;
+            currentPageSize = data.page_size;
+            
             // Update stats
             document.querySelector('.border-blue-500 h3').innerText = data.total_tasks;
             document.querySelector('.border-yellow-500 h3').innerText = data.ongoing_count;
             document.querySelector('.border-green-500 h3').innerText = data.completed_count;
             document.querySelector('.border-red-500 h3').innerText = data.overdue_count;
             
-            // Update showing count
-            document.querySelector('.flex.justify-between.items-center.mt-6 .text-sm.text-gray-600 div').innerHTML = `Showing ${data.tasks.length} of ${data.total_tasks} tasks`;
+            // Render tasks table
+            renderTasksTable(data.tasks);
+            
+            // Update pagination UI
+            updatePaginationUI(data);
+            
+            // Update showing info
+            const startIndex = (data.current_page - 1) * data.page_size + 1;
+            const endIndex = Math.min(data.current_page * data.page_size, data.total_tasks);
+            const showingInfo = document.getElementById('showingInfo');
+            if (showingInfo) {
+                showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total_tasks} tasks`;
+            }
         }
         loadingOverlay.classList.add('hidden');
     })
@@ -254,8 +296,139 @@ function loadTasks() {
     });
 }
 
-// Load tasks on page load
-loadTasks();
+function renderTasksTable(tasks) {
+    const tbody = document.getElementById('taskTableBody');
+    
+    if (!tasks || tasks.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                    <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <p class="text-lg">No tasks found</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    tasks.forEach(task => {
+        const statusClass = task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                           task.status === 'ONGOING' ? 'bg-blue-100 text-blue-700' :
+                           'bg-green-100 text-green-700';
+        
+        const rowClass = task.is_overdue ? 'bg-red-100 hover:bg-red-200 border-l-4 border-red-500' : 'hover:bg-gray-50';
+        
+        // Assignees HTML
+        let assigneesHtml = '';
+        task.assignees.forEach(assignee => {
+            assigneesHtml += `<span class="text-sm bg-gray-100 px-2 py-1 rounded">${escapeHtml(assignee)}</span>`;
+        });
+        if (task.total_assignees > 2) {
+            assigneesHtml += `<span class="text-sm bg-gray-100 px-2 py-1 rounded">+${task.total_assignees - 2}</span>`;
+        }
+        
+        html += `
+            <tr class="${rowClass} transition cursor-pointer" onclick="window.location='${task.view_url}'">
+                <td class="px-6 py-4">
+                    <div class="font-medium text-gray-900">${escapeHtml(task.name)}</div>
+                    <div class="text-xs text-gray-500 mt-1">ID: ${task.id}</div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-3 py-1 text-xs rounded-full ${statusClass}">
+                        ${escapeHtml(task.status_display)}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="text-sm font-mono ${task.is_overdue ? 'text-red-700 font-bold' : ''}">
+                        ${escapeHtml(task.time_spent_display)}
+                        ${task.is_overdue ? '<span class="ml-1 text-xs bg-red-200 px-1.5 py-0.5 rounded-full">Overdue</span>' : ''}
+                    </div>
+                    <div class="text-xs text-gray-500">/ ${escapeHtml(task.estimated_display)}</div>
+                </td>
+                <td class="px-6 py-4">
+                    ${task.deadline ? `<div class="text-sm">${escapeHtml(task.deadline)}</div>` : '<span class="text-sm text-gray-400">No deadline</span>'}
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex flex-wrap gap-1">
+                        ${assigneesHtml || '<span class="text-sm text-gray-400">No assignees</span>'}
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-sm bg-orange-100 text-orange-700 px-3 py-1 rounded-full">
+                        ${escapeHtml(task.project_name)}
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function updatePaginationUI(data) {
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const pageIndicator = document.getElementById('pageIndicator');
+    
+    if (prevBtn) {
+        prevBtn.disabled = !data.has_previous;
+        if (data.has_previous) {
+            prevBtn.onclick = () => loadTasks(data.previous_page_number, currentPageSize);
+        }
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = !data.has_next;
+        if (data.has_next) {
+            nextBtn.onclick = () => loadTasks(data.next_page_number, currentPageSize);
+        }
+    }
+    
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    
+    // Load initial tasks
+    loadTasks(1, 10);
+    
+    // Page size change
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            currentPageSize = parseInt(this.value);
+            loadTasks(1, currentPageSize);
+        });
+    }
+});
+
+// Keep the client-side search functionality
+document.getElementById('searchInput')?.addEventListener('keyup', function() {
+    let searchText = this.value.toLowerCase();
+    let rows = document.querySelectorAll('#taskTableBody tr');
+    
+    rows.forEach(row => {
+        let taskName = row.querySelector('td:first-child .font-medium');
+        if (taskName && taskName.textContent.toLowerCase().includes(searchText)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
 </script>
 
 <style>

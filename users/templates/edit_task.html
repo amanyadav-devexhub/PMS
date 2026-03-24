@@ -8,6 +8,17 @@
 
 <div class="max-w-4xl mx-auto">
 
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+
     <!-- Card -->
     <div class="bg-white shadow-lg rounded-lg p-8">
 
@@ -17,7 +28,7 @@
 
         <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p class="text-sm text-gray-600">
-                <span class="font-medium">Project:</span> {{ task.project.name }} | 
+                <span class="font-medium">Project:</span> {{ task.project.name }} |
                 <span class="font-medium">Task ID:</span> {{ task.id }} |
                 <span class="font-medium">Created:</span> {{ task.created_at|date:"M d, Y" }}
             </p>
@@ -35,9 +46,8 @@
                 </label>
                 <div class="flex gap-2">
                     {{ form.name|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
-                    <button type="button" 
-                            onclick="generateDescription()"
-                            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap">
+                    <button type="button" onclick="generateDescription()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
@@ -46,7 +56,7 @@
                 </div>
                 {% if form.name.errors %}
                     {% for error in form.name.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -58,15 +68,14 @@
                 </label>
                 <div class="relative">
                     {{ form.description|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
-                    <button type="button"
-                            onclick="enhanceDescription()"
-                            class="absolute right-2 bottom-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition">
+                    <button type="button" onclick="enhanceDescription()"
+                        class="absolute right-2 bottom-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition">
                         ✨ Enhance
                     </button>
                 </div>
                 {% if form.description.errors %}
                     {% for error in form.description.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -79,7 +88,7 @@
                 {{ form.project|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
                 {% if form.project.errors %}
                     {% for error in form.project.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -115,11 +124,6 @@
                     </svg>
                     Select multiple task owners (Admins/Team Leads)
                 </p>
-                {% if form.assigned_by.errors %}
-                    {% for error in form.assigned_by.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                    {% endfor %}
-                {% endif %}
             </div>
 
             <!-- ===== ASSIGNED TO (Multiple - Employees) ===== -->
@@ -152,7 +156,7 @@
                 </p>
                 {% if form.assigned_to.errors %}
                     {% for error in form.assigned_to.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -165,7 +169,7 @@
                 {{ form.status|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
                 {% if form.status.errors %}
                     {% for error in form.status.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -178,24 +182,8 @@
                         Start Date <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="start_date" id="start_date" 
-                           value="{{ form.start_date.value|date:'Y-m-d'|default:task.start_date|date:'Y-m-d' }}"
-                           class="w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition
-                           {% if date_error %}border-red-500 bg-red-50{% endif %}">
-                    
-                    {% if date_error %}
-                    <p class="text-red-500 text-xs mt-1 flex items-center date-error">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        {{ date_error }}
-                    </p>
-                    {% endif %}
-                    
-                    {% if form.start_date.errors %}
-                        {% for error in form.start_date.errors %}
-                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                        {% endfor %}
-                    {% endif %}
+                           value="{{ task.start_date|date:'Y-m-d' }}"
+                           class="w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
                 </div>
 
                 <!-- End Date -->
@@ -204,24 +192,8 @@
                         End Date <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="end_date" id="end_date" 
-                           value="{{ form.end_date.value|date:'Y-m-d'|default:task.end_date|date:'Y-m-d' }}"
-                           class="w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition
-                           {% if date_error %}border-red-500 bg-red-50{% endif %}">
-                    
-                    {% if date_error %}
-                    <p class="text-red-500 text-xs mt-1 flex items-center date-error">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        {{ date_error }}
-                    </p>
-                    {% endif %}
-                    
-                    {% if form.end_date.errors %}
-                        {% for error in form.end_date.errors %}
-                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                        {% endfor %}
-                    {% endif %}
+                           value="{{ task.end_date|date:'Y-m-d' }}"
+                           class="w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
                 </div>
             </div>
 
@@ -230,14 +202,11 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">
                     Deadline <span class="text-gray-400 text-xs">(with time)</span>
                 </label>
-                {{ form.deadline|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
+                <input type="datetime-local" name="deadline" 
+                       value="{{ task.deadline|date:'Y-m-d\\TH:i' }}"
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
                 {% if form.deadline.help_text %}
                     <p class="text-xs text-gray-400 mt-1">{{ form.deadline.help_text }}</p>
-                {% endif %}
-                {% if form.deadline.errors %}
-                    {% for error in form.deadline.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                    {% endfor %}
                 {% endif %}
             </div>
 
@@ -246,27 +215,25 @@
                 <label class="block text-sm font-medium text-gray-600 mb-2">
                     Estimated Time <span class="text-red-500">*</span>
                 </label>
-                
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <input type="number" name="estimated_hours" id="estimated_hours" 
-                            min="0" max="24" step="1" 
+                        <input type="number" name="estimated_hours" id="estimated_hours" min="0" max="24" step="1"
                             value="{% if task.estimated_time %}{{ task.estimated_time|floatformat:0 }}{% else %}1{% endif %}"
                             class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition"
                             placeholder="Hours">
                     </div>
                     <div>
-                        <input type="number" name="estimated_minutes" id="estimated_minutes" 
-                            min="0" max="59" step="1" 
+                        <input type="number" name="estimated_minutes" id="estimated_minutes" min="0" max="59" step="1"
                             value="{% if task.estimated_time %}{{ task.estimated_time|floatformat:0 }}{% else %}0{% endif %}"
                             class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition"
                             placeholder="Minutes">
                     </div>
                 </div>
-                
+
                 <!-- Hidden field to store total seconds -->
                 <input type="hidden" name="estimated_time" id="estimated_time" value="{{ task.estimated_time|default:3600 }}">
-                
+
                 <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -275,7 +242,7 @@
                 </p>
                 {% if form.estimated_time.errors %}
                     {% for error in form.estimated_time.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -313,7 +280,7 @@
                 </p>
                 {% if form.observers.errors %}
                     {% for error in form.observers.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                     {% endfor %}
                 {% endif %}
             </div>
@@ -350,7 +317,7 @@
                     <span class="font-medium">Created:</span> {{ task.created_at|date:"M d, Y H:i" }}
                 </p>
                 <p class="text-sm text-gray-600 mt-1">
-                    <span class="font-medium">Current Status:</span> 
+                    <span class="font-medium">Current Status:</span>
                     <span class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs
                         {% if task.status == 'PENDING' %}bg-yellow-100 text-yellow-700
                         {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700
@@ -390,14 +357,14 @@
     function generateDescription() {
         const taskName = document.getElementById('id_name').value;
         const projectName = "{{ task.project.name|default:'' }}";
-        
+
         if (!taskName) {
             alert('Please enter a task name first');
             return;
         }
-        
+
         showLoading('AI is generating description...');
-        
+
         fetch('{% url "ai_generate_description" %}', {
             method: 'POST',
             headers: {
@@ -428,14 +395,14 @@
     function enhanceDescription() {
         const taskName = document.getElementById('id_name').value;
         const currentDesc = document.getElementById('id_description').value;
-        
+
         if (!taskName) {
             alert('Please enter a task name first');
             return;
         }
-        
+
         showLoading('AI is enhancing description...');
-        
+
         fetch('{% url "ai_generate_description" %}', {
             method: 'POST',
             headers: {
@@ -464,34 +431,23 @@
     }
 
     // Date validation and estimated time calculation
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Date validation
         const startDate = document.getElementById('start_date');
         const endDate = document.getElementById('end_date');
-        
+
         function validateDates() {
             if (startDate && endDate && startDate.value && endDate.value) {
                 if (startDate.value > endDate.value) {
                     endDate.classList.add('border-red-500', 'bg-red-50');
                     startDate.classList.add('border-red-500', 'bg-red-50');
-                    
-                    const existingError = endDate.parentNode.querySelector('.date-error');
-                    if (!existingError) {
-                        const errorMsg = document.createElement('p');
-                        errorMsg.className = 'text-red-500 text-xs mt-1 flex items-center date-error';
-                        errorMsg.innerHTML = '<svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></svg>End date must be after start date';
-                        endDate.parentNode.appendChild(errorMsg);
-                    }
                 } else {
                     endDate.classList.remove('border-red-500', 'bg-red-50');
                     startDate.classList.remove('border-red-500', 'bg-red-50');
-                    
-                    const errorMsg = endDate.parentNode.querySelector('.date-error');
-                    if (errorMsg) errorMsg.remove();
                 }
             }
         }
-        
+
         if (startDate && endDate) {
             startDate.addEventListener('change', validateDates);
             endDate.addEventListener('change', validateDates);
@@ -501,31 +457,29 @@
         const hoursInput = document.getElementById('estimated_hours');
         const minutesInput = document.getElementById('estimated_minutes');
         const estimatedTimeHidden = document.getElementById('estimated_time');
-        
-        // Set initial values from task.estimated_time
+
         if (estimatedTimeHidden && hoursInput && minutesInput) {
             const totalSeconds = parseInt(estimatedTimeHidden.value) || 3600;
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
-            
+
             hoursInput.value = hours;
             minutesInput.value = minutes;
         }
-        
+
         function updateEstimatedTime() {
             const hours = parseInt(hoursInput.value) || 0;
             let minutes = parseInt(minutesInput.value) || 0;
-            
-            // Validate minutes (max 59)
+
             if (minutes > 59) {
                 minutesInput.value = 59;
                 minutes = 59;
             }
-            
+
             const totalSeconds = (hours * 3600) + (minutes * 60);
             estimatedTimeHidden.value = totalSeconds;
         }
-        
+
         if (hoursInput && minutesInput) {
             hoursInput.addEventListener('input', updateEstimatedTime);
             minutesInput.addEventListener('input', updateEstimatedTime);
@@ -535,97 +489,88 @@
 
 <!-- AJAX Form Submission for Edit Task -->
 <script>
-document.getElementById('editTaskForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Get form data
-    const formData = new FormData(this);
-    
-    // Get submit button
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    
-    // Show loading state
-    submitBtn.textContent = 'Updating...';
-    submitBtn.disabled = true;
-    submitBtn.classList.add('opacity-50');
-    
-    // Remove existing error messages
-    document.querySelectorAll('.field-error').forEach(el => el.remove());
-    document.querySelectorAll('.border-red-500, .bg-red-50').forEach(el => {
-        el.classList.remove('border-red-500', 'bg-red-50');
-    });
-    
-    // Make AJAX request
-    fetch(window.location.href, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success message
-            alert('✅ ' + data.message);
-            // Redirect to project detail page
-            window.location.href = "{% url 'view_project_detail' task.project.id %}";
-        } else {
-            // Handle errors
-            if (data.errors) {
-                // Field-specific errors
-                Object.keys(data.errors).forEach(field => {
-                    const fieldElement = document.querySelector(`[name="${field}"]`);
-                    if (fieldElement) {
-                        fieldElement.classList.add('border-red-500', 'bg-red-50');
-                        const errorDiv = document.createElement('p');
-                        errorDiv.className = 'field-error text-red-500 text-xs mt-1';
-                        errorDiv.textContent = data.errors[field][0];
-                        fieldElement.parentNode.appendChild(errorDiv);
-                    } else {
-                        // For checkbox groups (assigned_to, observers, assigned_by)
-                        const fieldContainer = document.querySelector(`[name="${field}"]`)?.closest('div');
-                        if (fieldContainer) {
+    const form = document.getElementById('editTaskForm');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+
+            submitBtn.textContent = 'Updating...';
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50');
+
+            document.querySelectorAll('.field-error').forEach(el => el.remove());
+            document.querySelectorAll('.border-red-500, .bg-red-50').forEach(el => {
+                el.classList.remove('border-red-500', 'bg-red-50');
+            });
+
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    window.location.href = "{% url 'view_project_detail' task.project.id %}";
+                } else {
+                    if (data.errors) {
+                        Object.keys(data.errors).forEach(field => {
+                            const fieldElement = document.querySelector(`[name="${field}"]`);
+                            if (fieldElement) {
+                                fieldElement.classList.add('border-red-500', 'bg-red-50');
+                                const errorDiv = document.createElement('p');
+                                errorDiv.className = 'field-error text-red-500 text-xs mt-1';
+                                errorDiv.textContent = data.errors[field][0];
+                                fieldElement.parentNode.appendChild(errorDiv);
+                            } else {
+                                const fieldContainer = document.querySelector(`[name="${field}"]`)?.closest('div');
+                                if (fieldContainer) {
+                                    const errorDiv = document.createElement('p');
+                                    errorDiv.className = 'field-error text-red-500 text-xs mt-1';
+                                    errorDiv.textContent = data.errors[field][0];
+                                    fieldContainer.parentNode.appendChild(errorDiv);
+                                }
+                            }
+                        });
+                    } else if (data.error && data.field === 'end_date') {
+                        const endDateField = document.querySelector('[name="end_date"]');
+                        if (endDateField) {
+                            endDateField.classList.add('border-red-500', 'bg-red-50');
                             const errorDiv = document.createElement('p');
                             errorDiv.className = 'field-error text-red-500 text-xs mt-1';
-                            errorDiv.textContent = data.errors[field][0];
-                            fieldContainer.parentNode.appendChild(errorDiv);
+                            errorDiv.textContent = data.error;
+                            endDateField.parentNode.appendChild(errorDiv);
                         }
+                    } else if (data.error) {
+                        const formElement = document.getElementById('editTaskForm');
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'field-error bg-red-100 text-red-800 p-3 rounded-lg mb-4';
+                        errorDiv.textContent = '❌ ' + data.error;
+                        formElement.insertBefore(errorDiv, formElement.firstChild);
                     }
-                });
-            } else if (data.error && data.field === 'end_date') {
-                const endDateField = document.querySelector('[name="end_date"]');
-                if (endDateField) {
-                    endDateField.classList.add('border-red-500', 'bg-red-50');
-                    const errorDiv = document.createElement('p');
-                    errorDiv.className = 'field-error text-red-500 text-xs mt-1';
-                    errorDiv.textContent = data.error;
-                    endDateField.parentNode.appendChild(errorDiv);
+
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50');
                 }
-            } else if (data.error) {
-                // General error at top of form
-                const form = document.getElementById('editTaskForm');
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'field-error bg-red-100 text-red-800 p-3 rounded-lg mb-4';
-                errorDiv.textContent = '❌ ' + data.error;
-                form.insertBefore(errorDiv, form.firstChild);
-            }
-            
-            // Reset button
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('opacity-50');
-        }
-    })
-    .catch(error => {
-        alert('Network error. Please try again.');
-        console.error('Error:', error);
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-        submitBtn.classList.remove('opacity-50');
-    });
-});
+            })
+            .catch(error => {
+                alert('Network error. Please try again.');
+                console.error('Error:', error);
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50');
+            });
+        });
+    }
 </script>
+
 {% endblock %}

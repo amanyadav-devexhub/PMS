@@ -219,7 +219,7 @@ window.deleteDepartment = function(deptId, deptName) {
     
     loadingOverlay.classList.remove('hidden');
     
-    fetch(`/delete_department/${deptId}/`, {
+    fetch(`/department/delete/${deptId}/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrftoken,

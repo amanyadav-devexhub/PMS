@@ -6,6 +6,17 @@
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-6xl">
     
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+    
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
@@ -124,13 +135,59 @@
                         </td>
                     </tr>
                 </tbody>
-            </table>
+             </table>
+        </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="mt-6 flex justify-between items-center">
+        <div class="text-sm text-gray-600" id="showingInfo">
+            Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> members
+        </div>
+        
+        <div class="flex gap-2 items-center">
+            <!-- Page Size Selector -->
+            <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+            
+            <!-- Pagination Buttons -->
+            <button id="prevPageBtn" 
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                ← Prev
+            </button>
+            
+            <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+                Page 1 of 1
+            </span>
+            
+            <button id="nextPageBtn" 
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                Next →
+            </button>
         </div>
     </div>
 </div>
 
 <script>
-function loadEmployees(search = '') {
+// Pagination variables
+let currentPage = 1;
+let currentPageSize = 10;
+let currentSearchQuery = '';
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function loadEmployees(search = '', page = 1, pageSize = 10) {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
     
@@ -140,6 +197,8 @@ function loadEmployees(search = '') {
     } else {
         url.searchParams.delete('search');
     }
+    url.searchParams.set('page', page);
+    url.searchParams.set('page_size', pageSize);
     
     fetch(url, {
         headers: {
@@ -149,6 +208,10 @@ function loadEmployees(search = '') {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            currentPage = data.current_page;
+            currentPageSize = data.page_size;
+            currentSearchQuery = data.search_query;
+            
             // Update statistics
             document.getElementById('statTotalEmployees').innerText = data.total_employees;
             document.getElementById('statActiveCount').innerText = data.active_count;
@@ -158,20 +221,62 @@ function loadEmployees(search = '') {
             
             // Render employees table
             renderEmployees(data.users);
+            
+            // Update pagination UI
+            updatePaginationUI(data);
+            
+            // Update showing info
+            const startIndex = (data.current_page - 1) * data.page_size + 1;
+            const endIndex = Math.min(data.current_page * data.page_size, data.total_employees);
+            const startCountEl = document.getElementById('startCount');
+            const endCountEl = document.getElementById('endCount');
+            const totalCountEl = document.getElementById('totalCount');
+            const showingInfo = document.getElementById('showingInfo');
+            
+            if (startCountEl) startCountEl.textContent = startIndex;
+            if (endCountEl) endCountEl.textContent = endIndex;
+            if (totalCountEl) totalCountEl.textContent = data.total_employees;
+            if (showingInfo) {
+                showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total_employees} members`;
+            }
         }
         loadingOverlay.classList.add('hidden');
     })
     .catch(error => {
         console.error('Error:', error);
         document.getElementById('employeeTableBody').innerHTML = `
-            <tr>
+             <tr>
                 <td colspan="4" class="px-6 py-12 text-center text-red-500">
                     Error loading employees. Please refresh the page.
                 </td>
-            </tr>
+             </tr>
         `;
         loadingOverlay.classList.add('hidden');
     });
+}
+
+function updatePaginationUI(data) {
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const pageIndicator = document.getElementById('pageIndicator');
+    
+    if (prevBtn) {
+        prevBtn.disabled = !data.has_previous;
+        if (data.has_previous) {
+            prevBtn.onclick = () => loadEmployees(currentSearchQuery, data.previous_page_number, currentPageSize);
+        }
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = !data.has_next;
+        if (data.has_next) {
+            nextBtn.onclick = () => loadEmployees(currentSearchQuery, data.next_page_number, currentPageSize);
+        }
+    }
+    
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+    }
 }
 
 function renderEmployees(users) {
@@ -179,7 +284,7 @@ function renderEmployees(users) {
     
     if (!users || users.length === 0) {
         tbody.innerHTML = `
-            <tr>
+             <tr>
                 <td colspan="4" class="px-6 py-12 text-center text-gray-500">
                     <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -187,13 +292,14 @@ function renderEmployees(users) {
                     <p class="text-lg">No employees found.</p>
                     <p class="text-sm mt-1">There are no employees matching your search.</p>
                 </td>
-            </tr>
+             </tr>
         `;
         return;
     }
     
     let html = '';
-    users.forEach(user => {
+    users.forEach((user, index) => {
+        const counter = (currentPage - 1) * currentPageSize + index + 1;
         const statusColor = user.is_active ? 'bg-green-500' : 'bg-red-500';
         const statusText = user.is_active ? 'Active' : 'Inactive';
         
@@ -235,32 +341,38 @@ function renderEmployees(users) {
                         </a>
                     </div>
                 </td>
-            </tr>
+             </tr>
         `;
     });
     
     tbody.innerHTML = html;
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // Search functionality with AJAX
 let searchTimeout;
-document.getElementById('searchInput')?.addEventListener('keyup', function() {
-    clearTimeout(searchTimeout);
-    const searchText = this.value.trim();
-    searchTimeout = setTimeout(() => {
-        loadEmployees(searchText);
-    }, 300);
-});
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    searchInput.addEventListener('keyup', function() {
+        clearTimeout(searchTimeout);
+        const searchText = this.value.trim();
+        searchTimeout = setTimeout(() => {
+            currentSearchQuery = searchText;
+            loadEmployees(searchText, 1, currentPageSize);
+        }, 300);
+    });
+}
+
+// Page size change
+const pageSizeSelect = document.getElementById('pageSizeSelect');
+if (pageSizeSelect) {
+    pageSizeSelect.addEventListener('change', function() {
+        currentPageSize = parseInt(this.value);
+        loadEmployees(currentSearchQuery, 1, currentPageSize);
+    });
+}
 
 // Load employees on page load
-loadEmployees();
+loadEmployees('', 1, 10);
 </script>
 
 <style>
