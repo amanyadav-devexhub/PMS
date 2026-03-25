@@ -4,6 +4,14 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+    </div>
+</div>
+
 <div class="container mx-auto px-4 py-6">
     <!-- Dashboard Header with Gradient -->
     <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-2xl shadow-xl mb-8">
@@ -26,7 +34,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Projects</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
+                    <h3 id="totalProjects" class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
                     <p class="text-green-500 text-sm mt-2">↑ 12% from last month</p>
                 </div>
                 <div class="bg-blue-100 p-3 rounded-full">
@@ -42,8 +50,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Active Tasks</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ active_tasks|default:"0" }}</h3>
-                    <p class="text-yellow-500 text-sm mt-2">{{ ongoing_tasks|default:"0" }} in progress</p>
+                    <h3 id="activeTasks" class="text-3xl font-bold text-gray-800">{{ active_tasks|default:"0" }}</h3>
+                    <p id="ongoingTasksText" class="text-yellow-500 text-sm mt-2">{{ ongoing_tasks|default:"0" }} in progress</p>
                 </div>
                 <div class="bg-yellow-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,8 +66,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Team Members</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ team_members|default:"0" }}</h3>
-                    <p class="text-green-500 text-sm mt-2">{{ active_members|default:"0" }} active now</p>
+                    <h3 id="teamMembers" class="text-3xl font-bold text-gray-800">{{ team_members|default:"0" }}</h3>
+                    <p id="activeMembersText" class="text-green-500 text-sm mt-2">{{ active_members|default:"0" }} active now</p>
                 </div>
                 <div class="bg-green-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +82,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Completed</p>
-                    <h3 class="text-3xl font-bold text-gray-800">{{ completed_tasks|default:"0" }}</h3>
+                    <h3 id="completedTasks" class="text-3xl font-bold text-gray-800">{{ completed_tasks|default:"0" }}</h3>
                     <p class="text-purple-500 text-sm mt-2">This month</p>
                 </div>
                 <div class="bg-purple-100 p-3 rounded-full">
@@ -146,7 +154,7 @@
                 <h3 class="text-xl font-bold text-gray-800">Recent Projects</h3>
                 <a href="{% url 'view_projects' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All →</a>
             </div>
-            <div class="space-y-4">
+            <div id="recentProjectsContainer" class="space-y-4">
                 {% for project in recent_projects|slice:":5" %}
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                     <div>
@@ -167,84 +175,318 @@
         </div>
 
         <!-- Recent Tasks -->
-        <!-- Recent Tasks - FIXED VERSION -->
-<div class="bg-white rounded-xl shadow-lg p-6">
-    <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold text-gray-800">Pending Tasks</h3>
-        <a href="{% url 'task_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All →</a>
-    </div>
-    <div class="space-y-4">
-        {% for task in pending_tasks|slice:":5" %}
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-            <div>
-                <h4 class="font-semibold text-gray-800">{{ task.name }}</h4>
-                <p class="text-xs text-gray-500">
-                    Assigned to: 
-                    {% if task.assigned_to.all %}
-                        {% for assignee in task.assigned_to.all %}
-                            {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        Unassigned
-                    {% endif %}
-                </p>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Pending Tasks</h3>
+                <a href="{% url 'task_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All →</a>
             </div>
-            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
-                {{ task.get_status_display }}
-            </span>
+            <div id="pendingTasksContainer" class="space-y-4">
+                {% for task in pending_tasks|slice:":5" %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div>
+                        <h4 class="font-semibold text-gray-800">{{ task.name }}</h4>
+                        <p class="text-xs text-gray-500">
+                            Assigned to:
+                            {% if task.assigned_to.all %}
+                            {% for assignee in task.assigned_to.all %}
+                            {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                            {% else %}
+                            Unassigned
+                            {% endif %}
+                        </p>
+                    </div>
+                    <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                        {{ task.get_status_display }}
+                    </span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No pending tasks</p>
+                {% endfor %}
+            </div>
         </div>
-        {% empty %}
-        <p class="text-gray-500 text-center py-4">No pending tasks</p>
-        {% endfor %}
+    </div>
+
+    <!-- Team Members Grid with Pagination -->
+    <div class="mt-8">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">Team Members</h3>
+            <a href="{% url 'teamlead_view_users' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All →</a>
+        </div>
+
+        <!-- Team Members Grid Container -->
+        <div id="teamMembersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Loading State -->
+            <div class="col-span-4 text-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600 mx-auto"></div>
+                <p class="text-gray-500 mt-2">Loading team members...</p>
+            </div>
+        </div>
+
+        <!-- Team Members Pagination -->
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-600" id="membersShowingInfo">
+                Showing <span id="membersStartCount">0</span> - <span id="membersEndCount">0</span> of <span id="membersTotalCount">0</span> members
+            </div>
+
+            <div class="flex gap-2 items-center">
+                <select id="membersPageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="8">8 per page</option>
+                    <option value="12">12 per page</option>
+                    <option value="16">16 per page</option>
+                    <option value="20">20 per page</option>
+                </select>
+
+                <button id="membersPrevPageBtn"
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition ml-4"
+                    disabled>
+                    ← Prev
+                </button>
+
+                <span id="membersPageIndicator" class="text-sm text-gray-600 mx-2">
+                    Page 1 of 1
+                </span>
+
+                <button id="membersNextPageBtn"
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                    Next →
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
-    <!-- Team Members Grid - FIXED VERSION -->
-<!-- Team Members Grid - FIXED -->
-<!-- Team Members Grid - FORCED FULL WIDTH -->
-<div style="width: 100%; clear: both; float: none; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0;" class="mt-8">
-    <h3 class="text-xl font-bold text-gray-800 mb-4">Team Members</h3>
+<script>
+// Team members pagination variables
+let membersCurrentPage = 1;
+let membersCurrentPageSize = 8;
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Function to load team members with pagination
+function loadTeamMembers(page = 1, pageSize = 8) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('members_page', page);
+    url.searchParams.set('members_page_size', pageSize);
     
-    {% if team_members_list %}
-    <div style="display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 1rem !important; width: 100% !important;" 
-         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        {% for member in team_members_list %}
-        <div style="width: 100% !important; box-sizing: border-box !important;" 
-             class="bg-white rounded-xl shadow-lg p-4 flex items-center space-x-4 hover:shadow-xl transition border border-gray-100">
-            <!-- Avatar -->
-            <div class="bg-gradient-to-br from-blue-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                {{ member.get_full_name|default:member.username|slice:":1"|upper }}
-            </div>
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            membersCurrentPage = data.team_members_pagination.current_page;
+            membersCurrentPageSize = data.team_members_pagination.page_size;
             
-            <!-- Member Info -->
-            <div class="min-w-0 flex-1">
-                <h4 class="font-semibold text-gray-800 truncate">{{ member.get_full_name|default:member.username }}</h4>
-                <p class="text-xs text-gray-500 truncate">{{ member.email }}</p>
-                <div class="flex items-center mt-1">
-                    <span class="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
-                    <span class="text-xs text-green-600">Online</span>
+            // Render team members grid
+            renderTeamMembers(data.team_members_list);
+            
+            // Update pagination UI
+            updateMembersPaginationUI(data.team_members_pagination);
+            
+            // Update showing info
+            const startIndex = (data.team_members_pagination.current_page - 1) * data.team_members_pagination.page_size + 1;
+            const endIndex = Math.min(data.team_members_pagination.current_page * data.team_members_pagination.page_size, data.team_members_pagination.total);
+            
+            const membersStartCount = document.getElementById('membersStartCount');
+            const membersEndCount = document.getElementById('membersEndCount');
+            const membersTotalCount = document.getElementById('membersTotalCount');
+            const membersShowingInfo = document.getElementById('membersShowingInfo');
+            
+            if (membersStartCount) membersStartCount.textContent = startIndex;
+            if (membersEndCount) membersEndCount.textContent = endIndex;
+            if (membersTotalCount) membersTotalCount.textContent = data.team_members_pagination.total;
+            if (membersShowingInfo) {
+                membersShowingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.team_members_pagination.total} members`;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading team members:', error);
+        const membersGrid = document.getElementById('teamMembersGrid');
+        if (membersGrid) {
+            membersGrid.innerHTML = '<div class="col-span-4 text-center py-8 text-red-500">Error loading team members. Please refresh the page.</div>';
+        }
+    });
+}
+
+function renderTeamMembers(members) {
+    const membersGrid = document.getElementById('teamMembersGrid');
+    
+    if (!membersGrid) return;
+    
+    if (!members || members.length === 0) {
+        membersGrid.innerHTML = '<div class="col-span-4 text-center py-8 text-gray-500">No team members found.</div>';
+        return;
+    }
+    
+    let html = '';
+    members.forEach(member => {
+        html += `
+            <div class="bg-white rounded-xl shadow-lg p-4 flex items-center space-x-4 hover:shadow-xl transition border border-gray-100">
+                <div class="bg-gradient-to-br from-blue-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    ${escapeHtml(member.initial)}
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h4 class="font-semibold text-gray-800 truncate">${escapeHtml(member.name)}</h4>
+                    <p class="text-xs text-gray-500 truncate">${escapeHtml(member.email)}</p>
+                    <div class="flex items-center mt-1">
+                        <span class="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
+                        <span class="text-xs text-green-600">Online</span>
+                    </div>
                 </div>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div style="width: 100% !important;" class="bg-white rounded-xl shadow-lg p-8 text-center">
-        <p class="text-gray-500">No team members found.</p>
-    </div>
-    {% endif %}
-</div>
+        `;
+    });
+    
+    membersGrid.innerHTML = html;
+}
 
-<!-- Add this to your base template or here for icons -->
+function updateMembersPaginationUI(paginationData) {
+    const prevBtn = document.getElementById('membersPrevPageBtn');
+    const nextBtn = document.getElementById('membersNextPageBtn');
+    const pageIndicator = document.getElementById('membersPageIndicator');
+    
+    if (prevBtn) {
+        prevBtn.disabled = !paginationData.has_previous;
+        if (paginationData.has_previous) {
+            prevBtn.onclick = () => loadTeamMembers(paginationData.previous_page_number, membersCurrentPageSize);
+        }
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = !paginationData.has_next;
+        if (paginationData.has_next) {
+            nextBtn.onclick = () => loadTeamMembers(paginationData.next_page_number, membersCurrentPageSize);
+        }
+    }
+    
+    if (pageIndicator) {
+        pageIndicator.textContent = `Page ${paginationData.current_page} of ${paginationData.total_pages}`;
+    }
+}
+
+function loadDashboardData() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    
+    fetch(window.location.href, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update stats
+            const totalProjects = document.getElementById('totalProjects');
+            const activeTasks = document.getElementById('activeTasks');
+            const ongoingTasksText = document.getElementById('ongoingTasksText');
+            const teamMembers = document.getElementById('teamMembers');
+            const activeMembersText = document.getElementById('activeMembersText');
+            const completedTasks = document.getElementById('completedTasks');
+            
+            if (totalProjects) totalProjects.innerText = data.stats.total_projects;
+            if (activeTasks) activeTasks.innerText = data.stats.active_tasks;
+            if (ongoingTasksText) ongoingTasksText.innerHTML = `${data.stats.ongoing_tasks} in progress`;
+            if (teamMembers) teamMembers.innerText = data.stats.team_members;
+            if (activeMembersText) activeMembersText.innerHTML = `${data.stats.active_members} active now`;
+            if (completedTasks) completedTasks.innerText = data.stats.completed_tasks;
+            
+            // Update recent projects
+            const projectsContainer = document.getElementById('recentProjectsContainer');
+            if (projectsContainer && data.recent_projects && data.recent_projects.length > 0) {
+                projectsContainer.innerHTML = '';
+                data.recent_projects.forEach(project => {
+                    let statusClass = '';
+                    if (project.status === 'ONGOING') statusClass = 'bg-green-100 text-green-700';
+                    else if (project.status === 'PENDING') statusClass = 'bg-yellow-100 text-yellow-700';
+                    else statusClass = 'bg-blue-100 text-blue-700';
+                    
+                    projectsContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${escapeHtml(project.name)}</h4>
+                                <p class="text-xs text-gray-500">Deadline: ${escapeHtml(project.end_date)}</p>
+                            </div>
+                            <span class="px-3 py-1 text-xs rounded-full ${statusClass}">
+                                ${escapeHtml(project.status)}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Update pending tasks
+            const tasksContainer = document.getElementById('pendingTasksContainer');
+            if (tasksContainer && data.pending_tasks && data.pending_tasks.length > 0) {
+                tasksContainer.innerHTML = '';
+                data.pending_tasks.forEach(task => {
+                    const assigneesText = task.assignees.length > 0 ? task.assignees.join(', ') : 'Unassigned';
+                    
+                    tasksContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${escapeHtml(task.name)}</h4>
+                                <p class="text-xs text-gray-500">Assigned to: ${escapeHtml(assigneesText)}</p>
+                            </div>
+                            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                                ${escapeHtml(task.status_display)}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Load team members with pagination
+            loadTeamMembers(1, membersCurrentPageSize);
+        }
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    });
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Team members page size change
+    const membersPageSizeSelect = document.getElementById('membersPageSizeSelect');
+    if (membersPageSizeSelect) {
+        membersPageSizeSelect.addEventListener('change', function() {
+            membersCurrentPageSize = parseInt(this.value);
+            loadTeamMembers(1, membersCurrentPageSize);
+        });
+    }
+    
+    // Load dashboard data on page load
+    loadDashboardData();
+});
+</script>
+
 <style>
-    /* Additional custom styles if needed */
-    .dashboard-card {
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    #loadingOverlay {
         transition: all 0.3s ease;
     }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-    }
 </style>
-
 
 {% endblock %}

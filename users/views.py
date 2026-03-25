@@ -148,11 +148,15 @@ def ajax_login(request):
 
 
 ## View Projects
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 @login_required
 def view_projects(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         search_query = request.GET.get("search", "").strip()
+        page = request.GET.get("page", 1)
+        page_size = request.GET.get("page_size", 10)
         
         # Base queryset based on role
         if request.user.role == "ADMIN":
@@ -175,9 +179,18 @@ def view_projects(request):
         # Order projects
         projects = projects.order_by('-start_date')
         
+        # Apply pagination
+        paginator = Paginator(projects, page_size)
+        try:
+            projects_page = paginator.page(page)
+        except PageNotAnInteger:
+            projects_page = paginator.page(1)
+        except EmptyPage:
+            projects_page = paginator.page(paginator.num_pages)
+        
         # Prepare data for JSON response
         projects_data = []
-        for project in projects:
+        for project in projects_page:
             # Get assigned users
             assigned_users = []
             for user in project.assigned_to.all():
@@ -205,19 +218,28 @@ def view_projects(request):
                 'status_class': status['class'],
                 'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
                 'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
-                'view_url': f"/project-detail/{project.id}/",
+                'view_url': f"/view_project_detail/{project.id}/",
                 'delete_url': f"/delete_project/{project.id}/"
             })
         
         return JsonResponse({
             'success': True,
             'projects': projects_data,
-            'total': len(projects_data),
+            'total': paginator.count,
+            'total_pages': paginator.num_pages,
+            'current_page': projects_page.number,
+            'has_previous': projects_page.has_previous(),
+            'has_next': projects_page.has_next(),
+            'previous_page_number': projects_page.previous_page_number() if projects_page.has_previous() else None,
+            'next_page_number': projects_page.next_page_number() if projects_page.has_next() else None,
+            'page_size': int(page_size),
             'search_query': search_query
         })
     
     # Handle regular (non-AJAX) request
     search_query = request.GET.get("search", "")
+    page = request.GET.get("page", 1)
+    page_size = 10
     
     # Base queryset based on role
     if request.user.role == "ADMIN":
@@ -233,10 +255,21 @@ def view_projects(request):
             Q(assigned_to__username__icontains=search_query) |
             Q(status__icontains=search_query)
         ).distinct()
+    
+    # Apply pagination for regular request
+    paginator = Paginator(projects, page_size)
+    try:
+        projects_page = paginator.page(page)
+    except PageNotAnInteger:
+        projects_page = paginator.page(1)
+    except EmptyPage:
+        projects_page = paginator.page(paginator.num_pages)
 
     context = {
-        "projects": projects,
-        "search_query": search_query
+        "projects": projects_page,
+        "search_query": search_query,
+        "paginator": paginator,
+        "page_obj": projects_page,
     }
     return render(request, "view_projects.html", context)
 
@@ -380,7 +413,7 @@ def edit_task(request, task_id):
     """Edit Task - AJAX enabled"""
     
     task = get_object_or_404(Task, id=task_id)
-    
+    task = Task.objects.prefetch_related('assigned_by', 'assigned_to', 'observers').get(id=task_id)
     # Check if it's an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
@@ -496,17 +529,96 @@ def delete_task(request, task_id):
 def view_project_detail(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
-    # Check if team lead has access to this project
+    # Check if team lead has access
     if request.user.role == "TEAM_LEAD" and request.user not in project.assigned_to.all():
         messages.error(request, "You don't have permission to view this project.")
         return redirect('view_projects')
     
-    resources = project.resources.all()
+    # Handle AJAX request for tasks pagination
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        tasks_page = request.GET.get('tasks_page', 1)
+        tasks_page_size = request.GET.get('tasks_page_size', 10)
+        
+        tasks = Task.objects.filter(project=project).order_by('-created_at')
+        
+        # Calculate statistics
+        total_tasks = tasks.count()
+        pending_tasks = tasks.filter(status='PENDING').count()
+        ongoing_tasks = tasks.filter(status='ONGOING').count()
+        completed_tasks = tasks.filter(status='COMPLETED').count()
+        
+        # Apply pagination
+        from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+        paginator = Paginator(tasks, tasks_page_size)
+        try:
+            tasks_page_obj = paginator.page(tasks_page)
+        except PageNotAnInteger:
+            tasks_page_obj = paginator.page(1)
+        except EmptyPage:
+            tasks_page_obj = paginator.page(paginator.num_pages)
+        
+        # Prepare tasks data
+        tasks_data = []
+        from django.utils import timezone
+        now = timezone.now()
+        
+        for task in tasks_page_obj:
+            # Calculate time display
+            if task.status == "ONGOING" and task.start_time:
+                elapsed = now - task.start_time
+                if task.total_paused_duration:
+                    elapsed = elapsed - task.total_paused_duration
+                total_seconds = int(elapsed.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            elif task.status == "COMPLETED" and task.total_time:
+                total_seconds = int(task.total_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            else:
+                time_display = "00:00:00"
+            
+            # Get assignees
+            assignees = []
+            for assignee in task.assigned_to.all()[:2]:
+                assignees.append(assignee.get_full_name() or assignee.username)
+            
+            tasks_data.append({
+                'id': task.id,
+                'name': task.name,
+                'status': task.status,
+                'status_display': task.get_status_display(),
+                'deadline': task.deadline.strftime('%b %d, %H:%M') if task.deadline else None,
+                'time_display': time_display,
+                'assignees': assignees,
+                'total_assignees': task.assigned_to.count(),
+                'project_id': task.project.id
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'tasks': tasks_data,
+            'total_tasks': total_tasks,
+            'pending_tasks': pending_tasks,
+            'ongoing_tasks': ongoing_tasks,
+            'completed_tasks': completed_tasks,
+            'total_pages': paginator.num_pages,
+            'current_page': tasks_page_obj.number,
+            'has_previous': tasks_page_obj.has_previous(),
+            'has_next': tasks_page_obj.has_next(),
+            'previous_page_number': tasks_page_obj.previous_page_number() if tasks_page_obj.has_previous() else None,
+            'next_page_number': tasks_page_obj.next_page_number() if tasks_page_obj.has_next() else None,
+            'page_size': int(tasks_page_size)
+        })
     
-    # Get tasks under this project
+    # Regular request - return full template
+    resources = project.resources.all()
     tasks = Task.objects.filter(project=project).order_by('-created_at')
     
-    # Add calculated fields for tasks
     from django.utils import timezone
     for task in tasks:
         if task.status == "ONGOING" and task.start_time:
@@ -518,7 +630,6 @@ def view_project_detail(request, project_id):
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
             task.time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-            
         elif task.status == "COMPLETED" and task.total_time:
             total_seconds = int(task.total_time.total_seconds())
             hours = total_seconds // 3600
@@ -526,25 +637,21 @@ def view_project_detail(request, project_id):
             seconds = total_seconds % 60
             task.time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     
-    # Task statistics
     total_tasks = tasks.count()
     ongoing_tasks = tasks.filter(status='ONGOING').count()
     completed_tasks = tasks.filter(status='COMPLETED').count()
     pending_tasks = tasks.filter(status='PENDING').count()
-
-    return render(
-        request,
-        "view_project_detail.html",
-        {
-            "project": project,
-            "resources": resources,
-            "tasks": tasks,
-            "total_tasks": total_tasks,
-            "ongoing_tasks": ongoing_tasks,
-            "completed_tasks": completed_tasks,
-            "pending_tasks": pending_tasks,
-        }
-    )
+    
+    # Add pagination for regular request (tasks will be loaded via AJAX)
+    return render(request, "view_project_detail.html", {
+        "project": project,
+        "resources": resources,
+        "tasks": tasks[:10],  # Only first 10 for initial load
+        "total_tasks": total_tasks,
+        "ongoing_tasks": ongoing_tasks,
+        "completed_tasks": completed_tasks,
+        "pending_tasks": pending_tasks,
+    })
     
 
 ## View Users detail
@@ -553,44 +660,62 @@ from users.models import UserProfile
 @login_required
 @allowed_roles(allowed_roles=["ADMIN"])
 def view_user_details(request, user_id):
-    user_obj = get_object_or_404(User, id=user_id)
+    # Only allow GET requests for this view
+    if request.method != "GET":
+        return redirect(f"/view_user_details/{user_id}/")
+    
+    # First check if it's an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        user_obj = get_object_or_404(User, id=user_id)
+        profile, created = UserProfile.objects.get_or_create(user=user_obj)
 
-    profile, created = UserProfile.objects.get_or_create(
-        user=user_obj
-    )
+        ## Analytics 
+        projects_assigned = Projects.objects.filter(assigned_to=user_obj).count()
+        tasks_assigned = Task.objects.filter(assigned_to=user_obj).count()
+        completed_tasks = Task.objects.filter(assigned_to=user_obj, status="COMPLETED").count()
 
-    ## Analytics 
-    projects_assigned = Projects.objects.filter(
-        assigned_to=user_obj
-    ).count()
+        performance = 0
+        if tasks_assigned > 0:
+            performance = int((completed_tasks / tasks_assigned) * 100)
 
-    tasks_assigned = Task.objects.filter(
-        assigned_to=user_obj
-    ).count()
-
-    completed_tasks = Task.objects.filter(
-        assigned_to=user_obj,
-        status="COMPLETED"
-    ).count()
-
-    # Performance calculation
-    performance = 0
-    if tasks_assigned > 0:
-        performance = int((completed_tasks / tasks_assigned) * 100)
-
-
-    context = {
-        "user_obj": user_obj,
-        "profile": profile,
-        "projects_assigned": projects_assigned,
-        "tasks_assigned": tasks_assigned,
-        "completed_tasks": completed_tasks,
-        "performance": performance
-    }
-
+        return JsonResponse({
+            "success": True,
+            "user": {
+                "id": user_obj.id,
+                "username": user_obj.username,
+                "email": user_obj.email,
+                "role": user_obj.role,
+                "is_active": user_obj.is_active,
+                "full_name": user_obj.get_full_name() or user_obj.username,
+                "date_joined": user_obj.date_joined.strftime('%Y-%m-%d') if user_obj.date_joined else None
+            },
+            "profile": {
+                "employee_id": profile.employee_id or "—",
+                "phone": profile.phone or "—",
+                "department": profile.department.name if profile.department else "—",
+                "designation": profile.designation.name if profile.designation else "—",
+                "date_of_joining": profile.date_of_joining.strftime('%Y-%m-%d') if profile.date_of_joining else "—",
+                "ctc": profile.ctc or "—",
+                "salary_in_hand": profile.salary_in_hand or "—",
+                "bank_name": profile.bank_name or "—",
+                "account_no": profile.account_no or "—",
+                "ifsc": profile.ifsc or "—",
+                "aadhar_no": profile.aadhar_no or "—",
+                "pan_no": profile.pan_no or "—",
+                "emergency_contact": profile.emergency_contact or "—",
+                "address": profile.address or "—"
+            },
+            "analytics": {
+                "projects_assigned": projects_assigned,
+                "tasks_assigned": tasks_assigned,
+                "completed_tasks": completed_tasks,
+                "performance": performance
+            }
+        })
+    
+    # For non-AJAX requests, return minimal template with user_id only
     return render(request, "view_user_details.html", {
-        "user_obj": user_obj,
-        "profile": profile
+        "user_id": user_id
     })
 
 
@@ -598,6 +723,34 @@ def view_user_details(request, user_id):
 def add_project_resource(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
 
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.method == "POST":
+            form = ProjectResourceForm(request.POST, request.FILES)
+            if form.is_valid():
+                resource = form.save(commit=False)
+                resource.project = project
+                resource.save()
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Resource "{resource.name}" added successfully!'
+                })
+            else:
+                errors = {}
+                for field, error_list in form.errors.items():
+                    errors[field] = error_list
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors
+                }, status=400)
+        else:
+            return JsonResponse({
+                'success': True,
+                'project_id': project.id,
+                'project_name': project.name
+            })
+    
+    # Regular request - your original code unchanged
     if request.method == "POST":
         form = ProjectResourceForm(request.POST, request.FILES)
         if form.is_valid():
@@ -613,7 +766,6 @@ def add_project_resource(request, project_id):
         "add_project_resource.html",
         {"form": form, "project": project}
     )
-    
 
 ## delete Projects
 @login_required
@@ -652,31 +804,87 @@ def delete_project(request, id):
 from django.views.decorators.csrf import ensure_csrf_cookie
 @ensure_csrf_cookie
 def login_page(request):
+    # If it's an AJAX request, return CSRF token (for GET) or handle login (for POST)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.method == "GET":
+            return JsonResponse({
+                'success': True,
+                'csrf_token': request.COOKIES.get('csrftoken', '')
+            })
+    
     return render(request, "ajax_login.html")
 
 
 ## Dashboard view
 @login_required
 def dashboard(request):
-    context = {}
-
-    role = request.user.role.upper()  # convert to uppercase to match checks
-
-    if role == "ADMIN":
-        context['total_users'] = User.objects.count()
-        context['total_projects'] = Projects.objects.count()
-        context['total_tasks'] = Task.objects.count()
-        context['users'] = User.objects.all()
-
-    elif role == "TEAMLEAD":
-    # Flag to indicate Team Lead dashboard
-        context['is_teamlead'] = True
-
-    elif role == "EMPLOYEE":
-        context['tasks'] = Task.objects.filter(assigned_to=request.user)
-        context['projects'] = Projects.objects.filter(assigned_to=request.user)
-
-    return render(request, "dashboard.html", context)
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        role = request.user.role.upper()
+        
+        if role == "ADMIN":
+            total_users = User.objects.count()
+            total_projects = Projects.objects.count()
+            total_tasks = Task.objects.count()
+            users = User.objects.all()
+            
+            users_data = []
+            for user in users:
+                users_data.append({
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'is_active': user.is_active,
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'role': 'ADMIN',
+                'stats': {
+                    'total_users': total_users,
+                    'total_projects': total_projects,
+                    'total_tasks': total_tasks,
+                },
+                'users': users_data
+            })
+        
+        elif role == "TEAMLEAD":
+            my_projects = Projects.objects.filter(assigned_to=request.user)
+            my_project_ids = my_projects.values_list('id', flat=True)
+            tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+            
+            return JsonResponse({
+                'success': True,
+                'role': 'TEAMLEAD',
+                'stats': {
+                    'total_projects': my_projects.count(),
+                    'active_tasks': tasks_from_my_projects.filter(status='ONGOING').count(),
+                    'completed_tasks': tasks_from_my_projects.filter(status='COMPLETED').count(),
+                    'team_members': User.objects.filter(role='EMPLOYEE').count(),
+                }
+            })
+        
+        elif role == "EMPLOYEE":
+            tasks = Task.objects.filter(assigned_to=request.user)
+            projects = Projects.objects.filter(assigned_to=request.user)
+            
+            return JsonResponse({
+                'success': True,
+                'role': 'EMPLOYEE',
+                'stats': {
+                    'tasks_count': tasks.count(),
+                    'ongoing_tasks': tasks.filter(status='ONGOING').count(),
+                    'completed_tasks': tasks.filter(status='COMPLETED').count(),
+                    'pending_tasks': tasks.filter(status='PENDING').count(),
+                    'projects_count': projects.count(),
+                }
+            })
+        
+        return JsonResponse({'success': False, 'error': 'Invalid role'}, status=400)
+    
+    # Regular request - return template
+    return render(request, "dashboard.html")
 
 
 
@@ -688,86 +896,219 @@ def logout_view(request):
 
 ## required logins
 from .models import User
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 @login_required
 @allowed_roles(allowed_roles=["ADMIN"])
 def admin_dashboard(request):
-    # User statistics
-    total_users = User.objects.count()
-    active_users = User.objects.filter(is_active=True).count()
-    inactive_users = User.objects.filter(is_active=False).count()
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get pagination parameters
+        users_page = request.GET.get('users_page', 1)
+        users_page_size = request.GET.get('users_page_size', 10)
+        
+        # User statistics (using full queryset)
+        total_users = User.objects.count()
+        active_users = User.objects.filter(is_active=True).count()
+        inactive_users = User.objects.filter(is_active=False).count()
+        
+        # Project statistics
+        total_projects = Projects.objects.count()
+        ongoing_projects = Projects.objects.filter(status='ONGOING').count()
+        pending_projects = Projects.objects.filter(status='PENDING').count()
+        completed_projects = Projects.objects.filter(status='COMPLETED').count()
+        
+        # Task statistics
+        total_tasks = Task.objects.count()
+        completed_tasks = Task.objects.filter(status='COMPLETED').count()
+        ongoing_tasks = Task.objects.filter(status='ONGOING').count()
+        pending_tasks = Task.objects.filter(status='PENDING').count()
+        
+        # Recent items (always get latest 5)
+        recent_projects = Projects.objects.all().order_by('-start_date')[:5]
+        recent_projects_data = []
+        for project in recent_projects:
+            recent_projects_data.append({
+                'id': project.id,
+                'name': project.name,
+                'status': project.status,
+                'end_date': project.end_date.strftime('%b %d, %Y') if project.end_date else 'N/A'
+            })
+        
+        recent_tasks = Task.objects.all().order_by('-created_at')[:5]
+        recent_tasks_data = []
+        for task in recent_tasks:
+            assignees = []
+            for assignee in task.assigned_to.all():
+                assignees.append(assignee.get_full_name() or assignee.username)
+            
+            recent_tasks_data.append({
+                'id': task.id,
+                'name': task.name,
+                'status': task.status,
+                'status_display': task.get_status_display(),
+                'assignees': assignees
+            })
+        
+        # Users table with pagination
+        users = User.objects.all().order_by('-date_joined')
+        paginator = Paginator(users, users_page_size)
+        try:
+            users_page_obj = paginator.page(users_page)
+        except PageNotAnInteger:
+            users_page_obj = paginator.page(1)
+        except EmptyPage:
+            users_page_obj = paginator.page(paginator.num_pages)
+        
+        users_data = []
+        for user in users_page_obj:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'is_active': user.is_active,
+                'edit_url': f"/edit-user/{user.id}/",
+                'delete_url': f"/delete_user/{user.id}/"
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'total_users': total_users,
+                'active_users': active_users,
+                'inactive_users': inactive_users,
+                'total_projects': total_projects,
+                'ongoing_projects': ongoing_projects,
+                'pending_projects': pending_projects,
+                'completed_projects': completed_projects,
+                'total_tasks': total_tasks,
+                'completed_tasks': completed_tasks,
+                'ongoing_tasks': ongoing_tasks,
+                'pending_tasks': pending_tasks
+            },
+            'recent_projects': recent_projects_data,
+            'recent_tasks': recent_tasks_data,
+            'users': users_data,
+            'users_pagination': {
+                'total': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': users_page_obj.number,
+                'has_previous': users_page_obj.has_previous(),
+                'has_next': users_page_obj.has_next(),
+                'previous_page_number': users_page_obj.previous_page_number() if users_page_obj.has_previous() else None,
+                'next_page_number': users_page_obj.next_page_number() if users_page_obj.has_next() else None,
+                'page_size': int(users_page_size)
+            }
+        })
     
-    # Project statistics
-    total_projects = Projects.objects.count()
-    ongoing_projects = Projects.objects.filter(status='ONGOING').count()
-    
-    # Task statistics
-    total_tasks = Task.objects.count()
-    completed_tasks = Task.objects.filter(status='COMPLETED').count()
-    
-    # Recent items
-    recent_projects = Projects.objects.all().order_by('-start_date')[:5]
-    recent_tasks = Task.objects.all().order_by('-created_at')[:5]
-    
-    # All users for table
-    users = User.objects.all()
-    
-    context = {
-        'total_users': total_users,
-        'active_users': active_users,
-        'inactive_users': inactive_users,
-        'total_projects': total_projects,
-        'ongoing_projects': ongoing_projects,
-        'total_tasks': total_tasks,
-        'completed_tasks': completed_tasks,
-        'recent_projects': recent_projects,
-        'recent_tasks': recent_tasks,
-        'users': users,
-    }
-    return render(request, 'admin_dashboard.html', context)
+    # Regular request - return template
+    return render(request, 'admin_dashboard.html')
 
 
 # users/views.py
-# users/views.py
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 @login_required
 @allowed_roles(allowed_roles=["TEAM_LEAD"])
 def teamlead_dashboard(request):
-    # Get ONLY projects assigned to this team lead
-    my_projects = Projects.objects.filter(assigned_to=request.user)
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get pagination parameters for team members
+        members_page = request.GET.get('members_page', 1)
+        members_page_size = request.GET.get('members_page_size', 8)  # 8 members (2 rows of 4)
+        
+        # Get ONLY projects assigned to this team lead
+        my_projects = Projects.objects.filter(assigned_to=request.user)
+        
+        # Get IDs of these projects
+        my_project_ids = my_projects.values_list('id', flat=True)
+        
+        # Get tasks ONLY from team lead's projects
+        tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+        
+        # Statistics - only from team lead's projects
+        total_projects = my_projects.count()
+        active_tasks = tasks_from_my_projects.filter(status='ONGOING').count()
+        completed_tasks = tasks_from_my_projects.filter(status='COMPLETED').count()
+        pending_tasks_list = tasks_from_my_projects.filter(status='PENDING').order_by('-created_at')[:5]
+        
+        # Team members (all employees - team leads manage all employees)
+        team_members_total = User.objects.filter(role='EMPLOYEE').count()
+        active_members = User.objects.filter(role='EMPLOYEE', is_active=True).count()
+        
+        # Recent projects - only team lead's projects
+        recent_projects = my_projects.order_by('-start_date')[:5]
+        recent_projects_data = []
+        for project in recent_projects:
+            recent_projects_data.append({
+                'id': project.id,
+                'name': project.name,
+                'status': project.status,
+                'end_date': project.end_date.strftime('%b %d, %Y') if project.end_date else 'N/A'
+            })
+        
+        # Pending tasks data
+        pending_tasks_data = []
+        for task in pending_tasks_list:
+            assignees = []
+            for assignee in task.assigned_to.all()[:2]:
+                assignees.append(assignee.get_full_name() or assignee.username)
+            
+            pending_tasks_data.append({
+                'id': task.id,
+                'name': task.name,
+                'status_display': task.get_status_display(),
+                'assignees': assignees,
+                'total_assignees': task.assigned_to.count()
+            })
+        
+        # Team members list with pagination
+        all_team_members = User.objects.filter(role='EMPLOYEE').order_by('username')
+        paginator = Paginator(all_team_members, members_page_size)
+        try:
+            members_page_obj = paginator.page(members_page)
+        except PageNotAnInteger:
+            members_page_obj = paginator.page(1)
+        except EmptyPage:
+            members_page_obj = paginator.page(paginator.num_pages)
+        
+        team_members_data = []
+        for member in members_page_obj:
+            team_members_data.append({
+                'id': member.id,
+                'name': member.get_full_name() or member.username,
+                'email': member.email,
+                'initial': (member.get_full_name() or member.username)[0].upper()
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'total_projects': total_projects,
+                'active_tasks': active_tasks,
+                'completed_tasks': completed_tasks,
+                'team_members': team_members_total,
+                'active_members': active_members,
+                'ongoing_tasks': active_tasks
+            },
+            'recent_projects': recent_projects_data,
+            'pending_tasks': pending_tasks_data,
+            'team_members_list': team_members_data,
+            'team_members_pagination': {
+                'total': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': members_page_obj.number,
+                'has_previous': members_page_obj.has_previous(),
+                'has_next': members_page_obj.has_next(),
+                'previous_page_number': members_page_obj.previous_page_number() if members_page_obj.has_previous() else None,
+                'next_page_number': members_page_obj.next_page_number() if members_page_obj.has_next() else None,
+                'page_size': int(members_page_size)
+            }
+        })
     
-    # Get IDs of these projects
-    my_project_ids = my_projects.values_list('id', flat=True)
-    
-    # Get tasks ONLY from team lead's projects
-    tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
-    
-    # Statistics - only from team lead's projects
-    total_projects = my_projects.count()
-    active_tasks = tasks_from_my_projects.filter(status='ONGOING').count()
-    completed_tasks = tasks_from_my_projects.filter(status='COMPLETED').count()
-    pending_tasks = tasks_from_my_projects.filter(status='PENDING').order_by('-created_at')[:5]
-    
-    # Team members (all employees - team leads manage all employees)
-    team_members = User.objects.filter(role='EMPLOYEE').count()
-    active_members = User.objects.filter(role='EMPLOYEE', is_active=True).count()
-    
-    # Recent projects - only team lead's projects
-    recent_projects = my_projects.order_by('-start_date')[:5]
-    
-    # Get team members list for display
-    team_members_list = User.objects.filter(role='EMPLOYEE')[:4]
-    
-    context = {
-        'total_projects': total_projects,
-        'active_tasks': active_tasks,
-        'completed_tasks': completed_tasks,
-        'team_members': team_members,
-        'active_members': active_members,
-        'recent_projects': recent_projects,
-        'pending_tasks': pending_tasks,
-        'team_members_list': team_members_list,
-        'ongoing_tasks': active_tasks,  # For template compatibility
-    }
-    return render(request, 'teamlead_dashboard.html', context)
+    # Regular request - return template
+    return render(request, 'teamlead_dashboard.html')
 
 
 
@@ -779,40 +1120,128 @@ def employee_dashboard(request):
     print(f"Session key: {request.session.session_key}")
     user = request.user
 
-    # Tasks assigned to employee
-    tasks = Task.objects.filter(assigned_to=user)
-    tasks_count = tasks.count()
-    ongoing_tasks = tasks.filter(status='ONGOING').count()
-    completed_tasks = tasks.filter(status='COMPLETED').count()
-    pending_tasks = tasks.filter(status='PENDING').count()
-    recent_tasks = tasks.order_by('-created_at')[:5]
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Tasks assigned to employee
+        tasks = Task.objects.filter(assigned_to=user)
+        tasks_count = tasks.count()
+        ongoing_tasks = tasks.filter(status='ONGOING').count()
+        completed_tasks = tasks.filter(status='COMPLETED').count()
+        pending_tasks = tasks.filter(status='PENDING').count()
+        recent_tasks = tasks.order_by('-created_at')[:5]
+        
+        recent_tasks_data = []
+        for task in recent_tasks:
+            recent_tasks_data.append({
+                'id': task.id,
+                'name': task.name,
+                'status': task.status,
+                'status_display': task.get_status_display(),
+                'project_name': task.project.name if task.project else "General",
+                'end_date': task.end_date.strftime('%b %d') if task.end_date else "No deadline"
+            })
+        
+        # Projects assigned to employee
+        projects = Projects.objects.filter(assigned_to=user)
+        projects_count = projects.count()
+        ongoing_projects = projects.filter(status='ONGOING').count()
+        pending_projects = projects.filter(status='PENDING').count()
+        completed_projects = projects.filter(status='COMPLETED').count()
 
-    # Projects assigned to employee
-    projects = Projects.objects.filter(assigned_to=user)
-    projects_count = projects.count()
-    ongoing_projects = projects.filter(status='ONGOING').count()
-    pending_projects = projects.filter(status='PENDING').count()
-    completed_projects = projects.filter(status='COMPLETED').count()
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'tasks_count': tasks_count,
+                'ongoing_tasks': ongoing_tasks,
+                'completed_tasks': completed_tasks,
+                'pending_tasks': pending_tasks,
+                'projects_count': projects_count,
+                'ongoing_projects': ongoing_projects,
+                'pending_projects': pending_projects,
+                'completed_projects': completed_projects
+            },
+            'recent_tasks': recent_tasks_data
+        })
+    
+    # Regular request - return template
+    return render(request, "employee_dashboard.html")
 
-    return render(request, "employee_dashboard.html", {
-        "tasks": tasks,
-        "tasks_count": tasks_count,
-        "ongoing_tasks": ongoing_tasks,
-        "completed_tasks": completed_tasks,
-        "pending_tasks": pending_tasks,
-        "recent_tasks": recent_tasks,
-        "projects": projects,
-        "projects_count": projects_count,
-        "ongoing_projects": ongoing_projects,
-        "pending_projects": pending_projects,
-        "completed_projects": completed_projects,
-    })
 
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def employee_projects(request):
-    projects = Projects.objects.filter(assigned_to=request.user)
-    return render(request, "employee_projects.html", {"projects": projects})
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        search_query = request.GET.get('search', '').strip()
+        page = request.GET.get('page', 1)
+        page_size = request.GET.get('page_size', 9)  # 9 for 3x3 grid
+        
+        projects = Projects.objects.filter(assigned_to=request.user)
+        
+        # Apply search filter
+        if search_query:
+            projects = projects.filter(name__icontains=search_query)
+        
+        projects = projects.order_by('-start_date')
+        
+        # Calculate statistics (using full queryset)
+        total_projects = projects.count()
+        ongoing_projects = projects.filter(status='ONGOING').count()
+        completed_projects = projects.filter(status='COMPLETED').count()
+        
+        # Apply pagination
+        paginator = Paginator(projects, page_size)
+        try:
+            projects_page = paginator.page(page)
+        except PageNotAnInteger:
+            projects_page = paginator.page(1)
+        except EmptyPage:
+            projects_page = paginator.page(paginator.num_pages)
+        
+        # Prepare projects data
+        projects_data = []
+        for project in projects_page:
+            # Get assigned users list
+            assigned_users = []
+            for user in project.assigned_to.all()[:3]:
+                assigned_users.append({
+                    'username': user.username
+                })
+            
+            projects_data.append({
+                'id': project.id,
+                'name': project.name,
+                'description': project.description[:100] if project.description else '',
+                'status': project.status,
+                'status_display': project.get_status_display(),
+                'status_class': 'bg-yellow-100 text-yellow-700' if project.status == 'PENDING' else 'bg-blue-100 text-blue-700' if project.status == 'ONGOING' else 'bg-green-100 text-green-700',
+                'header_color': 'bg-yellow-400' if project.status == 'PENDING' else 'bg-blue-400' if project.status == 'ONGOING' else 'bg-green-400',
+                'start_date': project.start_date.strftime('%b %d, %Y') if project.start_date else 'N/A',
+                'end_date': project.end_date.strftime('%b %d, %Y') if project.end_date else 'N/A',
+                'assigned_users': assigned_users,
+                'total_assigned': project.assigned_to.count(),
+                'view_url': f"/view_project_detail/{project.id}/"
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'projects': projects_data,
+            'total_projects': total_projects,
+            'ongoing_projects': ongoing_projects,
+            'completed_projects': completed_projects,
+            'total_pages': paginator.num_pages,
+            'current_page': projects_page.number,
+            'has_previous': projects_page.has_previous(),
+            'has_next': projects_page.has_next(),
+            'previous_page_number': projects_page.previous_page_number() if projects_page.has_previous() else None,
+            'next_page_number': projects_page.next_page_number() if projects_page.has_next() else None,
+            'page_size': int(page_size),
+            'search_query': search_query
+        })
+    
+    # Regular request - return template with empty data
+    return render(request, "employee_projects.html")
 
 
 
@@ -966,44 +1395,152 @@ def edit_user(request, user_id):
 
 ## Members dashboard function
 from django.db.models import Q
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q
+
 @login_required
 def admin_view_users(request):
-    search_query = request.GET.get('search')
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        search_query = request.GET.get('search', '').strip()
+        page = request.GET.get('page', 1)
+        page_size = request.GET.get('page_size', 10)
+        
+        if search_query:
+            users = User.objects.filter(
+                Q(username__icontains=search_query) |
+                Q(role__icontains=search_query) |
+                Q(email__icontains=search_query)
+            )
+        else:
+            users = User.objects.all()
+        
+        # Order users
+        users = users.order_by('-date_joined')
+        
+        # Apply pagination
+        paginator = Paginator(users, page_size)
+        try:
+            users_page = paginator.page(page)
+        except PageNotAnInteger:
+            users_page = paginator.page(1)
+        except EmptyPage:
+            users_page = paginator.page(paginator.num_pages)
+        
+        # Prepare users data
+        users_data = []
+        for user in users_page:
+            # Role badge class
+            role_class = ''
+            if user.role == 'ADMIN':
+                role_class = 'bg-purple-100 text-purple-700'
+            elif user.role == 'TEAM_LEAD':
+                role_class = 'bg-blue-100 text-blue-700'
+            else:
+                role_class = 'bg-gray-100 text-gray-700'
+            
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'role_display': user.role,
+                'role_class': role_class,
+                'is_active': user.is_active,
+                'view_url': f"/view_user_details/{user.id}/",
+                'delete_url': f"/delete_user/{user.id}/"
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'users': users_data,
+            'total': paginator.count,
+            'total_pages': paginator.num_pages,
+            'current_page': users_page.number,
+            'has_previous': users_page.has_previous(),
+            'has_next': users_page.has_next(),
+            'previous_page_number': users_page.previous_page_number() if users_page.has_previous() else None,
+            'next_page_number': users_page.next_page_number() if users_page.has_next() else None,
+            'page_size': page_size,
+            'search_query': search_query
+        })
+    
+    # Regular request - return template
+    return render(request, "admin_view_users.html")
 
-    if search_query:
-        users = User.objects.filter(
-            Q(username__icontains=search_query) |
-            Q(role__icontains=search_query)
-        )
-    else:
-        users = User.objects.all()
-
-    context = {
-        'users': users
-    }
-
-    return render(request, "admin_view_users.html", context)
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @login_required
 def teamlead_view_users(request):
-    # Team leads see all employees (they manage all employees)
-    employees = User.objects.filter(role='EMPLOYEE')
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        search_query = request.GET.get('search', '').strip()
+        page = request.GET.get('page', 1)
+        page_size = request.GET.get('page_size', 10)
+        
+        # Team leads see all employees (they manage all employees)
+        employees = User.objects.filter(role='EMPLOYEE')
+        
+        # Apply search filter
+        if search_query:
+            employees = employees.filter(
+                Q(username__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query)
+            )
+        
+        employees = employees.order_by('username')
+        
+        # Calculate statistics (using full queryset)
+        total_employees = User.objects.filter(role='EMPLOYEE').count()
+        active_count = User.objects.filter(role='EMPLOYEE', is_active=True).count()
+        total_tasks = Task.objects.filter(assigned_to__in=User.objects.filter(role='EMPLOYEE')).count()
+        
+        # Apply pagination
+        paginator = Paginator(employees, page_size)
+        try:
+            employees_page = paginator.page(page)
+        except PageNotAnInteger:
+            employees_page = paginator.page(1)
+        except EmptyPage:
+            employees_page = paginator.page(paginator.num_pages)
+        
+        # Prepare employees data
+        employees_data = []
+        for user in employees_page:
+            employees_data.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': user.get_full_name() or user.username,
+                'role': user.role,
+                'role_display': user.role,
+                'is_active': user.is_active,
+                'avatar_initial': user.username[0].upper(),
+                'tasks_url': f"/employee_tasks/?employee_id={user.id}",
+                'assign_task_url': f"/assign_task/?employee={user.id}"
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'users': employees_data,
+            'total_employees': total_employees,
+            'active_count': active_count,
+            'total_tasks': total_tasks,
+            'showing_count': len(employees_data),
+            'search_query': search_query,
+            'total_pages': paginator.num_pages,
+            'current_page': employees_page.number,
+            'has_previous': employees_page.has_previous(),
+            'has_next': employees_page.has_next(),
+            'previous_page_number': employees_page.previous_page_number() if employees_page.has_previous() else None,
+            'next_page_number': employees_page.next_page_number() if employees_page.has_next() else None,
+            'page_size': int(page_size)
+        })
     
-    # Calculate statistics
-    total_employees = employees.count()
-    active_count = employees.filter(is_active=True).count()
-    
-    # Calculate total tasks assigned to all employees
-    from Tasks.models import Task
-    total_tasks = Task.objects.filter(assigned_to__in=employees).count()
-    
-    context = {
-        'users': employees,
-        'total_employees': total_employees,  # This is passed correctly
-        'active_count': active_count,
-        'total_tasks': total_tasks,
-    }
-    return render(request, 'teamlead_view_users.html', context)
+    # Regular request - return template
+    return render(request, 'teamlead_view_users.html')
 
 ## activate_user
 from django.utils.http import urlsafe_base64_decode
@@ -1075,6 +1612,10 @@ def create_user(request):
                 profile.date_of_joining = profile_form.cleaned_data.get('date_of_joining')
                 profile.save()  # ✅ Update the profile with new data
 
+                # Convert department and designation to strings for JSON
+                department_name = profile.department.name if profile.department else None
+                designation_name = profile.designation.name if profile.designation else None
+
                 # Return success response with user data
                 return JsonResponse({
                     'success': True,
@@ -1087,7 +1628,8 @@ def create_user(request):
                         'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
                         'role': user.role,
                         'employee_id': profile.employee_id,
-                        'department': profile.department
+                        'department': department_name,  # ✅ Fixed - now string
+                        'designation': designation_name  # ✅ Fixed - now string
                     }
                 })
                 
@@ -1191,9 +1733,30 @@ def delete_user(request, user_id):
 
     # Prevent Admin from deleting themselves
     if user_to_delete == request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'You cannot delete your own account.'
+            }, status=400)
+        messages.error(request, "You cannot delete your own account.")
         return redirect("admin_dashboard")
 
-    user_to_delete.delete()
+    user_name = user_to_delete.username
+    
+    if request.method == "POST":
+        user_to_delete.delete()
+        
+        # Check if it's an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'User "{user_name}" deleted successfully!',
+                'user_id': user_id
+            })
+        
+        messages.success(request, f'User "{user_name}" deleted successfully!')
+        return redirect("admin_dashboard")
+    
     return redirect("admin_dashboard")
 
 
@@ -1242,13 +1805,23 @@ def assign_task(request):
             if estimated_time:
                 task.estimated_time = int(estimated_time)
             
-            # Step 3: Save the task to DB
+            # Step 3: Get selected task owners
+            assigned_by_ids = request.POST.getlist('assigned_by')
+            
+            # Step 4: Save the task to DB (need ID before setting ManyToMany)
             task.save()
             
-            # Step 4: Save ManyToMany fields
+            # Step 5: Set task owners - if none selected, use current user
+            if assigned_by_ids:
+                task.assigned_by.set(assigned_by_ids)
+            else:
+                # No owners selected, set current user as the owner
+                task.assigned_by.set([request.user])
+            
+            # Step 6: Save other ManyToMany fields (assigned_to, observers)
             form.save_m2m()
             
-            # Step 5: Create notifications for assigned employees
+            # Step 7: Create notifications for assigned employees
             from notifications.models import Notification
             for employee in task.assigned_to.all():
                 if not Notification.objects.filter(
@@ -1260,7 +1833,7 @@ def assign_task(request):
                         message=f'Task "{task.name}" has been assigned to you'
                     )
             
-            # Step 6: Create notifications for observers
+            # Step 8: Create notifications for observers
             assignee_names = ", ".join([u.get_full_name() or u.username for u in task.assigned_to.all()])
             for observer in task.observers.all():
                 Notification.objects.create(
@@ -1355,6 +1928,8 @@ def create_project(request):
                 project.created_by = request.user
                 project.save()
                 
+                if project_form.cleaned_data.get('assigned_to'):
+                    project.assigned_to.set(project_form.cleaned_data['assigned_to'])
                 # Save resources
                 resource_count = 0
                 for resource_form in resource_formset:
@@ -1489,37 +2064,148 @@ def create_project(request):
 
 
 ## task_dashboard
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 @login_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN", "TEAM_LEAD"])
 def task_dashboard(request):
     """Task dashboard showing all tasks in list view"""
     
-    # Get tasks based on user role
-    if request.user.role == "EMPLOYEE":
-        # Employees see only their own tasks
-        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get pagination parameters
+        page = request.GET.get("page", 1)
+        page_size = request.GET.get("page_size", 10)
+        
+        # Get tasks based on user role
+        if request.user.role == "EMPLOYEE":
+            tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+        elif request.user.role == "TEAM_LEAD":
+            my_projects = Projects.objects.filter(assigned_to=request.user)
+            my_project_ids = my_projects.values_list('id', flat=True)
+            tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
+        else:  # ADMIN
+            tasks = Task.objects.all().order_by('-created_at')
+        
+        # Statistics (using full queryset for stats)
+        total_tasks = tasks.count()
+        ongoing_count = tasks.filter(status='ONGOING').count()
+        completed_count = tasks.filter(status='COMPLETED').count()
+        overdue_count = 0  # Will calculate after pagination
+        
+        # Apply pagination
+        paginator = Paginator(tasks, page_size)
+        try:
+            tasks_page = paginator.page(page)
+        except PageNotAnInteger:
+            tasks_page = paginator.page(1)
+        except EmptyPage:
+            tasks_page = paginator.page(paginator.num_pages)
+        
+        # Calculate overdue count and send notifications for paginated tasks
+        now = timezone.now()
+        
+        tasks_data = []
+        for task in tasks_page:
+            # Calculate current time spent
+            if task.status == 'ONGOING' and task.start_time:
+                elapsed = now - task.start_time
+                if task.total_paused_duration:
+                    elapsed = elapsed - task.total_paused_duration
+                current_seconds = int(elapsed.total_seconds())
+            elif task.status == 'COMPLETED' and task.total_time:
+                current_seconds = int(task.total_time.total_seconds())
+            else:
+                current_seconds = 0
+            
+            # Format time spent display
+            hours = current_seconds // 3600
+            minutes = (current_seconds % 3600) // 60
+            seconds = current_seconds % 60
+            time_spent_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            
+            # Format estimated time display
+            if task.estimated_time:
+                est_hours = task.estimated_time // 3600
+                est_minutes = (task.estimated_time % 3600) // 60
+                estimated_display = f"{est_hours:02d}:{est_minutes:02d}:00"
+            else:
+                estimated_display = "04:00:00"
+            
+            # Check if task is overdue
+            is_overdue = False
+            if task.status != 'COMPLETED' and task.estimated_time:
+                if current_seconds > task.estimated_time:
+                    is_overdue = True
+                    overdue_count += 1
+            
+            # Get assignees
+            assignees_list = []
+            for assignee in task.assigned_to.all()[:2]:
+                assignees_list.append(assignee.get_full_name() or assignee.username)
+            
+            tasks_data.append({
+                'id': task.id,
+                'name': task.name,
+                'status': task.status,
+                'status_display': task.get_status_display(),
+                'time_spent_display': time_spent_display,
+                'estimated_display': estimated_display,
+                'is_overdue': is_overdue,
+                'deadline': task.deadline.strftime('%b %d, %H:%M') if task.deadline else None,
+                'project_name': task.project.name[:15] if task.project.name else 'N/A',
+                'assignees': assignees_list,
+                'total_assignees': task.assigned_to.count(),
+                'view_url': f"/employee_tasks/?task_id={task.id}"
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'tasks': tasks_data,
+            'total_tasks': total_tasks,
+            'ongoing_count': ongoing_count,
+            'completed_count': completed_count,
+            'overdue_count': overdue_count,
+            'total_pages': paginator.num_pages,
+            'current_page': tasks_page.number,
+            'has_previous': tasks_page.has_previous(),
+            'has_next': tasks_page.has_next(),
+            'previous_page_number': tasks_page.previous_page_number() if tasks_page.has_previous() else None,
+            'next_page_number': tasks_page.next_page_number() if tasks_page.has_next() else None,
+            'page_size': int(page_size)
+        })
     
+    # Regular request - return full template with data
+    if request.user.role == "EMPLOYEE":
+        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
     elif request.user.role == "TEAM_LEAD":
-        # Team Leads see tasks from projects they are assigned to
         my_projects = Projects.objects.filter(assigned_to=request.user)
         my_project_ids = my_projects.values_list('id', flat=True)
         tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
-    
     else:  # ADMIN
-        # Admins see ALL tasks
         tasks = Task.objects.all().order_by('-created_at')
-    
+
     # Statistics
     total_tasks = tasks.count()
     ongoing_count = tasks.filter(status='ONGOING').count()
     completed_count = tasks.filter(status='COMPLETED').count()
-    
-    # Calculate overdue count and send notifications
+
+    # Add pagination for regular request
+    paginator = Paginator(tasks, 10)
+    page = request.GET.get('page', 1)
+    try:
+        tasks_page = paginator.page(page)
+    except PageNotAnInteger:
+        tasks_page = paginator.page(1)
+    except EmptyPage:
+        tasks_page = paginator.page(paginator.num_pages)
+
+    # Calculate overdue count for paginated tasks
     now = timezone.now()
     overdue_count = 0
     from notifications.models import Notification
-    
-    for task in tasks:
+
+    for task in tasks_page:
         # Calculate current time spent
         if task.status == 'ONGOING' and task.start_time:
             elapsed = now - task.start_time
@@ -1552,24 +2238,20 @@ def task_dashboard(request):
                 overdue_count += 1
                 
                 # 🔔 SEND NOTIFICATIONS FOR OVERDUE TASK
-                
-                # 1. Notify task owner (assigned_by)
-                if task.assigned_by:
-                    # Check if already notified recently (optional)
+                for owner in task.assigned_by.all():
                     existing = Notification.objects.filter(
-                        user=task.assigned_by,
+                        user=owner,
                         message__icontains=f"Task '{task.name}' is overdue",
                         created_at__date=now.date()
                     ).exists()
                     
                     if not existing:
                         Notification.objects.create(
-                            user=task.assigned_by,
+                            user=owner,
                             message=f"⚠️ Task '{task.name}' (Project: {task.project.name}) is overdue!",
                             is_read=False
                         )
                 
-                # 2. Notify all assignees
                 for assignee in task.assigned_to.all():
                     existing = Notification.objects.filter(
                         user=assignee,
@@ -1584,7 +2266,6 @@ def task_dashboard(request):
                             is_read=False
                         )
                 
-                # 3. Notify all observers
                 for observer in task.observers.all():
                     existing = Notification.objects.filter(
                         user=observer,
@@ -1604,16 +2285,16 @@ def task_dashboard(request):
                 task.is_overdue = False
         else:
             task.is_overdue = False
-    
-    print(f"Total overdue count: {overdue_count}")
-    
+
     context = {
-        'tasks': tasks,
+        'tasks': tasks_page,
         'total_tasks': total_tasks,
         'ongoing_count': ongoing_count,
         'completed_count': completed_count,
         'overdue_count': overdue_count,
         'now': now,
+        'paginator': paginator,
+        'page_obj': tasks_page,
     }
     return render(request, 'task_dashboard.html', context)
 
@@ -1691,6 +2372,51 @@ def employee_tasks(request):
     task_id = request.GET.get('task_id')
     employee_id = request.GET.get('employee_id')
     
+    # Handle AJAX request - return JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Case 1: Team lead viewing specific employee's tasks
+        if employee_id and request.user.role in ['TEAM_LEAD', 'ADMIN']:
+            employee = get_object_or_404(User, id=employee_id)
+            tasks = Task.objects.filter(assigned_to=employee).order_by('-created_at')
+            
+            tasks_data = []
+            for task in tasks:
+                tasks_data.append({
+                    'id': task.id,
+                    'name': task.name,
+                    'status': task.status,
+                    'status_display': task.get_status_display(),
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'tasks': tasks_data,
+                'viewing_employee': employee.get_full_name() or employee.username,
+                'total_tasks': len(tasks_data)
+            })
+        
+        # Case 2: Viewing single task by ID
+        elif task_id:
+            task = get_object_or_404(Task, id=task_id)
+            return JsonResponse({
+                'success': True,
+                'task': {
+                    'id': task.id,
+                    'name': task.name,
+                    'description': task.description,
+                    'status': task.status,
+                    'status_display': task.get_status_display(),
+                    'summary': task.summary,
+                }
+            })
+        
+        # Case 3: Employee viewing their own tasks list
+        else:
+            tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+            tasks_data = [{'id': t.id, 'name': t.name, 'status': t.status, 'status_display': t.get_status_display()} for t in tasks]
+            return JsonResponse({'success': True, 'tasks': tasks_data, 'total_tasks': len(tasks_data)})
+    
+    # ========== YOUR ORIGINAL CODE BELOW - COMPLETELY UNCHANGED ==========
     # Case 1: Team lead viewing specific employee's tasks
     if employee_id and request.user.role in ['TEAM_LEAD', 'ADMIN']:
         employee = get_object_or_404(User, id=employee_id)
@@ -2025,12 +2751,10 @@ from .forms import UserProfileForm
 
 # ================== Departments ==================
 # List all departments
-@login_required
-@allowed_roles(['ADMIN'])
 def departments(request):
     departments = Department.objects.all()
 
-    # Handle creation of a new department
+    # Handle creation of a new department via normal form POST
     if request.method == "POST":
         new_dept_name = request.POST.get("department_name")
         if new_dept_name:
@@ -2038,40 +2762,96 @@ def departments(request):
             messages.success(request, f"Department '{new_dept_name}' created successfully!")
             return redirect("departments")
 
+    # Handle AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        dept_list = [{"id": dept.id, "name": dept.name} for dept in departments]
+        return JsonResponse({"departments": dept_list})
+
+    # Normal page render
     return render(request, "department_list.html", {"departments": departments})
 
+
 ## Create departments
+from django.http import JsonResponse
+
 @login_required
 @allowed_roles(['ADMIN'])
 def create_department(request):
     if request.method == "POST":
         name = request.POST.get("name")
         if name:
-            Department.objects.create(name=name)
+            department = Department.objects.create(name=name)
+            
+            # Check if it's an AJAX request - Updated for Django 4.0+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    "success": True,
+                    "message": f"Department '{name}' created successfully!",
+                    "department": {
+                        "id": department.id,
+                        "name": department.name
+                    }
+                })
+            
             messages.success(request, "Department created successfully!")
             return redirect("departments")
+    
     return render(request, "create_department.html", {"action": "Create"})
 
 
 # Show all users in a department
+@login_required
+@allowed_roles(['ADMIN'])
 def department_detail(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
-    # Follow the OneToOne relation from User to UserProfile
     users_in_dept = User.objects.filter(profile__department=department)
+
+    # AJAX response
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        users_list = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "designation": user.profile.designation.name if user.profile.designation else "N/A"
+            }
+            for user in users_in_dept
+        ]
+        return JsonResponse({
+            "success": True,
+            "department": department.name,
+            "users": users_list
+        })
+
+    # Normal page render
     return render(request, "department_detail.html", {
         "department": department,
         "users": users_in_dept
     })
+
 
 ## delete_department
 @login_required
 @allowed_roles(['ADMIN'])
 def delete_department(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
+    dept_name = department.name
+    
     if request.method == "POST":
         department.delete()
+        
+        # Check if it's an AJAX request - Updated for Django 4.0+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                "success": True,
+                "message": f"Department '{dept_name}' deleted successfully!",
+                "dept_id": dept_id
+            })
+        
         messages.success(request, "Department deleted successfully!")
-        return redirect("departments")  # your department list view name
+        return redirect("departments")
+    
     return redirect("departments")
 
 # <!--Designation-->
@@ -2079,7 +2859,24 @@ def delete_department(request, dept_id):
 @allowed_roles(['ADMIN'])
 def designations(request):
     designations = Designation.objects.all()
+    
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        designations_list = [
+            {
+                "id": desig.id,
+                "name": desig.name,
+                "user_count": User.objects.filter(profile__designation=desig).count()
+            }
+            for desig in designations
+        ]
+        return JsonResponse({
+            "success": True,
+            "designations": designations_list
+        })
+    
     return render(request, "designation_list.html", {"designations": designations})
+
 
 
 @login_required
@@ -2088,9 +2885,22 @@ def create_designation(request):
     if request.method == "POST":
         name = request.POST.get("name")
         if name:
-            Designation.objects.create(name=name)
+            designation = Designation.objects.create(name=name)
+            
+            # Check if it's an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    "success": True,
+                    "message": f"Designation '{name}' created successfully!",
+                    "designation": {
+                        "id": designation.id,
+                        "name": designation.name
+                    }
+                })
+            
             messages.success(request, "Designation created successfully!")
             return redirect("designations")
+    
     return render(request, "designation_form.html", {"action": "Create"})
 
 
@@ -2099,18 +2909,56 @@ def create_designation(request):
 def designation_detail(request, desig_id):
     designation = get_object_or_404(Designation, id=desig_id)
     users_in_desig = User.objects.filter(profile__designation=designation)
+    
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        users_list = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "role_display": user.get_role_display(),
+                "department": user.profile.department.name if user.profile.department else "N/A",
+                "full_name": user.get_full_name() or user.username
+            }
+            for user in users_in_desig
+        ]
+        return JsonResponse({
+            "success": True,
+            "designation": designation.name,
+            "designation_id": designation.id,
+            "users": users_list,
+            "total_users": len(users_list)
+        })
+    
     return render(request, "designation_detail.html", {
         "designation": designation,
         "users": users_in_desig
     })
+
 
 ## delete designation
 @login_required
 @allowed_roles(['ADMIN'])
 def delete_designation(request, desig_id):
     desig = get_object_or_404(Designation, id=desig_id)
-    desig.delete()
-    messages.success(request, "Designation deleted successfully!")
+    desig_name = desig.name
+    
+    if request.method == "POST":
+        desig.delete()
+        
+        # Check if it's an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                "success": True,
+                "message": f"Designation '{desig_name}' deleted successfully!",
+                "desig_id": desig_id
+            })
+        
+        messages.success(request, "Designation deleted successfully!")
+        return redirect("designations")
+    
     return redirect("designations")
 
 
@@ -2193,10 +3041,8 @@ def ai_generate_description(request):
 def user_analytics(request):
     users = User.objects.all().order_by('username')
     selected_user_id = request.GET.get('user_id')
-
     selected_user = None
 
-    # 🔥 KEY CHANGE (default = ALL users)
     if selected_user_id:
         selected_user = get_object_or_404(User, id=selected_user_id)
         tasks = Task.objects.filter(assigned_to=selected_user)
@@ -2205,33 +3051,16 @@ def user_analytics(request):
         tasks = Task.objects.all()
         projects = Projects.objects.all()
 
-    # ===== COUNTS =====
     total_tasks = tasks.count()
     completed = tasks.filter(status='COMPLETED').count()
     ongoing = tasks.filter(status='ONGOING').count()
     pending = tasks.filter(status='PENDING').count()
-
-    overdue = tasks.filter(
-        deadline__lt=timezone.now()
-    ).exclude(status='COMPLETED').count()
-
-    # ===== PERFORMANCE =====
+    overdue = tasks.filter(deadline__lt=timezone.now()).exclude(status='COMPLETED').count()
     performance = int((completed / total_tasks) * 100) if total_tasks > 0 else 0
-
-    # ===== PROGRESS CIRCLE =====
     stroke_offset = 283 - (performance * 2.83)
-
-    # ===== WEEKLY =====
     last_7_days = timezone.now() - timedelta(days=7)
-    recent_completed = tasks.filter(
-        status='COMPLETED',
-        end_time__gte=last_7_days
-    ).count()
-
-    # ===== AVG TIME =====
-    avg_time = tasks.filter(
-        total_time__isnull=False
-    ).aggregate(avg=Avg('total_time'))['avg']
+    recent_completed = tasks.filter(status='COMPLETED', end_time__gte=last_7_days).count()
+    avg_time = tasks.filter(total_time__isnull=False).aggregate(avg=Avg('total_time'))['avg']
 
     def format_duration(duration):
         if not duration:
@@ -2243,14 +3072,9 @@ def user_analytics(request):
         return f"{h:02d}:{m:02d}:{s:02d}"
 
     avg_time_formatted = format_duration(avg_time)
-
-    # ===== PROJECT COUNT =====
     projects_count = projects.count()
-
-    # ===== REMAINING =====
     remaining = total_tasks - completed
 
-    # ===== KPI CARDS =====
     cards = [
         {"label": "Total", "value": total_tasks, "color": "gray"},
         {"label": "Completed", "value": completed, "color": "green"},
@@ -2275,12 +3099,20 @@ def user_analytics(request):
         'cards': cards,
     }
 
+    # Return JSON if AJAX
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'analytics': analytics,
+            'selected_user': selected_user.username if selected_user else 'All Users'
+        })
+
+    # Normal page render
     return render(request, 'user_analytics.html', {
         'users': users,
         'selected_user': selected_user,
         'analytics': analytics
     })
-
 
 ## home page
 def home(request):

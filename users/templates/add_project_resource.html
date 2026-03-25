@@ -49,7 +49,7 @@
 
                 <!-- Form Body -->
                 <div class="p-6">
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" id="resourceForm">
                         {% csrf_token %}
                         
                         <div class="space-y-6">
@@ -90,7 +90,7 @@
                                class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
                                 Cancel
                             </a>
-                            <button type="submit" 
+                            <button type="submit" id="submitBtn"
                                     class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-lg hover:shadow-xl">
                                 Save Resource
                             </button>
@@ -255,4 +255,134 @@
         background: #2563eb;
     }
 </style>
+
+<!-- AJAX Script - Only this is added, all your existing code above remains unchanged -->
+<script>
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Loading overlay
+const loadingOverlay = document.createElement('div');
+loadingOverlay.id = 'loadingOverlay';
+loadingOverlay.className = 'hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+loadingOverlay.innerHTML = '<div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div></div>';
+document.body.appendChild(loadingOverlay);
+
+// Notification container
+const notificationContainer = document.createElement('div');
+notificationContainer.id = 'notificationContainer';
+notificationContainer.className = 'fixed top-5 right-5 z-50 w-96';
+document.body.appendChild(notificationContainer);
+
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    } text-white`;
+    notification.innerHTML = `
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    ${type === 'success' ? 
+                        '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                        '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                    }
+                </svg>
+                <span>${message}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    notificationContainer.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+}
+
+// AJAX Form Submission
+const form = document.getElementById('resourceForm');
+if (form) {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        loadingOverlay.classList.remove('hidden');
+        
+        const formData = new FormData(this);
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = "{% url 'view_project_detail' project.id %}";
+                }, 1500);
+            } else {
+                showNotification(data.message || 'Error adding resource', 'error');
+            }
+            loadingOverlay.classList.add('hidden');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Network error. Please try again.', 'error');
+            loadingOverlay.classList.add('hidden');
+        });
+    });
+}
+</script>
+
+<style>
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    #notificationContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+</style>
+
 {% endblock %}

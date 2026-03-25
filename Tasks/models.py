@@ -27,13 +27,11 @@ class Task(models.Model):
     total_time = models.DurationField(null=True, blank=True)
 
     ## new fields
-    assigned_by = models.ForeignKey(
+    assigned_by = models.ManyToManyField(
         User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        related_name='created_tasks'
-    )  # Tracks who created/assigned the task
+        related_name='created_tasks',
+        limit_choices_to={'role__in': ['ADMIN', 'TEAM_LEAD']}
+    ) ## who created/assigned the task
 
     estimated_time = models.IntegerField(default=3600, help_text="Estimated time in seconds")
 
