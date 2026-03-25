@@ -935,6 +935,7 @@ def dashboard(request):
 
 
 ## logout
+@jwt_or_session_required
 def logout_view(request):
     logout(request)  # clears session
     return redirect("render_login")
@@ -1214,6 +1215,7 @@ def employee_dashboard(request):
 
 ## Employee projects
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+@jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def employee_projects(request):
     # Handle AJAX request
@@ -2799,6 +2801,8 @@ from .forms import UserProfileForm
 
 # ================== Departments ==================
 # List all departments
+@jwt_or_session_required
+@allowed_roles(allowed_roles=["ADMIN"])
 def departments(request):
     departments = Department.objects.all()
 
@@ -2904,7 +2908,8 @@ def delete_department(request, dept_id):
 
 # <!--Designation-->
 # List all designations
-@allowed_roles(['ADMIN'])
+@jwt_or_session_required
+@allowed_roles(allowed_roles=["ADMIN"])
 def designations(request):
     designations = Designation.objects.all()
     
