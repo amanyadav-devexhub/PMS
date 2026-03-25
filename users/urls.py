@@ -33,7 +33,7 @@ urlpatterns = [
     path('reset/<uidb64>/<token>/',auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),
     path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'),
     path("activate/<uidb64>/<token>/", views.activate_user, name="activate"),
-    path('reset_password_complete/',auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'),name='password_reset_complete'),
+
     path('dashboard/', views.dashboard, name='dashboard'),
     path('edit-user/<int:user_id>/', views.edit_user, name='edit_user'),
     path('admin-view-users/', views.admin_view_users, name='admin_view_users'),
@@ -59,8 +59,7 @@ urlpatterns = [
     path('department/delete/<int:dept_id>/', views.delete_department, name='delete_department'),
     path('designation/delete/<int:desig_id>/', views.delete_designation, name='delete_designation'),
     path('designation/create/', views.create_designation, name='create_designation'),    
-    path("start_task/<int:task_id>/", views.start_task, name="start_task"),
-    path("complete_task/<int:task_id>/", views.complete_task, name="complete_task"),
+
     path('notifications/', include('notifications.urls')),
     path('task/<int:task_id>/start/', views.start_task, name='start_task'),
     path('task/<int:task_id>/pause/', views.pause_task, name='pause_task'),

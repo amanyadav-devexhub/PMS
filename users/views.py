@@ -1169,6 +1169,7 @@ def employee_dashboard(request):
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
+@login_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def employee_projects(request):
     # Handle AJAX request
@@ -1566,6 +1567,8 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+@login_required
+@allowed_roles(allowed_roles=["ADMIN"])
 def create_user(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -2751,6 +2754,8 @@ from .forms import UserProfileForm
 
 # ================== Departments ==================
 # List all departments
+@login_required
+@allowed_roles(['ADMIN'])
 def departments(request):
     departments = Department.objects.all()
 
@@ -2856,6 +2861,7 @@ def delete_department(request, dept_id):
 
 # <!--Designation-->
 # List all designations
+@login_required
 @allowed_roles(['ADMIN'])
 def designations(request):
     designations = Designation.objects.all()
@@ -2906,6 +2912,8 @@ def create_designation(request):
 
 
 # Show all users in a designation
+@login_required
+@allowed_roles(['ADMIN'])
 def designation_detail(request, desig_id):
     designation = get_object_or_404(Designation, id=desig_id)
     users_in_desig = User.objects.filter(profile__designation=designation)
