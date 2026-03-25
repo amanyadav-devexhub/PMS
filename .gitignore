@@ -30,9 +30,24 @@ staticfiles/
 # OS files
 .DS_Store
 Thumbs.db
+########################################################
+# Additional unnecessary files/folders
+########################################################
+# Python cache and compiled files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+# Django migrations cache
+**/migrations/__pycache__/
+# Project documentation and exports
+*.pdf
+# Postman collections
+*.postman_collection.json
 venv/
 __pycache__/
 *.pyc
 db.sqlite3
 .env
 media/
+PMS_System.postman_collection.json

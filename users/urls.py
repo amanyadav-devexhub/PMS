@@ -4,8 +4,10 @@ from Tasks.models import Task
 from Tasks.forms import TaskForm
 from django.contrib.auth import views as auth_views
 
-
-
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 from .views import (
     login_view,
     admin_dashboard,
@@ -17,6 +19,8 @@ from .views import (
 urlpatterns = [
     #path("login/", login_view, name="login"),
     path('', views.home, name='home'),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("admin_dashboard/", admin_dashboard, name="admin_dashboard"),
     path("teamlead_dashboard/", teamlead_dashboard, name="teamlead_dashboard"),
     path("employee_dashboard/", employee_dashboard, name="employee_dashboard"),
@@ -45,11 +49,7 @@ urlpatterns = [
     path("delete_project/<int:id>/",views.delete_project,name = 'delete_project'),
     path("view_project_detail/<int:project_id>/",views.view_project_detail,name = "view_project_detail"),
     path("view_user_details/<int:user_id>/",views.view_user_details,name="view_user_details"),
-    path(
-        "project/<int:project_id>/add-resource/",
-        views.add_project_resource,
-        name="add_project_resource"
-    ),
+    path("project/<int:project_id>/add-resource/",views.add_project_resource,name="add_project_resource"),
     path('employee_projects/', views.employee_projects, name='employee_projects'),
     path('departments/', views.departments, name='departments'),
     path('department_detail/<int:dept_id>/', views.department_detail, name='department_detail'),
@@ -72,6 +72,9 @@ urlpatterns = [
     path('task/<int:task_id>/add-summary/', views.add_task_summary, name='add_task_summary'),
     path('ai/generate-description/', views.ai_generate_description, name='ai_generate_description'),
     path('user-analytics/', views.user_analytics, name='user_analytics'),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
 ]
 
 

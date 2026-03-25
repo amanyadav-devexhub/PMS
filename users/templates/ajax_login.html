@@ -124,6 +124,12 @@
         border-left: 4px solid #dc2626;
     }
 
+    .error-message.success {
+        background-color: #d1fae5;
+        color: #059669;
+        border-left: 4px solid #059669;
+    }
+
     .error-message.info {
         background-color: #fef3c7;
         color: #d97706;
@@ -222,6 +228,24 @@ function getCSRFToken() {
         ?.split("=")[1];
 }
 
+// ========== NEW: Store JWT tokens ==========
+function storeTokens(accessToken, refreshToken, userData) {
+    // Clear any existing tokens
+    localStorage.clear();
+    
+    // Store new tokens
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+    localStorage.setItem('user_role', userData.role);
+    localStorage.setItem('username', userData.username);
+    localStorage.setItem('user_id', userData.id);
+    localStorage.setItem('user_email', userData.email);
+    
+    console.log('✅ JWT tokens stored');
+    console.log(`👤 User: ${userData.username} (${userData.role})`);
+    console.log(`🔑 Token: ${accessToken.substring(0, 50)}...`);
+}
+
 function showLoading() {
     loginBtn.disabled = true;
     btnText.innerHTML = '<span class="loading-text"><span class="spinner"></span>Signing in...</span>';
@@ -232,17 +256,16 @@ function hideLoading() {
     btnText.innerHTML = 'Sign In';
 }
 
-function showError(message, type = "error") {
+function showMessage(message, type = "error") {
     errorDiv.textContent = message;
     errorDiv.className = `error-message show ${type}`;
     
-    // Auto-hide after 5 seconds
     setTimeout(() => {
         errorDiv.classList.remove("show");
     }, 5000);
 }
 
-function clearError() {
+function clearMessage() {
     errorDiv.classList.remove("show");
 }
 
@@ -252,28 +275,26 @@ form.addEventListener("submit", function (event) {
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
 
-    // Client-side validation
     if (!email) {
-        showError("Email is required", "error");
+        showMessage("Email is required", "error");
         emailInput.focus();
         return;
     }
 
     if (!password) {
-        showError("Password is required", "error");
+        showMessage("Password is required", "error");
         passwordInput.focus();
         return;
     }
 
-    // Email format validation
     const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        showError("Please enter a valid email address", "error");
+        showMessage("Please enter a valid email address", "error");
         emailInput.focus();
         return;
     }
 
-    clearError();
+    clearMessage();
     showLoading();
 
     fetch("/ajax_login/", {
@@ -284,38 +305,46 @@ form.addEventListener("submit", function (event) {
         },
         body: JSON.stringify({ email, password }),
     })
-    .then(res => res.json())
+    .then(res => {
+        console.log('Response status:', res.status);
+        return res.json();
+    })
     .then(data => {
         hideLoading();
         
+        console.log('Login response:', data);
+        
         if (data.status === "success") {
-            // Show success briefly before redirect
-            showError(`Welcome back, ${data.username}! Redirecting...`, "info");
+            // ========== STORE JWT TOKENS ==========
+            storeTokens(data.access_token, data.refresh_token, data.user);
             
+            showMessage(`Welcome back, ${data.username}! Redirecting...`, "success");
+            
+            // ========== REDIRECT WITH TOKEN IN URL ==========
             setTimeout(() => {
+                const token = data.access_token;
                 if (data.role === "ADMIN") {
-                    window.location.href = "/admin_dashboard/";
+                    window.location.href = `/admin_dashboard/?token=${token}`;
                 } else if (data.role === "TEAM_LEAD") {
-                    window.location.href = "/teamlead_dashboard/";
+                    window.location.href = `/teamlead_dashboard/?token=${token}`;
                 } else {
-                    window.location.href = "/employee_dashboard/";
+                    window.location.href = `/employee_dashboard/?token=${token}`;
                 }
             }, 800);
         } else {
-            showError(data.error || "Login failed", "error");
+            showMessage(data.error || "Login failed", "error");
         }
     })
-    .catch(() => {
+    .catch((error) => {
+        console.error("Login error:", error);
         hideLoading();
-        showError("Server error. Please try again later.", "error");
+        showMessage("Server error. Please try again later.", "error");
     });
 });
 
-// Clear error on input
-emailInput.addEventListener("input", clearError);
-passwordInput.addEventListener("input", clearError);
+emailInput.addEventListener("input", clearMessage);
+passwordInput.addEventListener("input", clearMessage);
 
-// Enter key support
 passwordInput.addEventListener("keypress", function(e) {
     if (e.key === "Enter") {
         form.dispatchEvent(new Event("submit"));
