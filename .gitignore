@@ -50,3 +50,4 @@ __pycache__/
 db.sqlite3
 .env
 media/
+PMS_System.postman_collection.json
