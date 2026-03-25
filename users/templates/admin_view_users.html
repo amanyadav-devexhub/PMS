@@ -6,25 +6,34 @@
 {% block content %}
 
 <div class="flex justify-between items-center mb-6">
-
     <h2 class="text-xl font-semibold text-gray-800">All Members</h2>
 
-    <div class="flex items-center space-x-2">
-        <input type="text" id="searchInput" name="search" placeholder="Search username or role..."
-            class="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+    <div class="flex items-center space-x-3">
+        <!-- Add Member Button -->
+        <a href="/create_user/" 
+           class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition duration-200 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Add Member
+        </a>
 
-        <button id="searchBtn" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm">
-            Search
-        </button>
+        <!-- Search Section -->
+        <div class="flex items-center space-x-2">
+            <input type="text" id="searchInput" name="search" placeholder="Search username or role..."
+                class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
 
-        <button id="clearBtn" type="button"
-            class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-1 rounded text-sm hidden">
-            Clear
-        </button>
+            <button id="searchBtn" type="button" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                Search
+            </button>
+
+            <button id="clearBtn" type="button"
+                class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition hidden">
+                Clear
+            </button>
+        </div>
     </div>
 </div>
-
-
 
 <!-- Loading Overlay -->
 <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -37,7 +46,6 @@
 <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
 
 <div class="bg-white shadow rounded-lg overflow-hidden">
-
     <table class="min-w-full text-sm text-left">
         <thead class="bg-gray-50 text-gray-600">
             <tr>
@@ -48,7 +56,6 @@
                 <th class="px-6 py-4 text-right">Actions</th>
             </tr>
         </thead>
-
         <tbody id="usersTableBody" class="divide-y">
             <tr>
                 <td colspan="5" class="px-6 py-6 text-center text-gray-500">
@@ -60,41 +67,42 @@
                 </td>
             </tr>
         </tbody>
-
     </table>
 </div>
 
-<div class="mt-4 text-sm text-gray-500" id="showingInfo">
-    Showing 0 members
+<div class="mt-4 flex justify-between items-center">
+    <div class="text-sm text-gray-500" id="showingInfo">
+        Showing 0 members
+    </div>
+
+    <div class="flex gap-2 items-center">
+        <!-- Page Size Selector -->
+        <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+            <option value="10">10 per page</option>
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+        </select>
+
+        <!-- Pagination Buttons -->
+        <button id="prevPageBtn"
+            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled>
+            ← Prev
+        </button>
+
+        <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+            Page 1 of 1
+        </span>
+
+        <button id="nextPageBtn"
+            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled>
+            Next →
+        </button>
+    </div>
 </div>
 
-<div class="flex gap-2 items-center">
-    <!-- Page Size Selector -->
-    <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
-        <option value="10">10 per page</option>
-        <option value="25">25 per page</option>
-        <option value="50">50 per page</option>
-        <option value="100">100 per page</option>
-    </select>
-
-    <!-- Pagination Buttons -->
-    <button id="prevPageBtn"
-        class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-        disabled>
-        ← Prev
-    </button>
-
-    <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
-        Page 1 of 1
-    </span>
-
-    <button id="nextPageBtn"
-        class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-        disabled>
-        Next →
-    </button>
-</div>
-</div>
 <script>
     // Get CSRF token
     function getCookie(name) {
@@ -272,7 +280,7 @@
                 <td class="px-6 py-4 text-right space-x-2">
                     <a href="${user.view_url}"
                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-xs shadow">
-                        view
+                        View
                     </a>
                     <button type="button"
                        onclick="deleteUser(${user.id}, '${escapeHtml(user.username)}')"

@@ -13,10 +13,13 @@
             All Projects
         </h2>
 
-        <a href="{% url 'create_project' %}"
-           class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
-            + Add Project
-        </a>
+        <!-- Add Project Button - Only visible to ADMIN -->
+        <div id="addProjectButtonContainer" style="display: none;">
+            <a href="{% url 'create_project' %}"
+               class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
+                + Add Project
+            </a>
+        </div>
     </div>
 
     <!-- Loading Overlay -->
@@ -106,9 +109,11 @@
                                 View
                             </a>
                         
+                            <!-- Delete button - Only visible to ADMIN -->
                             <button type="button" 
                                     onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
-                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
+                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition delete-project-btn"
+                                    style="display: none;"
                                     id="delete-project-{{ project.id }}">
                                 Delete
                             </button>
@@ -164,23 +169,63 @@
 
 <!-- AJAX JavaScript with Pagination -->
 <script>
-    // Get CSRF token from cookie
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
+    // Get JWT token from localStorage
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
     }
     
-    const csrftoken = getCookie('csrftoken');
+    // Get user role from localStorage
+    function getUserRole() {
+        return localStorage.getItem('user_role');
+    }
+    
+    // Check if user is ADMIN
+    function isAdmin() {
+        const role = getUserRole();
+        return role === 'ADMIN';
+    }
+    
+    // Show/hide buttons based on user role (ADMIN only)
+    function updateButtonVisibility() {
+        const admin = isAdmin();
+        
+        // Show/hide Add Project button
+        const addButtonContainer = document.getElementById('addProjectButtonContainer');
+        if (addButtonContainer) {
+            addButtonContainer.style.display = admin ? 'block' : 'none';
+        }
+        
+        // Show/hide all delete buttons
+        const deleteButtons = document.querySelectorAll('.delete-project-btn');
+        deleteButtons.forEach(btn => {
+            btn.style.display = admin ? 'inline-block' : 'none';
+        });
+    }
+    
+    // Authenticated fetch wrapper
+    function authFetch(url, options = {}) {
+        const token = getAccessToken();
+        
+        if (!token) {
+            window.location.href = '/render_login/';
+            return Promise.reject('No token');
+        }
+        
+        options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`,
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+        
+        return fetch(url, options).then(response => {
+            if (response.status === 401) {
+                localStorage.clear();
+                window.location.href = '/render_login/';
+                throw new Error('Unauthorized');
+            }
+            return response;
+        });
+    }
     
     // Pagination variables
     let currentPage = 1;
@@ -240,11 +285,8 @@
             url.searchParams.set('page', page);
             url.searchParams.set('page_size', pageSize);
             
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+            const response = await authFetch(url, {
+                method: 'GET'
             });
             
             const data = await response.json();
@@ -257,6 +299,9 @@
                 
                 renderProjectsTable(data.projects);
                 updatePaginationUI(data);
+                
+                // Update button visibility after rendering table
+                updateButtonVisibility();
                 
                 // Update showing info
                 const startIndex = (data.current_page - 1) * data.page_size + 1;
@@ -297,6 +342,8 @@
             return;
         }
         
+        const admin = isAdmin();
+        
         let html = '';
         projects.forEach((project, index) => {
             const counter = (currentPage - 1) * currentPageSize + index + 1;
@@ -323,12 +370,14 @@
                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
                             View
                         </a>
+                        ${admin ? `
                         <button type="button" 
                                 onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
                                 class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
                                 id="delete-project-${project.id}">
                             Delete
                         </button>
+                        ` : ''}
                     </td>
                 </tr>
             `;
@@ -377,12 +426,8 @@
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
         
-        fetch(`/delete_project/${projectId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+        authFetch(`/delete_project/${projectId}/`, {
+            method: 'POST'
         })
         .then(response => response.json())
         .then(data => {
@@ -412,13 +457,23 @@
     
     // Event Listeners
     document.addEventListener('DOMContentLoaded', function() {
+        // Check authentication
+        const token = getAccessToken();
+        if (!token) {
+            window.location.href = '/render_login/';
+            return;
+        }
+        
+        // Update button visibility on page load
+        updateButtonVisibility();
+        
         const searchInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('searchBtn');
         const clearBtn = document.getElementById('clearSearchBtn');
         const pageSizeSelect = document.getElementById('pageSizeSelect');
         
         // Load initial projects
-        loadUsers('', 1, 10);
+        loadProjects('', 1, 10);
         
         // Search button click
         if (searchBtn) {

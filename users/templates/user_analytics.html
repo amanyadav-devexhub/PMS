@@ -47,12 +47,12 @@
         <!-- MINI STATS -->
         <div class="space-y-4">
             <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
-                <p class="text-xs text-gray-500">Avg Time</p>
+                <p class="text-xs text-gray-500">Avg Time per Task</p>
                 <h3 id="avgTime" class="text-lg font-semibold text-blue-600 mt-1">{{ analytics.avg_time }}</h3>
             </div>
 
             <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
-                <p class="text-xs text-gray-500">Last 7 Days</p>
+                <p class="text-xs text-gray-500">Last 7 Days Completed</p>
                 <h3 id="recentCompleted" class="text-lg font-semibold text-green-600 mt-1">{{ analytics.recent_completed }}</h3>
             </div>
         </div>
@@ -67,6 +67,24 @@
             <h3 class="text-xl font-bold {% if card.color != 'gray' %}text-{{ card.color }}-600{% endif %} counter" data-value="{{ card.value }}">0</h3>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- TOP PERFORMERS SECTION - COMPACT -->
+    <div class="bg-white rounded-2xl shadow p-4">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🏆</span>
+                <h3 class="text-sm font-semibold text-gray-700">Top Performers</h3>
+            </div>
+            <span class="text-xs text-gray-400">Based on completion rate</span>
+        </div>
+        <div id="topPerformersContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <!-- Loading state -->
+            <div class="col-span-full text-center text-gray-400 text-sm py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500 mr-2"></div>
+                Loading...
+            </div>
+        </div>
     </div>
 
     <!-- CHARTS -->
@@ -130,9 +148,73 @@ function animateCounter(el, target) {
     run();
 }
 
+// Function to load top performers
+function loadTopPerformers() {
+    const container = document.getElementById('topPerformersContainer');
+    
+    fetch(`{% url 'user_analytics' %}?get_top_performers=true`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success && data.top_performers) {
+            renderTopPerformers(data.top_performers.slice(0, 5));
+        } else {
+            container.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">No performers data available</div>';
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        container.innerHTML = '<div class="col-span-full text-center text-red-400 text-sm py-4">Error loading performers</div>';
+    });
+}
+
+function renderTopPerformers(performers) {
+    const container = document.getElementById('topPerformersContainer');
+    
+    if (!performers || performers.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">No performers data available</div>';
+        return;
+    }
+    
+    let html = '';
+    performers.forEach((performer, index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊';
+        const medalBg = index === 0 ? 'bg-yellow-50' : index === 1 ? 'bg-gray-50' : index === 2 ? 'bg-amber-50' : 'bg-gray-50';
+        
+        html += `
+            <div class="${medalBg} rounded-xl p-3 text-center hover:shadow-md transition-all cursor-pointer group">
+                <div class="text-2xl mb-1">${medal}</div>
+                <p class="text-sm font-medium text-gray-800 truncate group-hover:text-orange-600 transition" title="${escapeHtml(performer.username)}">
+                    ${escapeHtml(performer.username)}
+                </p>
+                <p class="text-lg font-bold text-orange-600 mt-1">${performer.performance_score}%</p>
+                <p class="text-xs text-gray-500 mt-1">
+                    ${performer.completed_tasks}/${performer.total_tasks}
+                </p>
+                <div class="mt-2">
+                    <div class="bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-orange-500 rounded-full h-1.5 transition-all" style="width: ${performer.performance_score}%"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Initial load
 document.querySelectorAll('.counter').forEach(el => animateCounter(el, +el.dataset.value));
 animateCounter(document.getElementById('performanceCount'), {{ analytics.performance }});
+loadTopPerformers();
 
 // AJAX for user selection
 document.getElementById('userSelect').addEventListener('change', function() {
@@ -169,11 +251,31 @@ document.getElementById('userSelect').addEventListener('change', function() {
 
             pieChart.data.datasets[0].data = [analytics.completed, analytics.remaining];
             pieChart.update();
+            
+            // Reload top performers
+            loadTopPerformers();
         }
     })
     .catch(err => console.error(err));
 });
 {% endif %}
 </script>
+
+<style>
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    #topPerformersContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+</style>
 
 {% endblock %}
