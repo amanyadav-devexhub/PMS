@@ -8,6 +8,17 @@
 
 <div class="max-w-4xl mx-auto">
 
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+
     <!-- Card -->
     <div class="bg-white shadow-lg rounded-lg p-8">
 
@@ -49,11 +60,6 @@
                 </label>
                 {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
                 <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                {% if form.name.errors %}
-                    {% for error in form.name.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                    {% endfor %}
-                {% endif %}
             </div>
 
             <!-- Description -->
@@ -63,11 +69,6 @@
                 </label>
                 {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
                 <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                {% if form.description.errors %}
-                    {% for error in form.description.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                    {% endfor %}
-                {% endif %}
             </div>
 
             <!-- Assigned to (Multiple) -->
@@ -100,7 +101,7 @@
                         Start date <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="start_date" id="start_date" 
-                           value="{{ form.start_date.value|date:'Y-m-d'|default:project.start_date|date:'Y-m-d' }}"
+                           value="{{ project.start_date|date:'Y-m-d' }}"
                            class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
                     <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 </div>
@@ -111,7 +112,7 @@
                         End date <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="end_date" id="end_date" 
-                           value="{{ form.end_date.value|date:'Y-m-d'|default:project.end_date|date:'Y-m-d' }}"
+                           value="{{ project.end_date|date:'Y-m-d' }}"
                            class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
                     <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 </div>
@@ -124,11 +125,6 @@
                 </label>
                 {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
                 <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                {% if form.status.errors %}
-                    {% for error in form.status.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                    {% endfor %}
-                {% endif %}
             </div>
 
             <!-- Buttons -->

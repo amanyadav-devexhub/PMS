@@ -7,6 +7,17 @@
 
 <div class="container mx-auto px-4 py-6 max-w-5xl">
     
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+    
     <!-- Team Lead View Header -->
     {% if viewing_employee %}
     <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -52,15 +63,17 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                 <!-- Left Column -->
                 <div class="space-y-5">
-                    <!-- Task Owner -->
+                    <!-- Task Owner - FIXED for ManyToMany -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
                             <span class="text-gray-500 text-sm font-medium">Task owner:</span>
                         </div>
                         <div class="flex-1">
                             <p class="font-medium text-gray-800">
-                                {% if task.assigned_by %}
-                                    {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}
+                                {% if task.assigned_by.all %}
+                                    {% for owner in task.assigned_by.all %}
+                                        {{ owner.get_full_name|default:owner.username }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
                                 {% else %}
                                     Saurav
                                 {% endif %}

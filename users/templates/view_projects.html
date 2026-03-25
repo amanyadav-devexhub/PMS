@@ -51,11 +51,6 @@
         </button>
     </div>
 
-    <!-- Results Info -->
-    <div id="resultsInfo" class="mb-4 text-sm text-gray-600">
-        Showing <span id="projectCount">{{ projects|length }}</span> projects
-    </div>
-
     <!-- Card -->
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
 
@@ -78,11 +73,9 @@
                         <td class="px-6 py-4 text-sm text-gray-700">
                             {{ forloop.counter }}
                         </td>
-
                         <td class="px-6 py-4 text-sm font-medium text-gray-800">
                             {{ project.name }}
                         </td>
-
                         <td class="px-6 py-4 text-sm text-gray-700">
                             {% if project.assigned_to.all %}
                                 {% for user in project.assigned_to.all %}
@@ -92,7 +85,6 @@
                                 Not assigned
                             {% endif %}
                         </td>
-
                         <td class="px-6 py-4">
                             {% if project.status == "PENDING" %}
                                 <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
@@ -108,7 +100,6 @@
                                 </span>
                             {% endif %}
                         </td>
-
                         <td class="px-6 py-4 text-center space-x-2">
                             <a href="{% url 'view_project_detail' project.id %}"
                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
@@ -135,25 +126,43 @@
         </div>
     </div>
 
-    <!-- Pagination -->
-    <div class="flex justify-between items-center mt-6">
-        <p class="text-sm text-gray-600" id="paginationInfo">
-            Showing <span id="showingCount">{{ projects|length }}</span> projects
-        </p>
-
-        <div class="flex gap-2">
-            <button id="prevPage" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Previous
+    <!-- Pagination Controls -->
+    <div class="mt-6 flex justify-between items-center">
+        <div class="text-sm text-gray-600" id="showingInfo">
+            Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> projects
+        </div>
+        
+        <div class="flex gap-2 items-center">
+            <!-- Page Size Selector -->
+            <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+            
+            <!-- Pagination Buttons -->
+            <button id="prevPageBtn" 
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                ← Prev
             </button>
-            <button id="nextPage" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Next
+            
+            <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+                Page 1 of 1
+            </span>
+            
+            <button id="nextPageBtn" 
+                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                Next →
             </button>
         </div>
     </div>
 
 </div>
 
-<!-- AJAX JavaScript -->
+<!-- AJAX JavaScript with Pagination -->
 <script>
     // Get CSRF token from cookie
     function getCookie(name) {
@@ -173,10 +182,11 @@
     
     const csrftoken = getCookie('csrftoken');
     
-    let currentSearchQuery = '{{ search_query }}';
-    let currentProjects = [];
+    // Pagination variables
     let currentPage = 1;
-    let itemsPerPage = 10;
+    let currentPageSize = 10;
+    let currentSearchQuery = '';
+    let currentProjects = [];
 
     // Function to show notification
     function showNotification(message, type = 'success') {
@@ -204,10 +214,7 @@
             </div>
         `;
         notificationContainer.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 5000);
+        setTimeout(() => notification.remove(), 5000);
     }
     
     // Helper function to escape HTML
@@ -218,14 +225,20 @@
         return div.innerHTML;
     }
 
-    // Function to load projects via AJAX
-    async function loadProjects(search = '') {
+    // Function to load projects via AJAX with pagination
+    async function loadProjects(search = '', page = 1, pageSize = 10) {
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.classList.remove('hidden');
         
         try {
             const url = new URL(window.location.href);
-            url.searchParams.set('search', search);
+            if (search) {
+                url.searchParams.set('search', search);
+            } else {
+                url.searchParams.delete('search');
+            }
+            url.searchParams.set('page', page);
+            url.searchParams.set('page_size', pageSize);
             
             const response = await fetch(url, {
                 method: 'GET',
@@ -239,15 +252,27 @@
             if (data.success) {
                 currentProjects = data.projects;
                 currentSearchQuery = data.search_query;
-                currentPage = 1;
+                currentPage = data.current_page;
+                currentPageSize = data.page_size;
                 
-                renderProjectsTable();
-                updatePagination();
-                updateSearchUI();
+                renderProjectsTable(data.projects);
+                updatePaginationUI(data);
                 
-                // Update results info
-                document.getElementById('projectCount').textContent = data.total;
-                document.getElementById('showingCount').textContent = data.total;
+                // Update showing info
+                const startIndex = (data.current_page - 1) * data.page_size + 1;
+                const endIndex = Math.min(data.current_page * data.page_size, data.total);
+                const showingInfo = document.getElementById('showingInfo');
+                if (showingInfo) {
+                    showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total} projects`;
+                }
+                
+                // Update clear button visibility
+                const clearBtn = document.getElementById('clearSearchBtn');
+                if (data.search_query) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
             }
         } catch (error) {
             console.error('Error:', error);
@@ -258,13 +283,10 @@
     }
     
     // Function to render projects table
-    function renderProjectsTable() {
+    function renderProjectsTable(projects) {
         const tableBody = document.getElementById('projects-table-body');
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const pageProjects = currentProjects.slice(startIndex, endIndex);
         
-        if (pageProjects.length === 0 && currentProjects.length === 0) {
+        if (!projects || projects.length === 0) {
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="5" class="text-center py-6 text-gray-500">
@@ -275,21 +297,10 @@
             return;
         }
         
-        if (pageProjects.length === 0 && currentProjects.length > 0) {
-            if (currentPage > 1) {
-                currentPage--;
-                renderProjectsTable();
-                updatePagination();
-            }
-            return;
-        }
-        
         let html = '';
-        pageProjects.forEach((project, index) => {
-            const counter = startIndex + index + 1;
-            // Use the correct URLs based on your urlpatterns
+        projects.forEach((project, index) => {
+            const counter = (currentPage - 1) * currentPageSize + index + 1;
             const viewDetailUrl = `/view_project_detail/${project.id}/`;
-            const deleteUrl = `/delete_project/${project.id}/`;
             
             html += `
                 <tr class="hover:bg-gray-50 transition" id="project-row-${project.id}">
@@ -326,36 +337,28 @@
         tableBody.innerHTML = html;
     }
     
-    // Function to update pagination buttons
-    function updatePagination() {
-        const totalPages = Math.ceil(currentProjects.length / itemsPerPage);
-        const prevBtn = document.getElementById('prevPage');
-        const nextBtn = document.getElementById('nextPage');
+    // Function to update pagination UI
+    function updatePaginationUI(data) {
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
         
         if (prevBtn) {
-            prevBtn.disabled = currentPage <= 1;
+            prevBtn.disabled = !data.has_previous;
+            if (data.has_previous) {
+                prevBtn.onclick = () => loadProjects(currentSearchQuery, data.previous_page_number, currentPageSize);
+            }
         }
+        
         if (nextBtn) {
-            nextBtn.disabled = currentPage >= totalPages;
+            nextBtn.disabled = !data.has_next;
+            if (data.has_next) {
+                nextBtn.onclick = () => loadProjects(currentSearchQuery, data.next_page_number, currentPageSize);
+            }
         }
         
-        const paginationDiv = document.querySelector('.flex.gap-2');
-        if (paginationDiv) {
-            paginationDiv.style.display = totalPages <= 1 ? 'none' : 'flex';
-        }
-    }
-    
-    // Function to update search UI
-    function updateSearchUI() {
-        const searchInput = document.getElementById('searchInput');
-        const clearBtn = document.getElementById('clearSearchBtn');
-        
-        if (currentSearchQuery) {
-            searchInput.value = currentSearchQuery;
-            clearBtn.classList.remove('hidden');
-        } else {
-            searchInput.value = '';
-            clearBtn.classList.add('hidden');
+        if (pageIndicator) {
+            pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
         }
     }
     
@@ -385,26 +388,8 @@
         .then(data => {
             if (data.success) {
                 showNotification('✅ ' + data.message, 'success');
-                
-                // Remove from currentProjects array
-                currentProjects = currentProjects.filter(p => p.id !== projectId);
-                
-                // Update counts
-                document.getElementById('projectCount').textContent = currentProjects.length;
-                document.getElementById('showingCount').textContent = currentProjects.length;
-                
-                // Re-render table
-                if (currentProjects.length === 0) {
-                    renderProjectsTable();
-                } else {
-                    // Adjust current page if needed
-                    const totalPages = Math.ceil(currentProjects.length / itemsPerPage);
-                    if (currentPage > totalPages) {
-                        currentPage = totalPages;
-                    }
-                    renderProjectsTable();
-                    updatePagination();
-                }
+                // Reload current page after deletion
+                loadProjects(currentSearchQuery, currentPage, currentPageSize);
             } else {
                 showNotification('❌ ' + (data.error || 'Something went wrong'), 'error');
                 resetDeleteButton(btn, originalText);
@@ -430,29 +415,16 @@
         const searchInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('searchBtn');
         const clearBtn = document.getElementById('clearSearchBtn');
-        const prevBtn = document.getElementById('prevPage');
-        const nextBtn = document.getElementById('nextPage');
+        const pageSizeSelect = document.getElementById('pageSizeSelect');
         
-        // Initialize projects from initial data
-        const initialProjects = [];
-        {% for project in projects %}
-        initialProjects.push({
-            id: {{ project.id }},
-            name: "{{ project.name|escapejs }}",
-            assigned_to_display: "{% for user in project.assigned_to.all %}{{ user.get_full_name|default:user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}",
-            status_display: "{{ project.get_status_display }}",
-            status_class: "{% if project.status == 'PENDING' %}bg-yellow-100 text-yellow-700{% elif project.status == 'ONGOING' %}bg-blue-100 text-blue-700{% else %}bg-green-100 text-green-700{% endif %}"
-        });
-        {% endfor %}
-        currentProjects = initialProjects;
-        renderProjectsTable();
-        updatePagination();
+        // Load initial projects
+        loadUsers('', 1, 10);
         
         // Search button click
         if (searchBtn) {
             searchBtn.addEventListener('click', function() {
                 const searchValue = searchInput.value.trim();
-                loadProjects(searchValue);
+                loadProjects(searchValue, 1, currentPageSize);
             });
         }
         
@@ -460,7 +432,7 @@
         if (clearBtn) {
             clearBtn.addEventListener('click', function() {
                 searchInput.value = '';
-                loadProjects('');
+                loadProjects('', 1, currentPageSize);
             });
         }
         
@@ -469,33 +441,24 @@
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     const searchValue = searchInput.value.trim();
-                    loadProjects(searchValue);
+                    loadProjects(searchValue, 1, currentPageSize);
                 }
             });
         }
         
-        // Pagination
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function() {
-                if (currentPage > 1) {
-                    currentPage--;
-                    renderProjectsTable();
-                    updatePagination();
-                }
-            });
-        }
-        
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function() {
-                const totalPages = Math.ceil(currentProjects.length / itemsPerPage);
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    renderProjectsTable();
-                    updatePagination();
-                }
+        // Page size change
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', function() {
+                currentPageSize = parseInt(this.value);
+                loadProjects(currentSearchQuery, 1, currentPageSize);
             });
         }
     });
+    
+    // Fix: rename function call in DOMContentLoaded
+    function loadUsers(search, page, pageSize) {
+        loadProjects(search, page, pageSize);
+    }
 </script>
 
 <style>
