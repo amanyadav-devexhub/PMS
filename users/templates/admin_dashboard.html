@@ -18,13 +18,16 @@
     {% if request.user.role|upper == "ADMIN" or request.user.is_superuser %}
     <!-- Welcome Header with Gradient -->
     <div class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
+<div class="space-y-6" id="dashboardContent" style="display: none;">
+    <!-- Welcome Header - Will be populated by JavaScript -->
+    <div id="welcomeHeader" class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
         <div class="flex justify-between items-center">
             <div>
-                <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👑</h1>
-                <p class="text-orange-100 text-lg">System Administrator • Full access to all modules</p>
+                <h1 class="text-3xl font-bold mb-2" id="welcomeTitle">Welcome back! 👑</h1>
+                <p class="text-orange-100 text-lg" id="userRoleText">System Administrator • Full access to all modules</p>
             </div>
             <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
+                <p class="text-sm opacity-90" id="lastLoginText">Loading...</p>
             </div>
         </div>
     </div>
@@ -35,13 +38,12 @@
 
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <!-- Total Users -->
         <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 hover:shadow-xl transition duration-300">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Users</p>
-                    <h3 id="totalUsers" class="text-3xl font-bold text-gray-800">{{ total_users|default:"0" }}</h3>
-                    <p id="activeUsersText" class="text-green-500 text-sm mt-2">{{ active_users|default:"0" }} active now</p>
+                    <h3 id="totalUsers" class="text-3xl font-bold text-gray-800">0</h3>
+                    <p id="activeUsersText" class="text-green-500 text-sm mt-2">0 active now</p>
                 </div>
                 <div class="bg-orange-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,13 +53,12 @@
             </div>
         </div>
 
-        <!-- Total Projects -->
         <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition duration-300">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Projects</p>
-                    <h3 id="totalProjects" class="text-3xl font-bold text-gray-800">{{ total_projects|default:"0" }}</h3>
-                    <p id="ongoingProjectsText" class="text-blue-500 text-sm mt-2">{{ ongoing_projects|default:"0" }} in progress</p>
+                    <h3 id="totalProjects" class="text-3xl font-bold text-gray-800">0</h3>
+                    <p id="ongoingProjectsText" class="text-blue-500 text-sm mt-2">0 in progress</p>
                 </div>
                 <div class="bg-blue-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,13 +68,12 @@
             </div>
         </div>
 
-        <!-- Total Tasks -->
         <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition duration-300">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Total Tasks</p>
-                    <h3 id="totalTasks" class="text-3xl font-bold text-gray-800">{{ total_tasks|default:"0" }}</h3>
-                    <p id="completedTasksText" class="text-green-500 text-sm mt-2">{{ completed_tasks|default:"0" }} completed</p>
+                    <h3 id="totalTasks" class="text-3xl font-bold text-gray-800">0</h3>
+                    <p id="completedTasksText" class="text-green-500 text-sm mt-2">0 completed</p>
                 </div>
                 <div class="bg-green-100 p-3 rounded-full">
                     <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,14 +136,14 @@
         </a>
     </div>
 
-    <!-- Users Table with Stats -->
+    <!-- Users Table -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
         <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
             <div class="flex justify-between items-center">
                 <h3 class="text-xl font-bold text-white">User Management</h3>
                 <div class="flex space-x-2">
-                    <span id="activeBadge" class="bg-green-500 text-white px-3 py-1 rounded-full text-xs">Active: {{ active_users|default:"0" }}</span>
-                    <span id="inactiveBadge" class="bg-red-500 text-white px-3 py-1 rounded-full text-xs">Inactive: {{ inactive_users|default:"0" }}</span>
+                    <span id="activeBadge" class="bg-green-500 text-white px-3 py-1 rounded-full text-xs">Active: 0</span>
+                    <span id="inactiveBadge" class="bg-red-500 text-white px-3 py-1 rounded-full text-xs">Inactive: 0</span>
                 </div>
             </div>
         </div>
@@ -161,55 +161,13 @@
                         </tr>
                     </thead>
                     <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
-                        {% for user in users %}
-                        <tr class="hover:bg-gray-50 transition" id="user-row-{{ user.id }}">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                                        {{ user.username|slice:":1"|upper }}
-                                    </div>
-                                    <div>
-                                        <div class="text-sm font-medium text-gray-900">{{ user.username }}</div>
-                                        <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
-                                    </div>
-                                </div>
-                             </div>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.email }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 py-1 text-xs rounded-full 
-                                    {% if user.role == 'ADMIN' %}bg-purple-100 text-purple-800
-                                    {% elif user.role == 'TEAM_LEAD' %}bg-blue-100 text-blue-800
-                                    {% else %}bg-green-100 text-green-800{% endif %}">
-                                    {{ user.role }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 py-1 text-xs rounded-full {% if user.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <div class="flex space-x-2">
-                                    <a href="{% url 'edit_user' user.id %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition">Edit</a>
-                                    <a href="{% url 'delete_user' user.id %}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition" onclick="return confirm('Delete user {{ user.username }}?')">Delete</a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td>
-                        </tr>
-                        {% endfor %}
+                        <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Loading users...</td></tr>
                     </tbody>
                 </table>
             </div>
             
-            <!-- Users Table Pagination -->
             <div class="mt-4 flex justify-between items-center">
-                <div class="text-sm text-gray-600" id="usersShowingInfo">
-                    Showing <span id="usersStartCount">0</span> - <span id="usersEndCount">0</span> of <span id="usersTotalCount">0</span> users
-                </div>
-                
+                <div class="text-sm text-gray-600" id="usersShowingInfo">Showing 0 - 0 of 0 users</div>
                 <div class="flex gap-2 items-center">
                     <select id="usersPageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
                         <option value="10">10 per page</option>
@@ -217,22 +175,9 @@
                         <option value="50">50 per page</option>
                         <option value="100">100 per page</option>
                     </select>
-                    
-                    <button id="usersPrevPageBtn" 
-                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                            disabled>
-                        ← Prev
-                    </button>
-                    
-                    <span id="usersPageIndicator" class="text-sm text-gray-600 mx-2">
-                        Page 1 of 1
-                    </span>
-                    
-                    <button id="usersNextPageBtn" 
-                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                            disabled>
-                        Next →
-                    </button>
+                    <button id="usersPrevPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>← Prev</button>
+                    <span id="usersPageIndicator" class="text-sm text-gray-600 mx-2">Page 1 of 1</span>
+                    <button id="usersNextPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>Next →</button>
                 </div>
             </div>
         </div>
@@ -240,95 +185,78 @@
 
     <!-- Recent Activity Section -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Recent Projects -->
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-bold text-gray-800">Recent Projects</h3>
                 <a href="{% url 'view_projects' %}" class="text-blue-600 hover:text-blue-800 text-sm">View All →</a>
             </div>
-            <div id="recentProjectsContainer" class="space-y-3">
-                {% for project in recent_projects|slice:":5" %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <div>
-                        <h4 class="font-semibold text-gray-800">{{ project.name }}</h4>
-                        <p class="text-xs text-gray-500">Deadline: {{ project.end_date|date:"M d, Y" }}</p>
-                    </div>
-                    <span class="px-2 py-1 text-xs rounded-full 
-                        {% if project.status == 'ONGOING' %}bg-green-100 text-green-700
-                        {% elif project.status == 'PENDING' %}bg-yellow-100 text-yellow-700
-                        {% else %}bg-blue-100 text-blue-700{% endif %}">
-                        {{ project.status }}
-                    </span>
-                </div>
-                {% empty %}
-                <p class="text-gray-500 text-center py-4">No projects yet</p>
-                {% endfor %}
-            </div>
+            <div id="recentProjectsContainer" class="space-y-3"><p class="text-gray-500 text-center py-4">Loading projects...</p></div>
         </div>
 
-        <!-- Recent Tasks -->
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-bold text-gray-800">Recent Tasks</h3>
                 <a href="{% url 'task_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm">View All →</a>
             </div>
-            <div id="recentTasksContainer" class="space-y-3">
-                {% for task in recent_tasks|slice:":5" %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <div>
-                        <h4 class="font-semibold text-gray-800">{{ task.name }}</h4>
-                        <p class="text-xs text-gray-500">
-                            Assigned to: 
-                            {% if task.assigned_to.all %}
-                                {% for assignee in task.assigned_to.all %}
-                                    {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                Unassigned
-                            {% endif %}
-                        </p>
-                    </div>
-                    <span class="px-2 py-1 text-xs rounded-full 
-                        {% if task.status == 'ONGOING' %}bg-yellow-100 text-yellow-700
-                        {% elif task.status == 'COMPLETED' %}bg-green-100 text-green-700
-                        {% else %}bg-blue-100 text-blue-700{% endif %}">
-                        {{ task.get_status_display }}
-                    </span>
-                </div>
-                {% empty %}
-                <p class="text-gray-500 text-center py-4">No tasks yet</p>
-                {% endfor %}
-            </div>
+            <div id="recentTasksContainer" class="space-y-3"><p class="text-gray-500 text-center py-4">Loading tasks...</p></div>
         </div>
     </div>
-    {% endif %}
-
 </div>
 
-<!-- AJAX Script to Load Data with Users Pagination -->
 <script>
-// Get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+// ========== JWT AUTHENTICATION ==========
+function getAccessToken() {
+    return localStorage.getItem('access_token');
 }
 
-const csrftoken = getCookie('csrftoken');
+function authFetch(url, options = {}) {
+    const token = getAccessToken();
+    
+    if (!token) {
+        console.error('No token found');
+        window.location.href = '/render_login/';
+        return Promise.reject('No token');
+    }
+    
+    options.headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+    
+    return fetch(url, options).then(response => {
+        if (response.status === 401) {
+            console.error('Token expired/invalid');
+            localStorage.clear();
+            window.location.href = '/render_login/';
+            throw new Error('Unauthorized');
+        }
+        return response;
+    });
+}
 
-// Loading overlay
+// ========== CHECK AUTH ON PAGE LOAD ==========
+(function() {
+    const token = getAccessToken();
+    const username = localStorage.getItem('username');
+    const role = localStorage.getItem('user_role');
+    
+    console.log('🔍 Auth check:', { hasToken: !!token, username, role });
+    
+    if (!token || role !== 'ADMIN') {
+        window.location.href = '/render_login/';
+        return;
+    }
+    
+    // Show dashboard
+    document.getElementById('dashboardContent').style.display = 'block';
+    document.getElementById('welcomeTitle').innerHTML = `Welcome back, ${username}! 👑`;
+    document.getElementById('userRoleText').innerHTML = 'System Administrator • Full access to all modules';
+    document.getElementById('lastLoginText').innerHTML = `Logged in as ${username}`;
+})();
+
+// ========== LOAD DASHBOARD DATA ==========
 const loadingOverlay = document.getElementById('loadingOverlay');
-
-// Users table pagination variables
 let usersCurrentPage = 1;
 let usersCurrentPageSize = 10;
 
@@ -339,235 +267,139 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Function to load users table data
-function loadUsersTable(page = 1, pageSize = 10) {
+function loadDashboardData() {
+    loadingOverlay.classList.remove('hidden');
+    
+    authFetch(window.location.href, { method: 'GET' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Update stats
+                document.getElementById('totalUsers').innerText = data.stats.total_users;
+                document.getElementById('activeUsersText').innerHTML = `${data.stats.active_users} active now`;
+                document.getElementById('totalProjects').innerText = data.stats.total_projects;
+                document.getElementById('ongoingProjectsText').innerHTML = `${data.stats.ongoing_projects} in progress`;
+                document.getElementById('totalTasks').innerText = data.stats.total_tasks;
+                document.getElementById('completedTasksText').innerHTML = `${data.stats.completed_tasks} completed`;
+                document.getElementById('activeBadge').innerHTML = `Active: ${data.stats.active_users}`;
+                document.getElementById('inactiveBadge').innerHTML = `Inactive: ${data.stats.inactive_users}`;
+                
+                // Update recent projects
+                const projectsContainer = document.getElementById('recentProjectsContainer');
+                if (projectsContainer && data.recent_projects.length > 0) {
+                    projectsContainer.innerHTML = '';
+                    data.recent_projects.forEach(project => {
+                        let statusClass = project.status === 'ONGOING' ? 'bg-green-100 text-green-700' : 
+                                         project.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 
+                                         'bg-blue-100 text-blue-700';
+                        projectsContainer.innerHTML += `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div><h4 class="font-semibold text-gray-800">${escapeHtml(project.name)}</h4>
+                                <p class="text-xs text-gray-500">Deadline: ${escapeHtml(project.end_date)}</p></div>
+                                <span class="px-2 py-1 text-xs rounded-full ${statusClass}">${escapeHtml(project.status)}</span>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Update recent tasks
+                const tasksContainer = document.getElementById('recentTasksContainer');
+                if (tasksContainer && data.recent_tasks.length > 0) {
+                    tasksContainer.innerHTML = '';
+                    data.recent_tasks.forEach(task => {
+                        let statusClass = task.status === 'ONGOING' ? 'bg-yellow-100 text-yellow-700' : 
+                                         task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
+                                         'bg-blue-100 text-blue-700';
+                        tasksContainer.innerHTML += `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div><h4 class="font-semibold text-gray-800">${escapeHtml(task.name)}</h4>
+                                <p class="text-xs text-gray-500">Assigned to: ${escapeHtml(task.assignees.join(', ') || 'Unassigned')}</p></div>
+                                <span class="px-2 py-1 text-xs rounded-full ${statusClass}">${escapeHtml(task.status_display)}</span>
+                            </div>
+                        `;
+                    });
+                }
+                
+                loadUsersTable(1, usersCurrentPageSize);
+            }
+            loadingOverlay.classList.add('hidden');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loadingOverlay.classList.add('hidden');
+        });
+}
+
+function loadUsersTable(page, pageSize) {
     const url = new URL(window.location.href);
     url.searchParams.set('users_page', page);
     url.searchParams.set('users_page_size', pageSize);
     
-    fetch(url, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            usersCurrentPage = data.users_pagination.current_page;
-            usersCurrentPageSize = data.users_pagination.page_size;
-            
-            // Update users table
-            renderUsersTable(data.users);
-            
-            // Update users pagination UI
-            updateUsersPaginationUI(data.users_pagination);
-            
-            // Update users showing info
-            const startIndex = (data.users_pagination.current_page - 1) * data.users_pagination.page_size + 1;
-            const endIndex = Math.min(data.users_pagination.current_page * data.users_pagination.page_size, data.users_pagination.total);
-            const usersShowingInfo = document.getElementById('usersShowingInfo');
-            if (usersShowingInfo) {
-                usersShowingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.users_pagination.total} users`;
+    authFetch(url, { method: 'GET' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                renderUsersTable(data.users);
+                updateUsersPaginationUI(data.users_pagination);
+                const start = (data.users_pagination.current_page - 1) * data.users_pagination.page_size + 1;
+                const end = Math.min(data.users_pagination.current_page * data.users_pagination.page_size, data.users_pagination.total);
+                document.getElementById('usersShowingInfo').innerHTML = `Showing ${start} - ${end} of ${data.users_pagination.total} users`;
             }
-            document.getElementById('usersStartCount').textContent = startIndex;
-            document.getElementById('usersEndCount').textContent = endIndex;
-            document.getElementById('usersTotalCount').textContent = data.users_pagination.total;
-        }
-    })
-    .catch(error => {
-        console.error('Error loading users:', error);
-    });
+        });
 }
 
 function renderUsersTable(users) {
-    const tableBody = document.getElementById('usersTableBody');
-    
+    const tbody = document.getElementById('usersTableBody');
     if (!users || users.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td></tr>';
         return;
     }
     
     let html = '';
     users.forEach(user => {
         const roleClass = user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 
-                         user.role === 'TEAM_LEAD' ? 'bg-blue-100 text-blue-800' : 
-                         'bg-green-100 text-green-800';
-        const statusClass = user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-        const statusText = user.is_active ? 'Active' : 'Inactive';
-        
+                         user.role === 'TEAM_LEAD' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
         html += `
-            <tr class="hover:bg-gray-50 transition" id="user-row-${user.id}">
+            <tr class="hover:bg-gray-50 transition">
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                            ${escapeHtml(user.username.charAt(0).toUpperCase())}
-                        </div>
-                        <div>
-                            <div class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</div>
-                            <div class="text-xs text-gray-500">ID: ${user.id}</div>
-                        </div>
+                        <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">${escapeHtml(user.username.charAt(0).toUpperCase())}</div>
+                        <div><div class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</div><div class="text-xs text-gray-500">ID: ${user.id}</div></div>
                     </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(user.email)}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs rounded-full ${roleClass}">
-                        ${escapeHtml(user.role)}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs rounded-full ${statusClass}">
-                        ${statusText}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <div class="flex space-x-2">
-                        <a href="${user.edit_url}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition">Edit</a>
-                        <a href="${user.delete_url}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition" onclick="return confirm('Delete user ${escapeHtml(user.username)}?')">Delete</a>
-                    </div>
-                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(user.email)}</td>
+                <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full ${roleClass}">${escapeHtml(user.role)}</span></td>
+                <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td class="px-6 py-4 text-sm"><div class="flex space-x-2"><a href="${user.edit_url}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition">Edit</a></div></td>
             </tr>
         `;
     });
-    
-    tableBody.innerHTML = html;
+    tbody.innerHTML = html;
 }
 
-function updateUsersPaginationUI(paginationData) {
+function updateUsersPaginationUI(pagination) {
     const prevBtn = document.getElementById('usersPrevPageBtn');
     const nextBtn = document.getElementById('usersNextPageBtn');
-    const pageIndicator = document.getElementById('usersPageIndicator');
-    
-    if (prevBtn) {
-        prevBtn.disabled = !paginationData.has_previous;
-        if (paginationData.has_previous) {
-            prevBtn.onclick = () => loadUsersTable(paginationData.previous_page_number, usersCurrentPageSize);
-        }
-    }
-    
-    if (nextBtn) {
-        nextBtn.disabled = !paginationData.has_next;
-        if (paginationData.has_next) {
-            nextBtn.onclick = () => loadUsersTable(paginationData.next_page_number, usersCurrentPageSize);
-        }
-    }
-    
-    if (pageIndicator) {
-        pageIndicator.textContent = `Page ${paginationData.current_page} of ${paginationData.total_pages}`;
-    }
+    document.getElementById('usersPageIndicator').textContent = `Page ${pagination.current_page} of ${pagination.total_pages}`;
+    prevBtn.disabled = !pagination.has_previous;
+    nextBtn.disabled = !pagination.has_next;
+    if (pagination.has_previous) prevBtn.onclick = () => loadUsersTable(pagination.previous_page_number, usersCurrentPageSize);
+    if (pagination.has_next) nextBtn.onclick = () => loadUsersTable(pagination.next_page_number, usersCurrentPageSize);
 }
 
-function loadDashboardData() {
-    loadingOverlay.classList.remove('hidden');
-    
-    fetch(window.location.href, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Update stats
-            document.getElementById('totalUsers').innerText = data.stats.total_users;
-            document.getElementById('activeUsersText').innerHTML = `${data.stats.active_users} active now`;
-            document.getElementById('totalProjects').innerText = data.stats.total_projects;
-            document.getElementById('ongoingProjectsText').innerHTML = `${data.stats.ongoing_projects} in progress`;
-            document.getElementById('totalTasks').innerText = data.stats.total_tasks;
-            document.getElementById('completedTasksText').innerHTML = `${data.stats.completed_tasks} completed`;
-            document.getElementById('activeBadge').innerHTML = `Active: ${data.stats.active_users}`;
-            document.getElementById('inactiveBadge').innerHTML = `Inactive: ${data.stats.inactive_users}`;
-            
-            // Update recent projects
-            const projectsContainer = document.getElementById('recentProjectsContainer');
-            if (projectsContainer && data.recent_projects.length > 0) {
-                projectsContainer.innerHTML = '';
-                data.recent_projects.forEach(project => {
-                    let statusClass = '';
-                    if (project.status === 'ONGOING') statusClass = 'bg-green-100 text-green-700';
-                    else if (project.status === 'PENDING') statusClass = 'bg-yellow-100 text-yellow-700';
-                    else statusClass = 'bg-blue-100 text-blue-700';
-                    
-                    projectsContainer.innerHTML += `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                            <div>
-                                <h4 class="font-semibold text-gray-800">${escapeHtml(project.name)}</h4>
-                                <p class="text-xs text-gray-500">Deadline: ${escapeHtml(project.end_date)}</p>
-                            </div>
-                            <span class="px-2 py-1 text-xs rounded-full ${statusClass}">
-                                ${escapeHtml(project.status)}
-                            </span>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Update recent tasks
-            const tasksContainer = document.getElementById('recentTasksContainer');
-            if (tasksContainer && data.recent_tasks.length > 0) {
-                tasksContainer.innerHTML = '';
-                data.recent_tasks.forEach(task => {
-                    let statusClass = '';
-                    if (task.status === 'ONGOING') statusClass = 'bg-yellow-100 text-yellow-700';
-                    else if (task.status === 'COMPLETED') statusClass = 'bg-green-100 text-green-700';
-                    else statusClass = 'bg-blue-100 text-blue-700';
-                    
-                    const assigneesText = task.assignees.length > 0 ? task.assignees.join(', ') : 'Unassigned';
-                    
-                    tasksContainer.innerHTML += `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                            <div>
-                                <h4 class="font-semibold text-gray-800">${escapeHtml(task.name)}</h4>
-                                <p class="text-xs text-gray-500">Assigned to: ${escapeHtml(assigneesText)}</p>
-                            </div>
-                            <span class="px-2 py-1 text-xs rounded-full ${statusClass}">
-                                ${escapeHtml(task.status_display)}
-                            </span>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Load users table with current pagination
-            loadUsersTable(1, usersCurrentPageSize);
-        }
-        loadingOverlay.classList.add('hidden');
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        loadingOverlay.classList.add('hidden');
-    });
-}
-
-// Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Users table page size change
-    const usersPageSizeSelect = document.getElementById('usersPageSizeSelect');
-    if (usersPageSizeSelect) {
-        usersPageSizeSelect.addEventListener('change', function() {
-            usersCurrentPageSize = parseInt(this.value);
-            loadUsersTable(1, usersCurrentPageSize);
-        });
-    }
-    
-    // Load dashboard data on page load only (no auto-refresh)
+    document.getElementById('usersPageSizeSelect').addEventListener('change', function(e) {
+        usersCurrentPageSize = parseInt(e.target.value);
+        loadUsersTable(1, usersCurrentPageSize);
+    });
     loadDashboardData();
 });
 </script>
 
 <style>
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-    
-    .animate-spin {
-        animation: spin 1s linear infinite;
-    }
-    
-    #loadingOverlay {
-        transition: all 0.3s ease;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+    #loadingOverlay { transition: all 0.3s ease; }
 </style>
 
 {% endblock %}

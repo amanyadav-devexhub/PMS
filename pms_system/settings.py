@@ -44,7 +44,10 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'rest_framework',
     'rest_framework_simplejwt',
+<<<<<<< HEAD
     'rest_framework_simplejwt.token_blacklist',
+=======
+>>>>>>> 28dba003ea38fec27b8a5ea2e9d0e09c10c07b0d
 ]
 
 MIDDLEWARE = [
