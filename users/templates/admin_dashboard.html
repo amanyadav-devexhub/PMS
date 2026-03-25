@@ -12,6 +12,12 @@
     </div>
 </div>
 
+<div class="space-y-6">
+
+    <!-- ================= ADMIN DASHBOARD ================= -->
+    {% if request.user.role|upper == "ADMIN" or request.user.is_superuser %}
+    <!-- Welcome Header with Gradient -->
+    <div class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
 <div class="space-y-6" id="dashboardContent" style="display: none;">
     <!-- Welcome Header - Will be populated by JavaScript -->
     <div id="welcomeHeader" class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">

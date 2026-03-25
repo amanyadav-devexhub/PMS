@@ -27,7 +27,7 @@
             {% if request.user.is_authenticated %}
                 <!-- Dashboard - Role Based (Simpler) -->
             <a href="
-                {% if request.user.role == 'ADMIN' %}
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
                     {% url 'admin_dashboard' %}
                 {% elif request.user.role == 'TEAM_LEAD' %}
                     {% url 'teamlead_dashboard' %}
@@ -40,7 +40,7 @@
             Dashboard
             </a>
 
-                {% if request.user.role == 'ADMIN' %}
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
                      <!-- <a href="{% url 'create_user' %}" 
                        class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                        Create User

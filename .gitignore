@@ -44,3 +44,9 @@ Thumbs.db
 *.pdf
 # Postman collections
 *.postman_collection.json
+venv/
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+media/

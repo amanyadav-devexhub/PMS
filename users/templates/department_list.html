@@ -9,7 +9,7 @@
     <!-- Header with Create button -->
     <div class="flex justify-between items-center mb-4">
         <h2 class="text-2xl font-bold text-gray-700">Departments</h2>
-        {% if request.user.role == 'ADMIN' %}
+        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
         <button id="toggleCreateForm" 
                 class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow transition">
             + Create Department
