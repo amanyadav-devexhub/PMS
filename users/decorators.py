@@ -6,6 +6,7 @@ from django.urls import reverse
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
 from django.contrib.auth import get_user_model
+from django.views.decorators.csrf import csrf_exempt
 
 User = get_user_model()
 
@@ -85,3 +86,60 @@ def allowed_roles(allowed_roles=[]):
             return view_func(request, *args, **kwargs)
         return wrapped_view
     return decorator
+
+
+
+
+
+
+
+
+
+
+
+
+# users/decorators.py - Add this new decorator
+
+def jwt_required(view_func):
+    """
+    PURE JWT authentication - NO session fallback
+    Extracts token from URL (for page loads) or Authorization header (for AJAX)
+    """
+    @wraps(view_func)
+    @csrf_exempt
+    def wrapped_view(request, *args, **kwargs):
+        # Try to get token from URL first (for page loads)
+        token = request.GET.get('token')
+        
+        # If not in URL, try Authorization header (for AJAX)
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+        
+        # If no token found, redirect to login
+        if not token:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Authentication required. No token provided.'
+                }, status=401)
+            return redirect('/render_login/')
+        
+        # Validate JWT token
+        auth = JWTAuthentication()
+        try:
+            validated_token = auth.get_validated_token(token)
+            user = auth.get_user(validated_token)
+            request.user = user
+        except (InvalidToken, AuthenticationFailed) as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid token: {str(e)}'
+                }, status=401)
+            return redirect('/render_login/')
+        
+        return view_func(request, *args, **kwargs)
+    
+    return wrapped_view

@@ -119,18 +119,11 @@
     </aside>
     <!-- ================= END SIDEBAR ================= -->
 
-
-
     <!-- ================= MAIN AREA ================= -->
     <div class="flex-1 flex flex-col">
 
         <!-- Topbar -->
         <header class="bg-white shadow p-4 flex justify-between items-center">
-
-            <!-- <button onclick="window.history.back()"
-                class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition">
-                    <span>←</span> <span>Back</span>
-            </button> -->
 
             <h2 class="text-xl font-semibold text-gray-800">
                 {% block page_title %}Dashboard{% endblock %}
@@ -141,50 +134,33 @@
                 <!-- Notification Bell -->
                 <div class="relative cursor-pointer" id="notificationBell">
                     <span class="text-xl">🔔</span>
-                    {% if unread_notifications_count > 0 %}
-                    <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
-                        {{ unread_notifications_count }}
-                    </span>
-                    {% endif %}
+                    <span id="notificationCount" class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full hidden">0</span>
                 </div>
 
                 <!-- Notification Dropdown Panel -->
-                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg overflow-hidden z-50">
+                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg overflow-hidden z-50" style="top: 70px;">
                     <div class="p-3 border-b font-semibold text-gray-700 text-sm">Notifications</div>
-                    <ul class="max-h-48 overflow-y-auto">
-                        {% for notif in recent_notifications|slice:":1" %}
-                        <li class="border-b last:border-b-0 {% if not notif.is_read %}bg-blue-50{% endif %}">
-                            <a href="{% url 'mark_as_read' notif.id %}" class="block p-3 hover:bg-gray-50">
-                                <p class="text-xs text-gray-800 {% if not notif.is_read %}font-semibold{% endif %} leading-tight">
-                                    {{ notif.message|truncatechars:40 }}
-                                </p>
-                                <p class="text-xs text-gray-400 mt-1">{{ notif.created_at|date:"M d, H:i" }}</p>
-                            </a>
-                        </li>
-                        {% empty %}
-                        <li class="p-4 text-center">
-                            <p class="text-xs text-gray-500">No notifications</p>
-                        </li>
-                        {% endfor %}
+                    <ul id="notificationList" class="max-h-48 overflow-y-auto">
+                        <li class="p-4 text-center text-gray-500 text-xs">Loading...</li>
                     </ul>
-                    <a href="{% url 'all_notifications' %}" class="block p-2 bg-gray-100 text-center text-xs text-gray-700 hover:bg-gray-200">
+                    <a href="#" id="viewAllNotifications" class="block p-2 bg-gray-100 text-center text-xs text-gray-700 hover:bg-gray-200">
                         View All
                     </a>
                 </div>
 
                 <!-- User Info -->
                 <div class="flex items-center space-x-2">
-                    <img src="https://i.pravatar.cc/40" 
-                         class="rounded-full w-10 h-10" 
-                         alt="User">
-                    <span class="font-medium">
-                        {{ request.user.username }}
-                    </span>
+                    <img src="https://i.pravatar.cc/40" class="rounded-full w-10 h-10" alt="User">
+                    <span id="userName" class="font-medium">Loading...</span>
                 </div>
+
+                <!-- Logout Button -->
+                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                    Logout
+                </button>
 
             </div>
         </header>
-
 
         <!-- Content Area -->
         <main class="p-6 overflow-y-auto flex-1">
@@ -197,7 +173,6 @@
     <!-- ================= END MAIN AREA ================= -->
 
 </div>
-
 
 <script>
     function getCSRFToken() {

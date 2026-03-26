@@ -52,58 +52,34 @@ def ajax_login(request):
     """JWT login endpoint for browser and API clients."""
     
     if request.method != "POST":
-        return JsonResponse(
-            {"status": "error", "error": "Invalid request method"},
-            status=405
-        )
+        return JsonResponse({"status": "error", "error": "Invalid request method"}, status=405)
 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse(
-            {"status": "error", "error": "Invalid JSON"},
-            status=400
-        )
+        return JsonResponse({"status": "error", "error": "Invalid JSON"}, status=400)
 
     email = data.get("email")
     password = data.get("password")
 
-    if not email:
-        return JsonResponse(
-            {"status": "error", "error": "Email is required"},
-            status=400
-        )
-
-    if not password:
-        return JsonResponse(
-            {"status": "error", "error": "Password is required"},
-            status=400
-        )
+    if not email or not password:
+        return JsonResponse({"status": "error", "error": "Email and password required"}, status=400)
     
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        return JsonResponse(
-            {"status": "error", "error": "Email does not exist"},
-            status=401
-        )
+        return JsonResponse({"status": "error", "error": "Email does not exist"}, status=401)
     
     if not user.is_active:
-        return JsonResponse(
-            {"status": "error", "error": "Your account is inactive. Please contact the administrator."},
-            status=403
-        )
+        return JsonResponse({"status": "error", "error": "Account is inactive"}, status=403)
 
-    # Authenticate user
+    # Authenticate
     user = authenticate(request, username=email, password=password)
 
     if user is None:
-        return JsonResponse(
-            {"status": "error", "error": "Incorrect password"},
-            status=401
-        )
+        return JsonResponse({"status": "error", "error": "Incorrect password"}, status=401)
 
-    # Set role for superuser if empty
+    # Set role for superuser
     if user.is_superuser and not user.role:
         user.role = 'ADMIN'
         user.save()
@@ -126,8 +102,6 @@ def ajax_login(request):
             "username": user.username,
             "email": user.email,
             "role": user.role,
-            "first_name": user.first_name,
-            "last_name": user.last_name
         }
     })
 
@@ -138,6 +112,11 @@ def ajax_login(request):
     
     return response
 
+    # Cookie support for browser page loads (JWT-only auth, no sessions).
+    secure_cookie = not settings.DEBUG
+    response.set_cookie('access_token', access_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    response.set_cookie('refresh_token', refresh_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    return response
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -146,7 +125,7 @@ from rest_framework.response import Response
 
 ## View Projects
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-@jwt_or_session_required
+@jwt_required
 def view_projects(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -275,7 +254,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.exceptions import ValidationError
 
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
 @csrf_exempt
 def edit_projects(request, project_id):
@@ -403,7 +382,7 @@ def edit_projects(request, project_id):
         "project": project
     })
 
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 @csrf_exempt
 def edit_task(request, task_id):
@@ -487,7 +466,7 @@ def edit_task(request, task_id):
 
 
 ## delete task
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
 @csrf_exempt
 def delete_task(request, task_id):
@@ -522,7 +501,7 @@ def delete_task(request, task_id):
 
 
 ### view_project_details
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD", "EMPLOYEE"])
 def view_project_detail(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
@@ -654,7 +633,7 @@ def view_project_detail(request, project_id):
 
 ## View Users detail
 from users.models import UserProfile
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN"])
 def view_user_details(request, user_id):
     # Only allow GET requests for this view
@@ -716,8 +695,7 @@ def view_user_details(request, user_id):
     })
 
 ## Add project resource
-@jwt_or_session_required
-@csrf_exempt
+@jwt_required
 def add_project_resource(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
 
@@ -767,7 +745,7 @@ def add_project_resource(request, project_id):
 
 
 ## delete Projects
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["TEAM_LEAD", "ADMIN"])
 @csrf_exempt
 def delete_project(request, id):
@@ -815,7 +793,7 @@ def login_page(request):
 
 
 ## Dashboard view
-@jwt_or_session_required
+@jwt_required
 def dashboard(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -888,7 +866,7 @@ def dashboard(request):
 
 
 ## logout
-@csrf_exempt
+@jwt_required
 def logout_view(request):
     refresh_token = None
     
@@ -945,7 +923,7 @@ from .models import User
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 ## Admin dashboard 
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN"])
 def admin_dashboard(request):
     # Handle AJAX request
@@ -1055,7 +1033,7 @@ def admin_dashboard(request):
 
 # teamlead dashboard
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["TEAM_LEAD"])
 def teamlead_dashboard(request):
     # Handle AJAX request
@@ -1158,7 +1136,7 @@ def teamlead_dashboard(request):
 
 
 ## employee dashboard
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 @csrf_exempt
 def employee_dashboard(request):
@@ -1360,7 +1338,7 @@ If you did not register on our site, please ignore this email.
     )
 
 ## Edit User - Admin only
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 @csrf_exempt
 def edit_user(request, user_id):
@@ -1450,7 +1428,7 @@ from django.db.models import Q
 
 ## Admin view users
 @csrf_exempt
-@jwt_or_session_required
+@jwt_required
 def admin_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1522,7 +1500,7 @@ def admin_view_users(request):
 
 ## Team lead view users
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-@jwt_or_session_required
+@jwt_required
 def teamlead_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1782,7 +1760,7 @@ def create_user(request):
 
 ## delete user
 from django.shortcuts import get_object_or_404
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["ADMIN"])
 def delete_user(request, user_id):
     user_to_delete = get_object_or_404(User, id=user_id)
@@ -1821,7 +1799,7 @@ from projects.models import Projects
 from Tasks.models import Task
 from Tasks.forms import TaskForm 
 ## Assign Task
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["TEAM_LEAD","ADMIN"])
 @csrf_exempt
 def assign_task(request):
@@ -1942,7 +1920,7 @@ def assign_task(request):
 from projects.forms import  ProjectResourceFormSet
 from users.forms import ProjectForm
 ## Create Project
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(["ADMIN", "TEAM_LEAD"])
 @csrf_exempt
 def create_project(request):
@@ -2123,7 +2101,7 @@ def create_project(request):
 
 ## task_dashboard
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN", "TEAM_LEAD"])
 def task_dashboard(request):
     """Task dashboard showing all tasks in list view"""
@@ -2359,7 +2337,7 @@ def task_dashboard(request):
 
 ## TaskSummary 
 from django.http import JsonResponse
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 @csrf_exempt
 def add_task_summary(request, task_id):
@@ -2423,7 +2401,7 @@ def add_task_summary(request, task_id):
 
 import math
 ## employee task
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "TEAM_LEAD", "ADMIN"])
 def employee_tasks(request):
     task_id = request.GET.get('task_id')
@@ -2575,9 +2553,9 @@ def employee_tasks(request):
 
 
 ## update task status
-# @jwt_or_session_required
-# @allowed_roles(allowed_roles=["EMPLOYEE"])
-# def update_task_status(request, task_id):
+@jwt_required
+@allowed_roles(allowed_roles=["EMPLOYEE"])
+def update_task_status(request, task_id):
 
 #     task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
@@ -2606,8 +2584,7 @@ from django.utils import timezone
 from django.urls import reverse
 import datetime
 ## START TASK - AJAX VERSION
-@jwt_or_session_required
-@csrf_exempt
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def start_task(request, task_id):
     """Start a task - AJAX enabled"""
@@ -2648,7 +2625,7 @@ def start_task(request, task_id):
 
 
 ## PAUSE TASK - AJAX VERSION
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 @csrf_exempt
 def pause_task(request, task_id):
@@ -2687,7 +2664,7 @@ def pause_task(request, task_id):
 
 
 ## RESUME TASK - AJAX VERSION
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 @csrf_exempt
 def resume_task(request, task_id):
@@ -2727,7 +2704,7 @@ def resume_task(request, task_id):
 
 
 ## COMPLETE TASK - AJAX VERSION
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 @csrf_exempt
 def complete_task(request, task_id):
@@ -2837,7 +2814,7 @@ def departments(request):
 ## Create departments
 from django.http import JsonResponse
 
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 @csrf_exempt
 def create_department(request):
@@ -2864,7 +2841,7 @@ def create_department(request):
 
 
 # Show all users in a department
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 def department_detail(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
@@ -2896,7 +2873,7 @@ def department_detail(request, dept_id):
 
 
 ## delete_department
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 @csrf_exempt
 def delete_department(request, dept_id):
@@ -2945,7 +2922,7 @@ def designations(request):
 
 
 
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 @csrf_exempt
 def create_designation(request):
@@ -3008,7 +2985,7 @@ def designation_detail(request, desig_id):
 
 
 ## delete designation
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 def delete_designation(request, desig_id):
     desig = get_object_or_404(Designation, id=desig_id)
@@ -3051,7 +3028,7 @@ def delete_designation(request, desig_id):
 # Allow POST requests from our forms
 # users/views.py
 from services.gemini_service import GeminiService
-@jwt_or_session_required
+@jwt_required
 @csrf_exempt    
 def ai_generate_description(request):
     """
@@ -3105,7 +3082,7 @@ def ai_generate_description(request):
     return JsonResponse(result)
 
 ## User Analytics
-@jwt_or_session_required
+@jwt_required
 @allowed_roles(['ADMIN'])
 @csrf_exempt
 def user_analytics(request):
