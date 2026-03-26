@@ -145,7 +145,13 @@
                                         </svg>
                                         <span class="text-sm text-gray-600 truncate max-w-[120px]">{{ resource.name }}</span>
                                     </div>
-                                    <span class="text-xs text-gray-400">{{ resource.file.size|filesizeformat }}</span>
+                                    <span class="text-xs text-gray-400">
+                                        {% if resource.file %}
+                                            {{ resource.file.size|filesizeformat }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </span>
                                 </div>
                                 {% endfor %}
                             </div>

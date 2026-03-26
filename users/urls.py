@@ -31,7 +31,7 @@ urlpatterns = [
     path("assign_task/", views.assign_task, name="assign_task"),
     path('logout/', views.logout_view, name='logout'),
     path('employee_tasks/', views.employee_tasks, name='employee_tasks'),
-    path('update_task/<int:task_id>/', views.update_task_status, name='update_task_status'),
+    # path('update_task/<int:task_id>/', views.update_task_status, name='update_task_status'),
     path('reset_password/',auth_views.PasswordResetView.as_view(template_name='password_reset.html'),name='reset_password'),
     path('password_reset_done/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
     path('reset/<uidb64>/<token>/',auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),

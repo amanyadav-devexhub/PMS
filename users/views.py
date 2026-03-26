@@ -5,6 +5,7 @@
 from .decorators import allowed_roles
 from users.decorators import jwt_or_session_required
 from django.contrib.auth import authenticate
+from django.contrib.auth import logout
 
 ## email related libraries
 from django.core.mail import send_mail
@@ -21,6 +22,8 @@ from django.db.models import Avg
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate
 from django.contrib import messages
+from projects.models import Projects, ProjectResource
+from projects.forms import ProjectResourceForm
 
 ## for notification logic
 from notifications.models import Notification
@@ -132,7 +135,9 @@ def ajax_login(request):
     secure_cookie = not settings.DEBUG
     response.set_cookie('access_token', access_token, httponly=True, samesite='Lax', secure=secure_cookie)
     response.set_cookie('refresh_token', refresh_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    
     return response
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -272,6 +277,7 @@ from django.core.exceptions import ValidationError
 
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
+@csrf_exempt
 def edit_projects(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
@@ -399,6 +405,7 @@ def edit_projects(request, project_id):
 
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+@csrf_exempt
 def edit_task(request, task_id):
     """Edit Task - AJAX enabled"""
     
@@ -482,6 +489,7 @@ def edit_task(request, task_id):
 ## delete task
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+@csrf_exempt
 def delete_task(request, task_id):
     """Delete a task - AJAX enabled"""
     
@@ -709,6 +717,7 @@ def view_user_details(request, user_id):
 
 ## Add project resource
 @jwt_or_session_required
+@csrf_exempt
 def add_project_resource(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
 
@@ -760,6 +769,7 @@ def add_project_resource(request, project_id):
 ## delete Projects
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["TEAM_LEAD", "ADMIN"])
+@csrf_exempt
 def delete_project(request, id):
     """Delete a project - AJAX enabled"""
     
@@ -878,19 +888,28 @@ def dashboard(request):
 
 
 ## logout
-@jwt_or_session_required
+@csrf_exempt
 def logout_view(request):
     refresh_token = None
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    
+    # Check if it's an AJAX/API request
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.headers.get('Accept') == 'application/json'
+    )
+    
+    # Get refresh token from request body
+    if request.method == 'POST':
         try:
             body = json.loads(request.body.decode('utf-8') or '{}')
             refresh_token = body.get('refresh_token')
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             refresh_token = None
 
     if not refresh_token:
         refresh_token = request.COOKIES.get('refresh_token')
 
+    # Blacklist the refresh token
     if refresh_token:
         try:
             token = RefreshToken(refresh_token)
@@ -898,13 +917,26 @@ def logout_view(request):
         except (TokenError, Exception):
             pass
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        response = JsonResponse({'success': True, 'message': 'Logged out successfully'})
+    # For JWT-only authentication, we don't need logout()
+    # Just remove the tokens
+
+    # Create response
+    if is_ajax:
+        response = JsonResponse({
+            'success': True,
+            'message': 'Logged out successfully',
+            'redirect_url': '/'
+        })
     else:
         response = redirect('login_page')
 
+    # Clear JWT cookies
     response.delete_cookie('access_token')
     response.delete_cookie('refresh_token')
+    response.delete_cookie('user_role')
+    response.delete_cookie('username')
+    response.delete_cookie('user_id')
+    
     return response
 
 
@@ -1128,6 +1160,7 @@ def teamlead_dashboard(request):
 ## employee dashboard
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
+@csrf_exempt
 def employee_dashboard(request):
     print(f"Employee dashboard accessed by: {request.user.username}")
     print(f"Is authenticated: {request.user.is_authenticated}")
@@ -1184,6 +1217,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
+@csrf_exempt
 def employee_projects(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1328,6 +1362,7 @@ If you did not register on our site, please ignore this email.
 ## Edit User - Admin only
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def edit_user(request, user_id):
     """Edit User - AJAX enabled"""
     
@@ -1585,6 +1620,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 @jwt_or_session_required
+@csrf_exempt
 @allowed_roles(allowed_roles=["ADMIN"])
 def create_user(request):
     # Handle AJAX request
@@ -1787,6 +1823,7 @@ from Tasks.forms import TaskForm
 ## Assign Task
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["TEAM_LEAD","ADMIN"])
+@csrf_exempt
 def assign_task(request):
     """Assign Task - AJAX enabled"""
     
@@ -1907,6 +1944,7 @@ from users.forms import ProjectForm
 ## Create Project
 @jwt_or_session_required
 @allowed_roles(["ADMIN", "TEAM_LEAD"])
+@csrf_exempt
 def create_project(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -2323,6 +2361,7 @@ def task_dashboard(request):
 from django.http import JsonResponse
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def add_task_summary(request, task_id):
     """Add summary to a task - AJAX enabled"""
     
@@ -2536,30 +2575,30 @@ def employee_tasks(request):
 
 
 ## update task status
-@jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
-def update_task_status(request, task_id):
+# @jwt_or_session_required
+# @allowed_roles(allowed_roles=["EMPLOYEE"])
+# def update_task_status(request, task_id):
 
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+#     task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
-    if request.method == "POST":
-        new_status = request.POST.get("status")
+#     if request.method == "POST":
+#         new_status = request.POST.get("status")
 
-        # Workflow control
-        if task.status == "PENDING" and new_status == "ONGOING":
-            task.status = "ONGOING"
-            task.save()
+#         # Workflow control
+#         if task.status == "PENDING" and new_status == "ONGOING":
+#             task.status = "ONGOING"
+#             task.save()
 
-        elif task.status == "ONGOING" and new_status == "COMPLETED":
-            task.status = "COMPLETED"
-            task.save()
+#         elif task.status == "ONGOING" and new_status == "COMPLETED":
+#             task.status = "COMPLETED"
+#             task.save()
 
-        return redirect("employee_tasks")
+#         return redirect("employee_tasks")
 
-    return render(request, "update_task_status.html", {
-        "task": task,
-        "status_choices": Task.STATUS_CHOICES
-    })
+#     return render(request, "update_task_status.html", {
+#         "task": task,
+#         "status_choices": Task.STATUS_CHOICES
+#     })
 
 
 ## start task
@@ -2568,6 +2607,7 @@ from django.urls import reverse
 import datetime
 ## START TASK - AJAX VERSION
 @jwt_or_session_required
+@csrf_exempt
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
 def start_task(request, task_id):
     """Start a task - AJAX enabled"""
@@ -2610,6 +2650,7 @@ def start_task(request, task_id):
 ## PAUSE TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def pause_task(request, task_id):
     """Pause an ongoing task - AJAX enabled"""
     
@@ -2648,6 +2689,7 @@ def pause_task(request, task_id):
 ## RESUME TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def resume_task(request, task_id):
     """Resume a paused task - AJAX enabled"""
     
@@ -2687,6 +2729,7 @@ def resume_task(request, task_id):
 ## COMPLETE TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def complete_task(request, task_id):
     """Complete a task - AJAX enabled with JSON response"""
     
@@ -2796,6 +2839,7 @@ from django.http import JsonResponse
 
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def create_department(request):
     if request.method == "POST":
         name = request.POST.get("name")
@@ -2854,6 +2898,7 @@ def department_detail(request, dept_id):
 ## delete_department
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def delete_department(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
     dept_name = department.name
@@ -2902,6 +2947,7 @@ def designations(request):
 
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def create_designation(request):
     if request.method == "POST":
         name = request.POST.get("name")
@@ -3061,7 +3107,11 @@ def ai_generate_description(request):
 ## User Analytics
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def user_analytics(request):
+    # Debug print to verify user
+    print(f"📊 user_analytics called by: {request.user.username} (ID: {request.user.id})")
+    
     users = User.objects.all().order_by('username')
     selected_user_id = request.GET.get('user_id')
     selected_user = None
@@ -3162,12 +3212,13 @@ def user_analytics(request):
         'cards': cards,
     }
 
-    # Return JSON if AJAX (for user selection)
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+    # Return JSON if AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
             'analytics': analytics,
-            'selected_user': selected_user.username if selected_user else 'All Users'
+            'selected_user': selected_user.username if selected_user else 'All Users',
+            'selected_user_id': selected_user.id if selected_user else None
         })
 
     # Normal page render
@@ -3178,6 +3229,47 @@ def user_analytics(request):
     })
 
 ## home page
+
 def home(request):
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get token from cookie or header
+        token = None
+        
+        # Try to get from cookie first
+        auth_cookie = request.COOKIES.get('access_token')
+        if auth_cookie:
+            token = auth_cookie
+        
+        # If not in cookie, try Authorization header
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+        
+        user_data = None
+        if token:
+            try:
+                access_token = AccessToken(token)
+                user_id = access_token['user_id']
+                from users.models import User
+                user = User.objects.get(id=user_id)
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'full_name': user.get_full_name() or user.username
+                }
+            except (TokenError, User.DoesNotExist):
+                pass
+        
+        return JsonResponse({
+            'success': True,
+            'is_authenticated': user_data is not None,
+            'user': user_data
+        })
+    
+    # Regular request - return template
     return render(request, "home.html")
 

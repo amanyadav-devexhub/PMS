@@ -17,65 +17,288 @@
         </div> -->
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-gray-500 text-sm">Total</p>
+            <p id="totalCount" class="text-2xl font-bold text-gray-800">0</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-gray-500 text-sm">Unread</p>
+            <p id="unreadCount" class="text-2xl font-bold text-blue-600">0</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-gray-500 text-sm">Read</p>
+            <p id="readCount" class="text-2xl font-bold text-green-600">0</p>
+        </div>
+    </div>
+
     <!-- Notifications List -->
-    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-        {% for notification in notifications %}
-        <div class="p-6 border-b border-gray-100 hover:bg-gray-50 transition {% if not notification.is_read %}bg-blue-50{% endif %}">
-            <div class="flex justify-between items-start">
-                <div class="flex-1">
-                    <!-- Notification Message -->
-                    <p class="text-gray-800">{{ notification.message }}</p>
-                    
-                    <!-- Timestamp -->
-                    <p class="text-sm text-gray-400 mt-2">{{ notification.created_at|date:"F j, H:i" }}</p>
-                </div>
-                
-                <!-- Unread Indicator -->
-                {% if not notification.is_read %}
-                <span class="bg-blue-500 w-2 h-2 rounded-full ml-2 mt-2"></span>
-                {% endif %}
-            </div>
-            
-            <!-- Mark as read link (optional) -->
-            {% if not notification.is_read %}
-            <div class="mt-2">
-                <a href="{% url 'mark_as_read' notification.id %}" class="text-xs text-blue-600 hover:text-blue-800">
-                    Mark as read
-                </a>
-            </div>
-            {% endif %}
-        </div>
-        {% empty %}
+    <div id="notificationsContainer" class="bg-white shadow-lg rounded-lg overflow-hidden">
         <div class="p-12 text-center">
-            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-            </svg>
-            <p class="text-gray-500 text-lg">No notifications yet</p>
-            <p class="text-gray-400 text-sm mt-1">When you get notifications, they'll appear here</p>
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="text-gray-500 mt-4">Loading notifications...</p>
         </div>
-        {% endfor %}
     </div>
 
     <!-- Pagination (if needed) -->
-    {% if notifications.has_other_pages %}
-    <div class="flex justify-between items-center mt-6">
-        <p class="text-sm text-gray-600">Showing {{ notifications|length }} notifications</p>
+    <div id="paginationControls" class="flex justify-between items-center mt-6 hidden">
+        <p class="text-sm text-gray-600" id="showingInfo">Showing 0 notifications</p>
         <div class="flex gap-2">
-            {% if notifications.has_previous %}
-            <a href="?page={{ notifications.previous_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Previous</a>
-            {% endif %}
-            {% if notifications.has_next %}
-            <a href="?page={{ notifications.next_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Next</a>
-            {% endif %}
+            <button id="prevPageBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+            <span id="pageIndicator" class="px-4 py-2 text-sm text-gray-600">Page 1 of 1</span>
+            <button id="nextPageBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
         </div>
     </div>
-    {% endif %}
 </div>
 
 <script>
-    // Optional: Auto-refresh notifications every 30 seconds
-    setTimeout(function() {
-        location.reload();
-    }, 30000);
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const notificationContainer = document.getElementById('notificationContainer');
+
+// Pagination variables
+let currentPage = 1;
+let currentPageSize = 20;
+let totalNotifications = 0;
+
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    } text-white`;
+    notification.innerHTML = `
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    ${type === 'success' ? 
+                        '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                        '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                    }
+                </svg>
+                <span>${escapeHtml(message)}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    notificationContainer.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function loadNotifications(page = 1, pageSize = 20) {
+    loadingOverlay.classList.remove('hidden');
+    
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', page);
+    url.searchParams.set('page_size', pageSize);
+    
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentPage = data.current_page;
+            currentPageSize = data.page_size;
+            totalNotifications = data.total;
+            
+            renderNotifications(data.notifications);
+            updateStats(data.total, data.unread_count);
+            updatePagination(data);
+        }
+        loadingOverlay.classList.add('hidden');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingOverlay.classList.add('hidden');
+    });
+}
+
+function renderNotifications(notifications) {
+    const container = document.getElementById('notificationsContainer');
+    
+    if (!notifications || notifications.length === 0) {
+        container.innerHTML = `
+            <div class="p-12 text-center">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                <p class="text-gray-500 text-lg">No notifications yet</p>
+                <p class="text-gray-400 text-sm mt-1">When you get notifications, they'll appear here</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    notifications.forEach(notif => {
+        const bgClass = !notif.is_read ? 'bg-blue-50' : '';
+        html += `
+            <div class="p-6 border-b border-gray-100 hover:bg-gray-50 transition ${bgClass}" data-notification-id="${notif.id}">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <p class="text-gray-800">${escapeHtml(notif.message)}</p>
+                        <p class="text-sm text-gray-400 mt-2">${formatDate(notif.created_at)}</p>
+                    </div>
+                    ${!notif.is_read ? `
+                    <button onclick="markAsRead(${notif.id})" 
+                            class="text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition">
+                        Mark as read
+                    </button>
+                    ` : `
+                    <span class="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                        Read
+                    </span>
+                    `}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateStats(total, unread) {
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('unreadCount').textContent = unread;
+    document.getElementById('readCount').textContent = total - unread;
+}
+
+function updatePagination(data) {
+    const paginationControls = document.getElementById('paginationControls');
+    const showingInfo = document.getElementById('showingInfo');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const pageIndicator = document.getElementById('pageIndicator');
+    
+    if (data.total_pages > 1) {
+        paginationControls.classList.remove('hidden');
+        
+        const startIndex = (data.current_page - 1) * data.page_size + 1;
+        const endIndex = Math.min(data.current_page * data.page_size, data.total);
+        showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total} notifications`;
+        
+        prevBtn.disabled = !data.has_previous;
+        if (data.has_previous) {
+            prevBtn.onclick = () => loadNotifications(data.previous_page_number, currentPageSize);
+        }
+        
+        nextBtn.disabled = !data.has_next;
+        if (data.has_next) {
+            nextBtn.onclick = () => loadNotifications(data.next_page_number, currentPageSize);
+        }
+        
+        pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+    } else {
+        paginationControls.classList.add('hidden');
+    }
+}
+
+function markAsRead(notificationId) {
+    fetch(`/notifications/mark-read/${notificationId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadNotifications(currentPage, currentPageSize);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Load notifications on page load
+loadNotifications(1, 20);
 </script>
+
+<style>
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    #notificationContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+</style>
+
 {% endblock %}
