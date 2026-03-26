@@ -7,6 +7,7 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 </head>
 
 <body class="bg-gray-100 font-sans">
@@ -21,9 +22,99 @@
             <h1 class="text-2xl font-bold text-orange-600">PMS</h1>
         </div>
 
-        <!-- Navigation - JavaScript Generated (No Django session) -->
-        <nav id="sidebarNav" class="p-4 space-y-2 text-gray-700">
-            <div class="text-center py-4 text-gray-500 text-sm">Loading...</div>
+        <!-- Navigation -->
+        <nav class="p-4 space-y-2 text-gray-700">
+
+            {% if request.user.is_authenticated %}
+                <!-- Dashboard - Role Based (Simpler) -->
+            <a href="
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+                    {% url 'admin_dashboard' %}
+                {% elif request.user.role == 'TEAM_LEAD' %}
+                    {% url 'teamlead_dashboard' %}
+                {% elif request.user.role == 'EMPLOYEE' %}
+                    {% url 'employee_dashboard' %}
+                {% else %}
+                    {% url 'dashboard' %}
+                {% endif %}"
+            class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+            Dashboard
+            </a>
+
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+                     <!-- <a href="{% url 'create_user' %}" 
+                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                       Create User
+                    </a> -->
+
+                    <a href="{% url 'admin_view_users' %}" 
+                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                       Members
+                    </a>
+
+                    <a href="{% url 'view_projects' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Projects
+                    </a>
+
+                    <!-- Departments -->
+                    <a href="{% url 'departments' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Departments
+                    </a>
+
+                    <!-- Designations -->
+                    <a href="{% url 'designations' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Designations
+                    </a>
+                    <!--Analytics-->
+                    <a href="{% url 'user_analytics' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Analytics
+                    </a>
+                    
+                {% endif %}
+
+                <!-- Team Lead Menu -->
+                        {% if request.user.role|lower == 'TEAM_LEAD' %}
+            <!-- Unified Dashboard link -->
+                    <a href="{% url 'dashboard' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Dashboard
+                    </a>
+
+                    <!-- Optional: you can remove these if Dashboard has everything -->
+                    <!--
+                    <a href="{% url 'projects' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Projects
+                    </a>
+
+                    <a href="{% url 'team_members' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Team Members
+                    </a>
+                    -->
+                {% endif %}
+
+                <!-- Employee Menu -->
+                {% if request.user.role == 'EMPLOYEE' %}
+                    <!-- <a href="{% url 'employee_tasks' %}" 
+                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                       My Tasks
+                    </a> -->
+                {% endif %}
+
+                <!-- Logout -->
+                <button
+                    id="logoutBtn"
+                    type="button"
+                    class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
+                    Logout
+                </button>
+            {% endif %}
+
         </nav>
     </aside>
     <!-- ================= END SIDEBAR ================= -->
@@ -84,159 +175,70 @@
 </div>
 
 <script>
-// ========== JWT CORE FUNCTIONS ==========
-function getAccessToken() { return localStorage.getItem('access_token'); }
-function getUserRole() { return localStorage.getItem('user_role'); }
-function getUsername() { return localStorage.getItem('username'); }
-function getUserEmail() { return localStorage.getItem('user_email'); }
+    function getCSRFToken() {
+        return document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1] || '';
+    }
 
-function addTokenToUrl(url) {
-    const token = getAccessToken();
-    if (!token) return url;
-    if (url.includes('token=')) return url;
-    if (url.includes('logout') || url.includes('login')) return url;
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}token=${encodeURIComponent(token)}`;
-}
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
+    }
 
-function logout() {
-    localStorage.clear();
-    window.location.href = '/render_login/';
-}
-
-function extractTokenFromUrl() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-        localStorage.setItem('access_token', token);
-        window.history.replaceState({}, document.title, window.location.pathname);
-        console.log('✅ Token extracted from URL');
-    }
-}
-
-// ========== SIDEBAR NAVIGATION ==========
-function updateSidebar() {
-    const token = getAccessToken();
-    const role = getUserRole();
-    const username = getUsername();
-    
-    const navContainer = document.getElementById('sidebarNav');
-    const userNameSpan = document.getElementById('userName');
-    
-    if (userNameSpan && username) {
-        userNameSpan.innerText = username;
-    }
-    
-    if (!token) {
-        navContainer.innerHTML = `
-            <div class="text-center py-4">
-                <p class="text-gray-500 text-sm">Please login</p>
-                <a href="/render_login/" class="block mt-2 text-orange-600 hover:text-orange-700">Login →</a>
-            </div>
-        `;
-        return;
-    }
-    
-    let navHtml = '';
-    
-    // Dashboard link
-    let dashboardUrl = '';
-    if (role === 'ADMIN') {
-        dashboardUrl = addTokenToUrl('/admin_dashboard/');
-    } else if (role === 'TEAM_LEAD') {
-        dashboardUrl = addTokenToUrl('/teamlead_dashboard/');
-    } else {
-        dashboardUrl = addTokenToUrl('/employee_dashboard/');
-    }
-    
-    navHtml += `<a href="${dashboardUrl}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Dashboard</a>`;
-    
-    // ADMIN Menu
-    if (role === 'ADMIN') {
-        navHtml += `
-            <a href="${addTokenToUrl('/admin-view-users/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Members</a>
-            <a href="${addTokenToUrl('/view_projects/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Projects</a>
-            <a href="${addTokenToUrl('/departments/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Departments</a>
-            <a href="${addTokenToUrl('/designations/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Designations</a>
-            <a href="${addTokenToUrl('/user-analytics/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Analytics</a>
-            <div class="border-t my-2"></div>
-            <a href="${addTokenToUrl('/create_user/')}" class="block px-4 py-2 rounded hover:bg-green-100 hover:text-green-600 transition">+ Create User</a>
-            <a href="${addTokenToUrl('/create_project/')}" class="block px-4 py-2 rounded hover:bg-blue-100 hover:text-blue-600 transition">+ Create Project</a>
-        `;
-    }
-    
-    // TEAM LEAD Menu
-    if (role === 'TEAM_LEAD') {
-        navHtml += `
-            <a href="${addTokenToUrl('/teamlead-view-users/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">Team Members</a>
-            <a href="${addTokenToUrl('/view_projects/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">My Projects</a>
-            <a href="${addTokenToUrl('/assign_task/')}" class="block px-4 py-2 rounded hover:bg-blue-100 hover:text-blue-600 transition">Assign Task</a>
-            <a href="${addTokenToUrl('/create_project/')}" class="block px-4 py-2 rounded hover:bg-green-100 hover:text-green-600 transition">+ Create Project</a>
-        `;
-    }
-    
-    // EMPLOYEE Menu
-    if (role === 'EMPLOYEE') {
-        navHtml += `
-            <a href="${addTokenToUrl('/employee_tasks/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">My Tasks</a>
-            <a href="${addTokenToUrl('/employee_projects/')}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">My Projects</a>
-        `;
-    }
-    
-    navContainer.innerHTML = navHtml;
-}
-
-// ========== PROCESS LINKS AND FORMS ==========
-function addTokenToAllLinks() {
-    const token = getAccessToken();
-    if (!token) return;
-    
-    document.querySelectorAll('main a[href^="/"]').forEach(link => {
-        const href = link.getAttribute('href');
-        if (href && !href.includes('token=') && !href.includes('logout')) {
-            link.setAttribute('href', addTokenToUrl(href));
+    $.ajaxSetup({
+        beforeSend: function (xhr) {
+            const token = getAccessToken();
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
+            xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         }
     });
-}
 
-function addTokenToAllForms() {
-    const token = getAccessToken();
-    if (!token) return;
-    
-    document.querySelectorAll('main form').forEach(form => {
-        const action = form.getAttribute('action');
-        if (action && !action.includes('token=') && !action.includes('logout')) {
-            form.setAttribute('action', addTokenToUrl(action));
-        }
-        const csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
-        if (csrfInput) csrfInput.remove();
-    });
-}
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
 
-// ========== INITIALIZATION ==========
-document.addEventListener('DOMContentLoaded', function() {
-    extractTokenFromUrl();
-    updateSidebar();
-    setTimeout(() => {
-        addTokenToAllLinks();
-        addTokenToAllForms();
-    }, 100);
-});
+    if (bell && dropdown) {
+        bell.addEventListener('click', () => {
+            dropdown.classList.toggle('hidden');
+        });
 
-// Notification dropdown
-const bell = document.getElementById('notificationBell');
-const dropdown = document.getElementById('notificationDropdown');
-if (bell && dropdown) {
-    bell.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle('hidden');
-    });
-    document.addEventListener('click', (event) => {
-        if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
-            dropdown.classList.add('hidden');
-        }
-    });
-}
+        // Click outside to close the dropdown
+        document.addEventListener('click', (event) => {
+            if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+            $.ajax({
+                url: '{% url "logout" %}',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    refresh_token: localStorage.getItem('refresh_token')
+                }),
+                success: function () {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user_role');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    window.location.href = '{% url "login_page" %}';
+                },
+                error: function () {
+                    localStorage.clear();
+                    window.location.href = '{% url "login_page" %}';
+                }
+            });
+        });
+    }
 </script>
 
 </body>

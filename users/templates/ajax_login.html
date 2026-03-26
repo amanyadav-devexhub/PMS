@@ -213,6 +213,7 @@
     </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <script>
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
@@ -297,48 +298,39 @@ form.addEventListener("submit", function (event) {
     clearMessage();
     showLoading();
 
-    fetch("/ajax_login/", {
+    $.ajax({
+        url: "/ajax_login/",
         method: "POST",
+        contentType: "application/json",
         headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken(),
+            "X-CSRFToken": getCSRFToken()
         },
-        body: JSON.stringify({ email, password }),
-    })
-    .then(res => {
-        console.log('Response status:', res.status);
-        return res.json();
-    })
-    .then(data => {
-        hideLoading();
-        
-        console.log('Login response:', data);
-        
-        if (data.status === "success") {
-            // ========== STORE JWT TOKENS ==========
-            storeTokens(data.access_token, data.refresh_token, data.user);
-            
-            showMessage(`Welcome back, ${data.username}! Redirecting...`, "success");
-            
-            // ========== REDIRECT WITH TOKEN IN URL ==========
-            setTimeout(() => {
-                const token = data.access_token;
-                if (data.role === "ADMIN") {
-                    window.location.href = `/admin_dashboard/?token=${token}`;
-                } else if (data.role === "TEAM_LEAD") {
-                    window.location.href = `/teamlead_dashboard/?token=${token}`;
-                } else {
-                    window.location.href = `/employee_dashboard/?token=${token}`;
-                }
-            }, 800);
-        } else {
-            showMessage(data.error || "Login failed", "error");
+        data: JSON.stringify({ email, password }),
+        success: function (data) {
+            hideLoading();
+
+            if (data.status === "success") {
+                storeTokens(data.access_token, data.refresh_token, data.user);
+                showMessage(`Welcome back, ${data.username}! Redirecting...`, "success");
+
+                setTimeout(() => {
+                    if (data.role === "ADMIN") {
+                        window.location.href = "/admin_dashboard/";
+                    } else if (data.role === "TEAM_LEAD") {
+                        window.location.href = "/teamlead_dashboard/";
+                    } else {
+                        window.location.href = "/employee_dashboard/";
+                    }
+                }, 800);
+            } else {
+                showMessage(data.error || "Login failed", "error");
+            }
+        },
+        error: function (xhr) {
+            hideLoading();
+            const error = xhr.responseJSON?.error || "Server error. Please try again later.";
+            showMessage(error, "error");
         }
-    })
-    .catch((error) => {
-        console.error("Login error:", error);
-        hideLoading();
-        showMessage("Server error. Please try again later.", "error");
     });
 });
 

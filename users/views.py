@@ -3,9 +3,8 @@
 # Create your views here.
 ## login & logout required libraries
 from .decorators import allowed_roles
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login, logout
-from .decorators import allowed_roles, jwt_required 
+from users.decorators import jwt_or_session_required
+from django.contrib.auth import authenticate
 
 ## email related libraries
 from django.core.mail import send_mail
@@ -20,7 +19,7 @@ from datetime import timedelta
 from django.db.models import Avg
 
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate
 from django.contrib import messages
 
 ## for notification logic
@@ -29,38 +28,14 @@ from users.models import User
 
 ## Used for Session based login
 def login_view(request):
-    if request.method == "POST":
-        email = request.POST.get("email")
-        print(email)
-        password = request.POST.get("password")
-        
-        #email = request.POST.get("email")
-
-        user = authenticate(request, email=email, password=password)
-        print("USER:", user)
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-
-
-
-            # Role-based redirect
-            if user.role == "ADMIN":
-                return redirect("admin_dashboard")
-            elif user.role == "TEAM_LEAD":
-                return redirect("teamlead_dashboard")
-            elif user.role == "EMPLOYEE":
-                return redirect("employee_dashboard")
-    else:
-            messages.error(request, "Invalid username or password")
-
-    return render(request, "login.html")
+    return redirect("login_page")
 
 
 from django.http import JsonResponse
 import json
 
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.http import JsonResponse
 from django.contrib.auth import authenticate,get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -69,12 +44,9 @@ import json
 User = get_user_model()
 
 ## ajax login
-from rest_framework_simplejwt.tokens import RefreshToken  # Add this import at the top
-# users/views.py - Replace your ajax_login with this
-
 @csrf_exempt
 def ajax_login(request):
-    """PURE JWT LOGIN - NO session cookies created"""
+    """JWT login endpoint for browser and API clients."""
     
     if request.method != "POST":
         return JsonResponse({"status": "error", "error": "Invalid request method"}, status=405)
@@ -108,19 +80,15 @@ def ajax_login(request):
     if user.is_superuser and not user.role:
         user.role = 'ADMIN'
         user.save()
+        print(f"Set superuser role to ADMIN for {user.username}")
 
-    # ========== REMOVED: NO SESSION CREATION ==========
-    # ❌ REMOVE: login(request, user)
-    # ❌ REMOVE: request.session.save()
+    role = user.role if user.role else 'EMPLOYEE'
 
-    # Generate JWT tokens only
     refresh = RefreshToken.for_user(user)
     access_token = str(refresh.access_token)
     refresh_token = str(refresh)
 
-    role = user.role if user.role else 'EMPLOYEE'
-
-    return JsonResponse({
+    response = JsonResponse({
         "status": "success",
         "role": role,
         "username": user.username,
@@ -133,6 +101,18 @@ def ajax_login(request):
             "role": user.role,
         }
     })
+
+    # Cookie support for browser page loads (JWT-only auth, no sessions).
+    secure_cookie = not settings.DEBUG
+    response.set_cookie('access_token', access_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    response.set_cookie('refresh_token', refresh_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    return response
+
+    # Cookie support for browser page loads (JWT-only auth, no sessions).
+    secure_cookie = not settings.DEBUG
+    response.set_cookie('access_token', access_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    response.set_cookie('refresh_token', refresh_token, httponly=True, samesite='Lax', secure=secure_cookie)
+    return response
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -267,7 +247,6 @@ def view_projects(request):
 ## edit Projects
 import json
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.exceptions import ValidationError
 
@@ -881,8 +860,32 @@ def dashboard(request):
 ## logout
 @jwt_required
 def logout_view(request):
-    logout(request)  # clears session
-    return redirect("render_login")
+    refresh_token = None
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            body = json.loads(request.body.decode('utf-8') or '{}')
+            refresh_token = body.get('refresh_token')
+        except json.JSONDecodeError:
+            refresh_token = None
+
+    if not refresh_token:
+        refresh_token = request.COOKIES.get('refresh_token')
+
+    if refresh_token:
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except (TokenError, Exception):
+            pass
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        response = JsonResponse({'success': True, 'message': 'Logged out successfully'})
+    else:
+        response = redirect('login_page')
+
+    response.delete_cookie('access_token')
+    response.delete_cookie('refresh_token')
+    return response
 
 
 ## required logins
@@ -1108,7 +1111,6 @@ def teamlead_dashboard(request):
 def employee_dashboard(request):
     print(f"Employee dashboard accessed by: {request.user.username}")
     print(f"Is authenticated: {request.user.is_authenticated}")
-    print(f"Session key: {request.session.session_key}")
     user = request.user
 
     # Handle AJAX request
@@ -1159,7 +1161,8 @@ def employee_dashboard(request):
 
 ## Employee projects
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-@jwt_required
+
+@jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
 def employee_projects(request):
     # Handle AJAX request
@@ -1558,10 +1561,11 @@ def activate_user(request, uidb64, token):
 
 ## Create new user with role and save to database
 from django.contrib.auth import get_user_model
-# User = get_user_model()
-@csrf_exempt
-@jwt_required
-@allowed_roles(["ADMIN"])
+
+User = get_user_model()
+
+@jwt_or_session_required
+@allowed_roles(allowed_roles=["ADMIN"])
 def create_user(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -2745,8 +2749,8 @@ from .forms import UserProfileForm
 
 # ================== Departments ==================
 # List all departments
-@jwt_required
-@allowed_roles(allowed_roles=["ADMIN"])
+@jwt_or_session_required
+@allowed_roles(['ADMIN'])
 def departments(request):
     departments = Department.objects.all()
 
@@ -2852,8 +2856,8 @@ def delete_department(request, dept_id):
 
 # <!--Designation-->
 # List all designations
-@jwt_required
-@allowed_roles(allowed_roles=["ADMIN"])
+@jwt_or_session_required
+@allowed_roles(['ADMIN'])
 def designations(request):
     designations = Designation.objects.all()
     
@@ -2903,6 +2907,8 @@ def create_designation(request):
 
 
 # Show all users in a designation
+@jwt_or_session_required
+@allowed_roles(['ADMIN'])
 def designation_detail(request, desig_id):
     designation = get_object_or_404(Designation, id=desig_id)
     users_in_desig = User.objects.filter(profile__designation=designation)
