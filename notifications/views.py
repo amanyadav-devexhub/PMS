@@ -5,7 +5,9 @@ from django.shortcuts import render
 from django.core.paginator import Paginator
 from notifications.models import Notification
 
+from users.decorators import jwt_or_session_required
 
+@jwt_or_session_required
 def all_notifications(request):
     # Get all notifications for the user
     notifications = request.user.notifications.all().order_by('-created_at')
@@ -24,7 +26,7 @@ def all_notifications(request):
         "page_obj": page_obj
     })
 
-
+@jwt_or_session_required
 def mark_as_read(request, notif_id):
     notif = get_object_or_404(Notification, id=notif_id, user=request.user)
     notif.is_read = True
