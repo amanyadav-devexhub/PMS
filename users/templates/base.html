@@ -7,6 +7,7 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 </head>
 
 <body class="bg-gray-100 font-sans">
@@ -106,14 +107,12 @@
                 {% endif %}
 
                 <!-- Logout -->
-               <form method="post" action="{% url 'logout' %}" class="mt-4">
-                {% csrf_token %}
-                <button type="submit"
-                    class="w-full text-left px-4 py-2 rounded
-                        hover:bg-red-100 hover:text-red-600 transition">
+                <button
+                    id="logoutBtn"
+                    type="button"
+                    class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
                     Logout
                 </button>
-                </form>
             {% endif %}
 
         </nav>
@@ -201,19 +200,70 @@
 
 
 <script>
+    function getCSRFToken() {
+        return document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1] || '';
+    }
+
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
+    }
+
+    $.ajaxSetup({
+        beforeSend: function (xhr) {
+            const token = getAccessToken();
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
+            xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        }
+    });
+
     const bell = document.getElementById('notificationBell');
     const dropdown = document.getElementById('notificationDropdown');
 
-    bell.addEventListener('click', () => {
-        dropdown.classList.toggle('hidden');
-    });
+    if (bell && dropdown) {
+        bell.addEventListener('click', () => {
+            dropdown.classList.toggle('hidden');
+        });
 
-    // Click outside to close the dropdown
-    document.addEventListener('click', (event) => {
-        if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
-            dropdown.classList.add('hidden');
-        }
-    });
+        // Click outside to close the dropdown
+        document.addEventListener('click', (event) => {
+            if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+            $.ajax({
+                url: '{% url "logout" %}',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    refresh_token: localStorage.getItem('refresh_token')
+                }),
+                success: function () {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user_role');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    window.location.href = '{% url "login_page" %}';
+                },
+                error: function () {
+                    localStorage.clear();
+                    window.location.href = '{% url "login_page" %}';
+                }
+            });
+        });
+    }
 </script>
 
 </body>

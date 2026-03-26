@@ -1,53 +1,32 @@
-# Python
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
 *.py[cod]
-*.env
-*.venv
+*.pyo
 
-# Virtual environment
+# Virtual environments
 venv/
-ENV/
-env/
+.env
+.env.*
 
 # Django
 *.sqlite3
-db.sqlite3
 *.log
-*.pot
-*.py[cod]
 media/
 staticfiles/
 
-# IDEs / Editors
+# Django migrations
+*/migrations/__pycache__/
+
+# IDEs
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
 
 # OS files
 .DS_Store
 Thumbs.db
-########################################################
-# Additional unnecessary files/folders
-########################################################
-# Python cache and compiled files
-**/__pycache__/
-**/*.pyc
-**/*.pyo
-**/*.pyd
-# Django migrations cache
-**/migrations/__pycache__/
-# Project documentation and exports
+
+# Documentation / exports
 *.pdf
+
 # Postman collections
 *.postman_collection.json
-venv/
-__pycache__/
-*.pyc
-db.sqlite3
-.env
-media/
-PMS_System.postman_collection.json

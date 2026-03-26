@@ -29,7 +29,7 @@ urlpatterns = [
     path("delete_user/<int:user_id>/", views.delete_user, name="delete_user"),
     path("create_project/", views.create_project, name="create_project"),
     path("assign_task/", views.assign_task, name="assign_task"),
-    path('logout/', auth_views.LogoutView.as_view(next_page='login_page'), name='logout'),
+    path('logout/', views.logout_view, name='logout'),
     path('employee_tasks/', views.employee_tasks, name='employee_tasks'),
     path('update_task/<int:task_id>/', views.update_task_status, name='update_task_status'),
     path('reset_password/',auth_views.PasswordResetView.as_view(template_name='password_reset.html'),name='reset_password'),
