@@ -74,20 +74,35 @@
                 <!-- Assigned to (Multiple) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-2">
-                        Assigned to
+                        Assign Employees to Project
+                        {% if request.user.role == 'TEAM_LEAD' %}
+                        <span class="text-xs text-orange-500 ml-2">(Only employees in your team)</span>
+                        {% endif %}
                     </label>
                     <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
-                        {% for user in form.assigned_to.field.queryset %}
-                            <div class="flex items-center space-x-2 py-1">
-                                <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
-                                       id="user_{{ user.id }}"
-                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                       {% if user in form.assigned_to.value %}checked{% endif %}>
-                                <label for="user_{{ user.id }}" class="text-sm text-gray-700">
-                                    {{ user.get_full_name|default:user.username }} ({{ user.email }})
-                                </label>
+                        {% if form.assigned_to.field.queryset %}
+                            {% for user in form.assigned_to.field.queryset %}
+                                <div class="flex items-center space-x-2 py-1">
+                                    <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
+                                        id="user_{{ user.id }}"
+                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        {% if user in form.assigned_to.value %}checked{% endif %}>
+                                    <label for="user_{{ user.id }}" class="text-sm text-gray-700">
+                                        {% if request.user.role == 'TEAM_LEAD' %}👥 {% endif %}
+                                        {{ user.get_full_name|default:user.username }} ({{ user.email }})
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4 text-gray-500">
+                                {% if request.user.role == 'TEAM_LEAD' %}
+                                    <p>No employees found in your team yet.</p>
+                                    <p class="text-xs mt-1">Employees will appear here once they are assigned to tasks in your projects.</p>
+                                {% else %}
+                                    <p>No employees available. Please create employee accounts first.</p>
+                                {% endif %}
                             </div>
-                        {% endfor %}
+                        {% endif %}
                     </div>
                     <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     {{ form.assigned_to.errors }}

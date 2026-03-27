@@ -24,8 +24,9 @@
                 <p class="text-orange-100 text-lg">System Administrator • Full access to all modules</p>
             </div>
             <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
-            </div>
+            <p class="text-sm font-medium">{{ request.user.get_full_name|default:request.user.username }}</p>
+            <p class="text-xs opacity-80">{{ request.user.email }}</p>
+        </div>
         </div>
     </div>
 
@@ -154,7 +155,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        比
+                        </tr>
                     </thead>
                     <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
                         <tr>
@@ -368,7 +369,7 @@ function renderUsersTable(users, pagination) {
     if (!tableBody) return;
     
     if (!users || users.length === 0) {
-        tableBody.innerHTML = '}<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found.</td></tr>';
         return;
     }
     
@@ -458,6 +459,8 @@ if (pageSizeSelect) {
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
 });
+
+// After getting the data, update last login
 </script>
 
 <style>
@@ -476,5 +479,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 </style>
 
-{% endif %}
 {% endblock %}
