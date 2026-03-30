@@ -254,6 +254,19 @@ from django.core.exceptions import ValidationError
 def edit_projects(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
+    # Helper function to get users based on role
+    def get_filtered_users(user):
+        """Return users based on role - Admin sees all, TL sees only employees"""
+        if user.role == 'ADMIN':
+            # Admin can see all active users (including TL and Employees)
+            return User.objects.filter(is_active=True).order_by('first_name', 'username')
+        else:
+            # Team Lead sees only employees
+            return User.objects.filter(
+                role='EMPLOYEE',
+                is_active=True
+            ).order_by('first_name', 'username')
+    
     # Check if team lead can edit (only projects they created)
     if request.user.role == "TEAM_LEAD" and project.created_by != request.user:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -267,7 +280,15 @@ def edit_projects(request, project_id):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if request.method == "POST":
-            form = ProjectForm(request.POST, instance=project)
+            # Get filtered users based on role
+            filtered_users = get_filtered_users(request.user)
+            
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            form = FilteredProjectForm(request.POST, instance=project)
             
             # Get dates for validation
             start_date = request.POST.get('start_date')
@@ -315,7 +336,14 @@ def edit_projects(request, project_id):
         
         # GET request - return project data
         elif request.method == "GET":
-            form = ProjectForm(instance=project)
+            filtered_users = get_filtered_users(request.user)
+            
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            form = FilteredProjectForm(instance=project)
             return JsonResponse({
                 'success': True,
                 'project': {
@@ -336,7 +364,14 @@ def edit_projects(request, project_id):
     
     # Handle regular (non-AJAX) request
     if request.method == "POST":
-        form = ProjectForm(request.POST, instance=project)
+        filtered_users = get_filtered_users(request.user)
+        
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        form = FilteredProjectForm(request.POST, instance=project)
         
         # Get dates for validation
         start_date = request.POST.get('start_date')
@@ -369,7 +404,14 @@ def edit_projects(request, project_id):
             return render(request, "edit_projects.html", context)
         
     else:
-        form = ProjectForm(instance=project)
+        filtered_users = get_filtered_users(request.user)
+        
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        form = FilteredProjectForm(instance=project)
 
     return render(request, "edit_projects.html", {
         "form": form,
@@ -1986,48 +2028,31 @@ from users.forms import ProjectForm
 @allowed_roles(["ADMIN", "TEAM_LEAD"])
 @csrf_exempt
 def create_project(request):
-    # Helper function to get filtered employees for Team Lead
-    def get_filtered_employees(team_lead):
-        """Get employees that are under this Team Lead"""
-        # Get all projects managed by this Team Lead
-        my_projects = Projects.objects.filter(assigned_to=team_lead)
-        my_project_ids = my_projects.values_list('id', flat=True)
-        
-        # Get employees from tasks in these projects
-        tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
-        employee_ids_from_tasks = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
-        
-        # Get employees directly assigned to projects
-        project_employees = User.objects.filter(
-            projects__in=my_projects,
-            role='EMPLOYEE'
-        ).values_list('id', flat=True).distinct()
-        
-        # Combine all employee IDs
-        all_employee_ids = set(employee_ids_from_tasks) | set(project_employees)
-        
-        # Return the employees
-        return User.objects.filter(
-            id__in=all_employee_ids,
-            role='EMPLOYEE',
-            is_active=True
-        ).order_by('username')
+    # Helper function to get users based on role
+    def get_filtered_users(user):
+        """Return users based on role - Admin sees all, TL sees only employees"""
+        if user.role == 'ADMIN':
+            # Admin can see all active users (including TL and Employees)
+            return User.objects.filter(is_active=True).order_by('first_name', 'username')
+        else:
+            # Team Lead sees only employees
+            return User.objects.filter(
+                role='EMPLOYEE',
+                is_active=True
+            ).order_by('first_name', 'username')
     
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if request.method == "POST":
-            # Get filtered queryset for Team Lead
-            if request.user.role == 'TEAM_LEAD':
-                filtered_employees = get_filtered_employees(request.user)
-                # Create a dynamic form class with filtered queryset
-                class FilteredProjectForm(ProjectForm):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        self.fields['assigned_to'].queryset = filtered_employees
-                project_form = FilteredProjectForm(request.POST)
-            else:
-                project_form = ProjectForm(request.POST)
+            # Get filtered users based on role
+            filtered_users = get_filtered_users(request.user)
             
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            project_form = FilteredProjectForm(request.POST)
             resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
             
             errors = {}
@@ -2110,17 +2135,14 @@ def create_project(request):
         
         # GET request - return form structure if needed
         elif request.method == "GET":
-            # Get filtered queryset for Team Lead
-            if request.user.role == 'TEAM_LEAD':
-                filtered_employees = get_filtered_employees(request.user)
-                class FilteredProjectForm(ProjectForm):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        self.fields['assigned_to'].queryset = filtered_employees
-                project_form = FilteredProjectForm()
-            else:
-                project_form = ProjectForm()
+            filtered_users = get_filtered_users(request.user)
             
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            project_form = FilteredProjectForm()
             resource_formset = ProjectResourceFormSet()
             
             # Get field definitions for dynamic form rendering
@@ -2150,17 +2172,14 @@ def create_project(request):
     
     # Handle regular (non-AJAX) request
     if request.method == "POST":
-        # Get filtered queryset for Team Lead
-        if request.user.role == 'TEAM_LEAD':
-            filtered_employees = get_filtered_employees(request.user)
-            class FilteredProjectForm(ProjectForm):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                    self.fields['assigned_to'].queryset = filtered_employees
-            project_form = FilteredProjectForm(request.POST)
-        else:
-            project_form = ProjectForm(request.POST)
+        filtered_users = get_filtered_users(request.user)
         
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        project_form = FilteredProjectForm(request.POST)
         resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
         
         # Get dates for validation
@@ -2212,17 +2231,14 @@ def create_project(request):
     
     # GET request - show empty form
     else:
-        # Get filtered queryset for Team Lead
-        if request.user.role == 'TEAM_LEAD':
-            filtered_employees = get_filtered_employees(request.user)
-            class FilteredProjectForm(ProjectForm):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                    self.fields['assigned_to'].queryset = filtered_employees
-            project_form = FilteredProjectForm()
-        else:
-            project_form = ProjectForm()
+        filtered_users = get_filtered_users(request.user)
         
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        project_form = FilteredProjectForm()
         resource_formset = ProjectResourceFormSet()
 
     context = {
