@@ -1,0 +1,32 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.env
+.env.*
+
+# Django
+*.sqlite3
+*.log
+media/
+staticfiles/
+
+# Django migrations
+*/migrations/__pycache__/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation / exports
+*.pdf
+
+# Postman collections
+*.postman_collection.json

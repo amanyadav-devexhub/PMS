@@ -7,6 +7,7 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 </head>
 
 <body class="bg-gray-100 font-sans">
@@ -25,14 +26,22 @@
         <nav class="p-4 space-y-2 text-gray-700">
 
             {% if request.user.is_authenticated %}
+                <!-- Dashboard - Role Based (Simpler) -->
+            <a href="
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+                    {% url 'admin_dashboard' %}
+                {% elif request.user.role == 'TEAM_LEAD' %}
+                    {% url 'teamlead_dashboard' %}
+                {% elif request.user.role == 'EMPLOYEE' %}
+                    {% url 'employee_dashboard' %}
+                {% else %}
+                    {% url 'dashboard' %}
+                {% endif %}"
+            class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+            Dashboard
+            </a>
 
-                <!-- Dashboard (Visible to All) -->
-                <a href="{% url 'dashboard' %}" 
-                   class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                   Dashboard
-                </a>
-
-                {% if request.user.role == 'ADMIN' %}
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
                      <!-- <a href="{% url 'create_user' %}" 
                        class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                        Create User
@@ -59,33 +68,31 @@
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Designations
                     </a>
-
-
-                
+                    <!--Analytics-->
+                    <a href="{% url 'user_analytics' %}" 
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Analytics
+                    </a>
                     
-                
                 {% endif %}
 
-                <!-- Team Lead Menu -->
-                        {% if request.user.role|lower == 'TEAM_LEAD' %}
-            <!-- Unified Dashboard link -->
-                    <a href="{% url 'dashboard' %}" 
+                <!-- TEAM LEAD MENU -->
+                {% if request.user.role == 'TEAM_LEAD' %}
+                    <a href="{% url 'teamlead_view_users' %}" 
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Dashboard
+                    Members
                     </a>
 
-                    <!-- Optional: you can remove these if Dashboard has everything -->
-                    <!--
-                    <a href="{% url 'projects' %}" 
+                    <a href="{% url 'view_projects' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Projects
                     </a>
 
-                    <a href="{% url 'team_members' %}" 
+                    <!-- Analytics for Team Lead -->
+                    <a href="{% url 'user_analytics' %}" 
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Team Members
+                    Analytics
                     </a>
-                    -->
                 {% endif %}
 
                 <!-- Employee Menu -->
@@ -96,22 +103,18 @@
                     </a> -->
                 {% endif %}
 
-                <!-- Logout -->
-               <form method="post" action="{% url 'logout' %}" class="mt-4">
-                {% csrf_token %}
-                <button type="submit"
-                    class="w-full text-left px-4 py-2 rounded
-                        hover:bg-red-100 hover:text-red-600 transition">
+                <!--Logout!-->
+                <button
+                    id="logoutBtn"
+                    type="button"
+                    class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
                     Logout
                 </button>
-                </form>
             {% endif %}
 
         </nav>
     </aside>
     <!-- ================= END SIDEBAR ================= -->
-
-
 
     <!-- ================= MAIN AREA ================= -->
     <div class="flex-1 flex flex-col">
@@ -135,11 +138,11 @@
                     {% endif %}
                 </div>
 
-                <!-- Notification Dropdown Panel -->
+                 <!-- Notification Dropdown Panel -->
                 <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg overflow-hidden z-50">
                     <div class="p-4 border-b font-semibold text-gray-700">Notifications</div>
                     <ul class="max-h-64 overflow-y-auto">
-                        {% for notif in request.user.notifications.all|slice:":5" %}
+                        {% for notif in request.user.notifications.all|slice:":1" %}
                         <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer {% if not notif.is_read %}font-bold{% endif %}">
                             <a href="{% url 'mark_as_read' notif.id %}">
                                 {{ notif.message }}
@@ -163,9 +166,13 @@
                     </span>
                 </div>
 
+                <!-- Logout Button -->
+                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                    Logout
+                </button>
+
             </div>
         </header>
-
 
         <!-- Content Area -->
         <main class="p-6 overflow-y-auto flex-1">
@@ -179,21 +186,97 @@
 
 </div>
 
-
 <script>
+    function getCSRFToken() {
+        return document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1] || '';
+    }
+
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
+    }
+
+    $.ajaxSetup({
+        beforeSend: function (xhr) {
+            const token = getAccessToken();
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
+            xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        }
+    });
+
     const bell = document.getElementById('notificationBell');
     const dropdown = document.getElementById('notificationDropdown');
 
-    bell.addEventListener('click', () => {
-        dropdown.classList.toggle('hidden');
-    });
+    if (bell && dropdown) {
+        bell.addEventListener('click', () => {
+            dropdown.classList.toggle('hidden');
+        });
 
-    // Click outside to close the dropdown
-    document.addEventListener('click', (event) => {
-        if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
-            dropdown.classList.add('hidden');
+        // Click outside to close the dropdown
+        document.addEventListener('click', (event) => {
+            if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+            $.ajax({
+                url: '{% url "logout" %}',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    refresh_token: localStorage.getItem('refresh_token')
+                }),
+                success: function () {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user_role');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    window.location.href = '{% url "login_page" %}';
+                },
+                error: function () {
+                    localStorage.clear();
+                    window.location.href = '{% url "login_page" %}';
+                }
+            });
+        });
+    }
+</script>
+
+<script>
+function logout() {
+    // Clear all cookies
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+    }
+    
+    // Call server logout endpoint
+    fetch('/logout/', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
         }
+    })
+    .then(() => {
+        window.location.href = '/render_login/';
+    })
+    .catch(() => {
+        window.location.href = '/render_login/';
     });
+}
 </script>
 
 </body>

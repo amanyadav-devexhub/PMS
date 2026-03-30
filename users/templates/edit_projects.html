@@ -6,57 +6,363 @@
 
 {% block content %}
 
-<div class="max-w-3xl mx-auto">
+<div class="max-w-4xl mx-auto">
 
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="window.history.back()"
+                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+
+    <!-- Card -->
     <div class="bg-white shadow-lg rounded-lg p-8">
 
         <h2 class="text-2xl font-semibold text-gray-700 mb-6">
-            Edit Project
+            Edit Project: {{ project.name }}
         </h2>
 
-        <form method="POST" class="space-y-5">
+        <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p class="text-sm text-gray-600">
+                <span class="font-medium">Project ID:</span> {{ project.id }} | 
+                <span class="font-medium">Created by:</span> 
+                {% if project.created_by %}
+                    {{ project.created_by.get_full_name|default:project.created_by.username }}
+                {% else %}
+                    <span class="text-gray-400">Unknown</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Add loading overlay -->
+        <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+            </div>
+        </div>
+
+        <!-- Add notification container -->
+        <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
+
+        <form method="POST" class="space-y-5" id="editProjectForm" data-redirect-url="{% url 'view_projects' %}">
             {% csrf_token %}
 
             {{ form.non_field_errors }}
 
-            {% for field in form %}
+            <!-- Project Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Name <span class="text-red-500">*</span>
+                </label>
+                {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Description <span class="text-red-500">*</span>
+                </label>
+                {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+            </div>
+
+            <!-- Assigned to (Multiple) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">
+                    Assigned to
+                </label>
+                <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
+                    {% for user in form.assigned_to.field.queryset %}
+                        <div class="flex items-center space-x-2 py-1">
+                            <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
+                                   id="user_{{ user.id }}"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                   {% if user in project.assigned_to.all %}checked{% endif %}>
+                            <label for="user_{{ user.id }}" class="text-sm text-gray-700">
+                                {{ user.get_full_name|default:user.username }} ({{ user.email }})
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                {{ form.assigned_to.errors }}
+            </div>
+
+            <!-- Start and End Date -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Start Date -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">
-                        {{ field.label }}
+                        Start date <span class="text-red-500">*</span>
                     </label>
-
-                    {% if field.name == "assigned_to" %}
-                        <!-- Multi-select dropdown for assigned users -->
-                        {{ field|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                        <p class="text-sm text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</p>
-                    {% else %}
-                        {{ field|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                    {% endif %}
-
-                    {% if field.errors %}
-                        <p class="text-red-500 text-sm mt-1">
-                            {{ field.errors }}
-                        </p>
-                    {% endif %}
+                    <input type="date" name="start_date" id="start_date" 
+                           value="{{ project.start_date|date:'Y-m-d' }}"
+                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 </div>
-            {% endfor %}
+
+                <!-- End Date -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">
+                        End date <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="end_date" id="end_date" 
+                           value="{{ project.end_date|date:'Y-m-d' }}"
+                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                    Status <span class="text-red-500">*</span>
+                </label>
+                {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
+                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+            </div>
 
             <!-- Buttons -->
-            <div class="flex items-center gap-4 pt-4">
+            <div class="flex items-center gap-4 pt-6 mt-6 border-t border-gray-200">
                 <button type="submit"
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded shadow transition">
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow transition">
                     Update Project
                 </button>
 
                 <a href="{% url 'view_projects' %}"
-                   class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded shadow transition">
+                   class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded shadow transition">
                     Cancel
                 </a>
             </div>
 
         </form>
-
     </div>
 </div>
+
+<!-- AJAX JavaScript -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('editProjectForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const notificationContainer = document.getElementById('notificationContainer');
+        
+        // Function to show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white`;
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            ${type === 'success' ? 
+                                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                                '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                            }
+                        </svg>
+                        <span>${message}</span>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            notificationContainer.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        // Function to clear all error messages
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.classList.add('hidden');
+                el.innerHTML = '';
+            });
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.classList.remove('border-red-500', 'bg-red-50');
+            });
+        }
+        
+        // Function to display errors
+        function displayErrors(errors) {
+            clearErrors();
+            
+            for (const [field, errorList] of Object.entries(errors)) {
+                const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
+                
+                if (field === 'date_error') {
+                    // Handle date error
+                    const startDate = document.getElementById('start_date');
+                    const endDate = document.getElementById('end_date');
+                    if (startDate && endDate) {
+                        startDate.classList.add('border-red-500', 'bg-red-50');
+                        endDate.classList.add('border-red-500', 'bg-red-50');
+                        
+                        // Add error message after end date
+                        const errorDiv = endDate.parentElement.querySelector('.error-message');
+                        if (errorDiv) {
+                            errorDiv.innerHTML = errorMessage;
+                            errorDiv.classList.remove('hidden');
+                        }
+                    }
+                } else {
+                    // Handle form field errors
+                    const fieldElement = form.querySelector(`[name="${field}"]`);
+                    if (fieldElement) {
+                        fieldElement.classList.add('border-red-500', 'bg-red-50');
+                        
+                        // Find the error container for this field
+                        const parentDiv = fieldElement.closest('div');
+                        const errorDiv = parentDiv ? parentDiv.querySelector('.error-message') : null;
+                        
+                        if (errorDiv) {
+                            errorDiv.innerHTML = errorMessage;
+                            errorDiv.classList.remove('hidden');
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Date validation function
+        function validateDates() {
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
+            
+            if (startDate && endDate && startDate.value && endDate.value) {
+                if (startDate.value >= endDate.value) {
+                    endDate.classList.add('border-red-500', 'bg-red-50');
+                    startDate.classList.add('border-red-500', 'bg-red-50');
+                    
+                    const endDateError = endDate.parentElement.querySelector('.error-message');
+                    if (endDateError) {
+                        endDateError.innerHTML = 'End date must be after start date';
+                        endDateError.classList.remove('hidden');
+                    }
+                    return false;
+                } else {
+                    endDate.classList.remove('border-red-500', 'bg-red-50');
+                    startDate.classList.remove('border-red-500', 'bg-red-50');
+                    
+                    const endDateError = endDate.parentElement.querySelector('.error-message');
+                    if (endDateError) {
+                        endDateError.classList.add('hidden');
+                        endDateError.innerHTML = '';
+                    }
+                }
+            }
+            return true;
+        }
+        
+        // Add date validation listeners
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
+        
+        if (startDate && endDate) {
+            startDate.addEventListener('change', validateDates);
+            endDate.addEventListener('change', validateDates);
+        }
+        
+        // Handle form submission with AJAX
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Clear previous errors
+            clearErrors();
+            
+            // Validate dates
+            if (!validateDates()) {
+                return;
+            }
+            
+            // Show loading overlay
+            loadingOverlay.classList.remove('hidden');
+            
+            // Get form data
+            const formData = new FormData(form);
+            const redirectUrl = form.dataset.redirectUrl;
+            formData.append('redirect_url', redirectUrl);
+            
+            try {
+                // Send AJAX request
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': form.querySelector('[name="csrfmiddlewaretoken"]').value
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Success!
+                    showNotification(data.message, 'success');
+                    
+                    // Redirect after success
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                } else {
+                    // Error handling
+                    if (data.errors) {
+                        displayErrors(data.errors);
+                    }
+                    showNotification(data.message || 'Error updating project. Please check the form for errors.', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred. Please try again.', 'error');
+            } finally {
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Loading overlay styles */
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+    
+    /* Notification animation */
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    #notificationContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    /* Form field transitions */
+    input, select, textarea {
+        transition: all 0.2s ease;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+        transform: translateY(-1px);
+    }
+</style>
 
 {% endblock %}
