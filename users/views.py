@@ -5,6 +5,7 @@
 from .decorators import allowed_roles
 from users.decorators import jwt_or_session_required
 from django.contrib.auth import authenticate
+from django.contrib.auth import logout
 
 ## email related libraries
 from django.core.mail import send_mail
@@ -21,6 +22,8 @@ from django.db.models import Avg
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate
 from django.contrib import messages
+from projects.models import Projects, ProjectResource
+from projects.forms import ProjectResourceForm
 
 ## for notification logic
 from notifications.models import Notification
@@ -49,58 +52,34 @@ def ajax_login(request):
     """JWT login endpoint for browser and API clients."""
     
     if request.method != "POST":
-        return JsonResponse(
-            {"status": "error", "error": "Invalid request method"},
-            status=405
-        )
+        return JsonResponse({"status": "error", "error": "Invalid request method"}, status=405)
 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse(
-            {"status": "error", "error": "Invalid JSON"},
-            status=400
-        )
+        return JsonResponse({"status": "error", "error": "Invalid JSON"}, status=400)
 
     email = data.get("email")
     password = data.get("password")
 
-    if not email:
-        return JsonResponse(
-            {"status": "error", "error": "Email is required"},
-            status=400
-        )
-
-    if not password:
-        return JsonResponse(
-            {"status": "error", "error": "Password is required"},
-            status=400
-        )
+    if not email or not password:
+        return JsonResponse({"status": "error", "error": "Email and password required"}, status=400)
     
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        return JsonResponse(
-            {"status": "error", "error": "Email does not exist"},
-            status=401
-        )
+        return JsonResponse({"status": "error", "error": "Email does not exist"}, status=401)
     
     if not user.is_active:
-        return JsonResponse(
-            {"status": "error", "error": "Your account is inactive. Please contact the administrator."},
-            status=403
-        )
+        return JsonResponse({"status": "error", "error": "Account is inactive"}, status=403)
 
-    # Authenticate user
+    # Authenticate
     user = authenticate(request, username=email, password=password)
 
     if user is None:
-        return JsonResponse(
-            {"status": "error", "error": "Incorrect password"},
-            status=401
-        )
+        return JsonResponse({"status": "error", "error": "Incorrect password"}, status=401)
 
-    # Set role for superuser if empty
+    # Set role for superuser
     if user.is_superuser and not user.role:
         user.role = 'ADMIN'
         user.save()
@@ -123,8 +102,6 @@ def ajax_login(request):
             "username": user.username,
             "email": user.email,
             "role": user.role,
-            "first_name": user.first_name,
-            "last_name": user.last_name
         }
     })
 
@@ -133,6 +110,7 @@ def ajax_login(request):
     response.set_cookie('access_token', access_token, httponly=True, samesite='Lax', secure=secure_cookie)
     response.set_cookie('refresh_token', refresh_token, httponly=True, samesite='Lax', secure=secure_cookie)
     return response
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -272,6 +250,7 @@ from django.core.exceptions import ValidationError
 
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
+@csrf_exempt
 def edit_projects(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
@@ -399,16 +378,30 @@ def edit_projects(request, project_id):
 
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+@csrf_exempt
 def edit_task(request, task_id):
     """Edit Task - AJAX enabled"""
     
     task = get_object_or_404(Task, id=task_id)
     task = Task.objects.prefetch_related('assigned_by', 'assigned_to', 'observers').get(id=task_id)
+    
     # Check if it's an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
+    # Create form with filtered projects based on role
+    class FilteredTaskForm(TaskForm):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Filter projects based on user role
+            if request.user.role == 'TEAM_LEAD':
+                # Team Lead sees only projects assigned to them
+                self.fields['project'].queryset = Projects.objects.filter(assigned_to=request.user)
+            else:
+                # Admin sees all projects
+                self.fields['project'].queryset = Projects.objects.all()
+    
     if request.method == 'POST':
-        form = TaskForm(request.POST, instance=task)
+        form = FilteredTaskForm(request.POST, instance=task)
         
         # Get dates for validation
         start_date = request.POST.get('start_date')
@@ -469,7 +462,7 @@ def edit_task(request, task_id):
     
     # GET request - show form
     else:
-        form = TaskForm(instance=task)
+        form = FilteredTaskForm(instance=task)
     
     context = {
         'form': form,
@@ -482,6 +475,7 @@ def edit_task(request, task_id):
 ## delete task
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+@csrf_exempt
 def delete_task(request, task_id):
     """Delete a task - AJAX enabled"""
     
@@ -709,6 +703,7 @@ def view_user_details(request, user_id):
 
 ## Add project resource
 @jwt_or_session_required
+@csrf_exempt
 def add_project_resource(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
 
@@ -760,6 +755,7 @@ def add_project_resource(request, project_id):
 ## delete Projects
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["TEAM_LEAD", "ADMIN"])
+@csrf_exempt
 def delete_project(request, id):
     """Delete a project - AJAX enabled"""
     
@@ -881,16 +877,25 @@ def dashboard(request):
 @jwt_or_session_required
 def logout_view(request):
     refresh_token = None
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    
+    # Check if it's an AJAX/API request
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.headers.get('Accept') == 'application/json'
+    )
+    
+    # Get refresh token from request body
+    if request.method == 'POST':
         try:
             body = json.loads(request.body.decode('utf-8') or '{}')
             refresh_token = body.get('refresh_token')
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             refresh_token = None
 
     if not refresh_token:
         refresh_token = request.COOKIES.get('refresh_token')
 
+    # Blacklist the refresh token
     if refresh_token:
         try:
             token = RefreshToken(refresh_token)
@@ -898,13 +903,26 @@ def logout_view(request):
         except (TokenError, Exception):
             pass
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        response = JsonResponse({'success': True, 'message': 'Logged out successfully'})
+    # For JWT-only authentication, we don't need logout()
+    # Just remove the tokens
+
+    # Create response
+    if is_ajax:
+        response = JsonResponse({
+            'success': True,
+            'message': 'Logged out successfully',
+            'redirect_url': '/'
+        })
     else:
         response = redirect('login_page')
 
+    # Clear JWT cookies
     response.delete_cookie('access_token')
     response.delete_cookie('refresh_token')
+    response.delete_cookie('user_role')
+    response.delete_cookie('username')
+    response.delete_cookie('user_id')
+    
     return response
 
 
@@ -1026,6 +1044,26 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["TEAM_LEAD"])
 def teamlead_dashboard(request):
+    # Strict role check
+    if request.user.role != 'TEAM_LEAD':
+        # Create response to clear cookies
+        response = None
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response = JsonResponse({
+                'success': False,
+                'error': 'Access denied. Team Lead dashboard only.'
+            }, status=403)
+        else:
+            messages.error(request, 'Access denied. Team Lead dashboard only.')
+            response = redirect('login_page')
+        
+        # 🔥 Clear the invalid cookies
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        
+        return response
+    
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         # Get pagination parameters for team members
@@ -1128,9 +1166,29 @@ def teamlead_dashboard(request):
 ## employee dashboard
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
+@csrf_exempt
 def employee_dashboard(request):
-    print(f"Employee dashboard accessed by: {request.user.username}")
-    print(f"Is authenticated: {request.user.is_authenticated}")
+
+    # STRICT role check - Only EMPLOYEE allowed
+    if request.user.role != 'EMPLOYEE':
+        # Create response to clear cookies
+        response = None
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response = JsonResponse({
+                'success': False,
+                'error': 'Access denied. Employee dashboard only.'
+            }, status=403)
+        else:
+            messages.error(request, 'Access denied. Employee dashboard only.')
+            response = redirect('login_page')
+        
+        # 🔥 Clear the invalid cookies
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        
+        return response
+    
     user = request.user
 
     # Handle AJAX request
@@ -1184,6 +1242,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE"])
+@csrf_exempt
 def employee_projects(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1328,6 +1387,7 @@ If you did not register on our site, please ignore this email.
 ## Edit User - Admin only
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def edit_user(request, user_id):
     """Edit User - AJAX enabled"""
     
@@ -1416,6 +1476,7 @@ from django.db.models import Q
 ## Admin view users
 @csrf_exempt
 @jwt_or_session_required
+@allowed_roles(['ADMIN'])
 def admin_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1488,6 +1549,7 @@ def admin_view_users(request):
 ## Team lead view users
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
+@allowed_roles(['ADMIN', 'TEAM_LEAD'])
 def teamlead_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1585,6 +1647,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 @jwt_or_session_required
+@csrf_exempt
 @allowed_roles(allowed_roles=["ADMIN"])
 def create_user(request):
     # Handle AJAX request
@@ -1787,14 +1850,27 @@ from Tasks.forms import TaskForm
 ## Assign Task
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["TEAM_LEAD","ADMIN"])
+@csrf_exempt
 def assign_task(request):
     """Assign Task - AJAX enabled"""
     
     # Check if it's an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
+    # Create form with filtered projects based on role
+    class FilteredTaskForm(TaskForm):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Filter projects based on user role
+            if request.user.role == 'TEAM_LEAD':
+                # Team Lead sees only projects assigned to them
+                self.fields['project'].queryset = Projects.objects.filter(assigned_to=request.user)
+            else:
+                # Admin sees all projects
+                self.fields['project'].queryset = Projects.objects.all()
+    
     if request.method == "POST":
-        form = TaskForm(request.POST)
+        form = FilteredTaskForm(request.POST)
         
         # Get dates for validation
         start_date = request.POST.get('start_date')
@@ -1897,9 +1973,10 @@ def assign_task(request):
     
     # GET request - show empty form
     else:
-        form = TaskForm()
+        form = FilteredTaskForm()
 
     return render(request, "assign_task.html", {"form": form})
+
 
 ## Create Project
 from projects.forms import  ProjectResourceFormSet
@@ -1907,11 +1984,50 @@ from users.forms import ProjectForm
 ## Create Project
 @jwt_or_session_required
 @allowed_roles(["ADMIN", "TEAM_LEAD"])
+@csrf_exempt
 def create_project(request):
+    # Helper function to get filtered employees for Team Lead
+    def get_filtered_employees(team_lead):
+        """Get employees that are under this Team Lead"""
+        # Get all projects managed by this Team Lead
+        my_projects = Projects.objects.filter(assigned_to=team_lead)
+        my_project_ids = my_projects.values_list('id', flat=True)
+        
+        # Get employees from tasks in these projects
+        tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+        employee_ids_from_tasks = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
+        
+        # Get employees directly assigned to projects
+        project_employees = User.objects.filter(
+            projects__in=my_projects,
+            role='EMPLOYEE'
+        ).values_list('id', flat=True).distinct()
+        
+        # Combine all employee IDs
+        all_employee_ids = set(employee_ids_from_tasks) | set(project_employees)
+        
+        # Return the employees
+        return User.objects.filter(
+            id__in=all_employee_ids,
+            role='EMPLOYEE',
+            is_active=True
+        ).order_by('username')
+    
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if request.method == "POST":
-            project_form = ProjectForm(request.POST)
+            # Get filtered queryset for Team Lead
+            if request.user.role == 'TEAM_LEAD':
+                filtered_employees = get_filtered_employees(request.user)
+                # Create a dynamic form class with filtered queryset
+                class FilteredProjectForm(ProjectForm):
+                    def __init__(self, *args, **kwargs):
+                        super().__init__(*args, **kwargs)
+                        self.fields['assigned_to'].queryset = filtered_employees
+                project_form = FilteredProjectForm(request.POST)
+            else:
+                project_form = ProjectForm(request.POST)
+            
             resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
             
             errors = {}
@@ -1994,7 +2110,17 @@ def create_project(request):
         
         # GET request - return form structure if needed
         elif request.method == "GET":
-            project_form = ProjectForm()
+            # Get filtered queryset for Team Lead
+            if request.user.role == 'TEAM_LEAD':
+                filtered_employees = get_filtered_employees(request.user)
+                class FilteredProjectForm(ProjectForm):
+                    def __init__(self, *args, **kwargs):
+                        super().__init__(*args, **kwargs)
+                        self.fields['assigned_to'].queryset = filtered_employees
+                project_form = FilteredProjectForm()
+            else:
+                project_form = ProjectForm()
+            
             resource_formset = ProjectResourceFormSet()
             
             # Get field definitions for dynamic form rendering
@@ -2024,7 +2150,17 @@ def create_project(request):
     
     # Handle regular (non-AJAX) request
     if request.method == "POST":
-        project_form = ProjectForm(request.POST)
+        # Get filtered queryset for Team Lead
+        if request.user.role == 'TEAM_LEAD':
+            filtered_employees = get_filtered_employees(request.user)
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_employees
+            project_form = FilteredProjectForm(request.POST)
+        else:
+            project_form = ProjectForm(request.POST)
+        
         resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
         
         # Get dates for validation
@@ -2045,6 +2181,9 @@ def create_project(request):
             project = project_form.save(commit=False)
             project.created_by = request.user
             project.save()
+            
+            if project_form.cleaned_data.get('assigned_to'):
+                project.assigned_to.set(project_form.cleaned_data['assigned_to'])
             
             for resource_form in resource_formset:
                 if resource_form.cleaned_data and not resource_form.cleaned_data.get('DELETE', False):
@@ -2073,7 +2212,17 @@ def create_project(request):
     
     # GET request - show empty form
     else:
-        project_form = ProjectForm()
+        # Get filtered queryset for Team Lead
+        if request.user.role == 'TEAM_LEAD':
+            filtered_employees = get_filtered_employees(request.user)
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_employees
+            project_form = FilteredProjectForm()
+        else:
+            project_form = ProjectForm()
+        
         resource_formset = ProjectResourceFormSet()
 
     context = {
@@ -2323,6 +2472,7 @@ def task_dashboard(request):
 from django.http import JsonResponse
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def add_task_summary(request, task_id):
     """Add summary to a task - AJAX enabled"""
     
@@ -2536,30 +2686,30 @@ def employee_tasks(request):
 
 
 ## update task status
-@jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
-def update_task_status(request, task_id):
+# @jwt_or_session_required
+# @allowed_roles(allowed_roles=["EMPLOYEE"])
+# def update_task_status(request, task_id):
 
-    task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
+#     task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
 
-    if request.method == "POST":
-        new_status = request.POST.get("status")
+#     if request.method == "POST":
+#         new_status = request.POST.get("status")
 
-        # Workflow control
-        if task.status == "PENDING" and new_status == "ONGOING":
-            task.status = "ONGOING"
-            task.save()
+#         # Workflow control
+#         if task.status == "PENDING" and new_status == "ONGOING":
+#             task.status = "ONGOING"
+#             task.save()
 
-        elif task.status == "ONGOING" and new_status == "COMPLETED":
-            task.status = "COMPLETED"
-            task.save()
+#         elif task.status == "ONGOING" and new_status == "COMPLETED":
+#             task.status = "COMPLETED"
+#             task.save()
 
-        return redirect("employee_tasks")
+#         return redirect("employee_tasks")
 
-    return render(request, "update_task_status.html", {
-        "task": task,
-        "status_choices": Task.STATUS_CHOICES
-    })
+#     return render(request, "update_task_status.html", {
+#         "task": task,
+#         "status_choices": Task.STATUS_CHOICES
+#     })
 
 
 ## start task
@@ -2569,6 +2719,7 @@ import datetime
 ## START TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def start_task(request, task_id):
     """Start a task - AJAX enabled"""
     
@@ -2610,6 +2761,7 @@ def start_task(request, task_id):
 ## PAUSE TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def pause_task(request, task_id):
     """Pause an ongoing task - AJAX enabled"""
     
@@ -2648,6 +2800,7 @@ def pause_task(request, task_id):
 ## RESUME TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def resume_task(request, task_id):
     """Resume a paused task - AJAX enabled"""
     
@@ -2687,6 +2840,7 @@ def resume_task(request, task_id):
 ## COMPLETE TASK - AJAX VERSION
 @jwt_or_session_required
 @allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@csrf_exempt
 def complete_task(request, task_id):
     """Complete a task - AJAX enabled with JSON response"""
     
@@ -2796,6 +2950,7 @@ from django.http import JsonResponse
 
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def create_department(request):
     if request.method == "POST":
         name = request.POST.get("name")
@@ -2854,6 +3009,7 @@ def department_detail(request, dept_id):
 ## delete_department
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def delete_department(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
     dept_name = department.name
@@ -2902,6 +3058,7 @@ def designations(request):
 
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def create_designation(request):
     if request.method == "POST":
         name = request.POST.get("name")
@@ -2964,6 +3121,7 @@ def designation_detail(request, desig_id):
 ## delete designation
 @jwt_or_session_required
 @allowed_roles(['ADMIN'])
+@csrf_exempt
 def delete_designation(request, desig_id):
     desig = get_object_or_404(Designation, id=desig_id)
     desig_name = desig.name
@@ -3060,9 +3218,40 @@ def ai_generate_description(request):
 
 ## User Analytics
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@allowed_roles(['ADMIN', 'TEAM_LEAD'])
+@csrf_exempt
 def user_analytics(request):
-    users = User.objects.all().order_by('username')
+    # Debug print to verify user
+    print(f"📊 user_analytics called by: {request.user.username} (ID: {request.user.id})")
+    
+    # ========== Get users based on role ==========
+    if request.user.role == 'TEAM_LEAD':
+        # Team Lead sees only employees who have tasks from their projects
+        my_projects = Projects.objects.filter(assigned_to=request.user)
+        my_project_ids = my_projects.values_list('id', flat=True)
+        
+        # Get all employees who are assigned to tasks from these projects
+        tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+        employee_ids = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
+        
+        # Also include employees who are directly assigned to projects
+        # Using 'projects' instead of 'assigned_projects'
+        project_employees = User.objects.filter(
+            projects__in=my_projects,
+            role='EMPLOYEE'
+        ).values_list('id', flat=True).distinct()
+        
+        # Combine both sets
+        all_employee_ids = set(employee_ids) | set(project_employees)
+        users = User.objects.filter(id__in=all_employee_ids, role='EMPLOYEE').order_by('username')
+        
+        # For Team Lead, also include the option to see their own performance
+        team_lead_option = User.objects.filter(id=request.user.id)
+        users = users | team_lead_option
+        
+    else:  # ADMIN
+        users = User.objects.all().order_by('username')
+    
     selected_user_id = request.GET.get('user_id')
     selected_user = None
     
@@ -3070,12 +3259,40 @@ def user_analytics(request):
     get_top_performers = request.GET.get('get_top_performers') == 'true'
     
     if get_top_performers:
-        # Calculate top performers for all active users
-        all_users = User.objects.filter(is_active=True)
+        # Calculate top performers for users visible to this role
+        if request.user.role == 'TEAM_LEAD':
+            # For Team Lead, get their projects first
+            my_projects = Projects.objects.filter(assigned_to=request.user)
+            my_project_ids = my_projects.values_list('id', flat=True)
+            
+            # Get all employees under this team lead
+            tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+            employee_ids = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
+            
+            # Using 'projects' instead of 'assigned_projects'
+            project_employees = User.objects.filter(
+                projects__in=my_projects,
+                role='EMPLOYEE'
+            ).values_list('id', flat=True).distinct()
+            
+            all_employee_ids = set(employee_ids) | set(project_employees)
+            all_users = User.objects.filter(id__in=all_employee_ids, role='EMPLOYEE')
+        else:
+            all_users = User.objects.filter(is_active=True)
+        
         top_performers = []
         
         for user in all_users:
-            tasks = Task.objects.filter(assigned_to=user)
+            # Get tasks assigned to this user based on role
+            if request.user.role == 'TEAM_LEAD':
+                # Only tasks from team lead's projects
+                tasks = Task.objects.filter(
+                    assigned_to=user,
+                    project_id__in=my_project_ids
+                )
+            else:
+                tasks = Task.objects.filter(assigned_to=user)
+            
             total_tasks = tasks.count()
             completed_tasks = tasks.filter(status='COMPLETED').count()
             
@@ -3108,11 +3325,44 @@ def user_analytics(request):
     # Regular analytics logic
     if selected_user_id:
         selected_user = get_object_or_404(User, id=selected_user_id)
-        tasks = Task.objects.filter(assigned_to=selected_user)
-        projects = Projects.objects.filter(assigned_to=selected_user)
+        
+        # Permission check: Team Lead can only view their own or their team's analytics
+        if request.user.role == 'TEAM_LEAD':
+            if selected_user.id != request.user.id and selected_user.role != 'EMPLOYEE':
+                return JsonResponse({
+                    'success': False,
+                    'error': 'You do not have permission to view this user\'s analytics'
+                }, status=403)
+        
+        # Get tasks based on role and selected user
+        if request.user.role == 'TEAM_LEAD':
+            my_projects = Projects.objects.filter(assigned_to=request.user)
+            my_project_ids = my_projects.values_list('id', flat=True)
+            
+            # Team Lead viewing tasks (either their own or employee's)
+            tasks = Task.objects.filter(
+                assigned_to=selected_user,
+                project_id__in=my_project_ids
+            )
+            projects = Projects.objects.filter(
+                assigned_to=selected_user,
+                id__in=my_project_ids
+            )
+        else:
+            tasks = Task.objects.filter(assigned_to=selected_user)
+            projects = Projects.objects.filter(assigned_to=selected_user)
     else:
-        tasks = Task.objects.all()
-        projects = Projects.objects.all()
+        # All users view
+        if request.user.role == 'TEAM_LEAD':
+            my_projects = Projects.objects.filter(assigned_to=request.user)
+            my_project_ids = my_projects.values_list('id', flat=True)
+            
+            # For Team Lead, only tasks from their projects
+            tasks = Task.objects.filter(project_id__in=my_project_ids)
+            projects = Projects.objects.filter(id__in=my_project_ids)
+        else:
+            tasks = Task.objects.all()
+            projects = Projects.objects.all()
 
     total_tasks = tasks.count()
     completed = tasks.filter(status='COMPLETED').count()
@@ -3162,12 +3412,33 @@ def user_analytics(request):
         'cards': cards,
     }
 
-    # Return JSON if AJAX (for user selection)
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+    # Return JSON if AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # For Team Lead, also return list of users they can view
+        users_list = []
+        for user in users:
+            users_list.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'full_name': user.get_full_name() or user.username
+            })
+        
+        selected_user_name = None
+        if selected_user:
+            selected_user_name = selected_user.username
+        elif not selected_user and request.user.role == 'TEAM_LEAD':
+            selected_user_name = 'My Performance'
+        else:
+            selected_user_name = 'All Users'
+        
         return JsonResponse({
             'success': True,
             'analytics': analytics,
-            'selected_user': selected_user.username if selected_user else 'All Users'
+            'selected_user': selected_user_name,
+            'selected_user_id': selected_user.id if selected_user else None,
+            'users': users_list
         })
 
     # Normal page render
@@ -3178,6 +3449,46 @@ def user_analytics(request):
     })
 
 ## home page
-def home(request):
-    return render(request, "home.html")
 
+def home(request):
+    # Handle AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get token from cookie or header
+        token = None
+        
+        # Try to get from cookie first
+        auth_cookie = request.COOKIES.get('access_token')
+        if auth_cookie:
+            token = auth_cookie
+        
+        # If not in cookie, try Authorization header
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+        
+        user_data = None
+        if token:
+            try:
+                access_token = AccessToken(token)
+                user_id = access_token['user_id']
+                from users.models import User
+                user = User.objects.get(id=user_id)
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'full_name': user.get_full_name() or user.username
+                }
+            except (TokenError, User.DoesNotExist):
+                pass
+        
+        return JsonResponse({
+            'success': True,
+            'is_authenticated': user_data is not None,
+            'user': user_data
+        })
+    
+    # Regular request - return template
+    return render(request, "home.html")

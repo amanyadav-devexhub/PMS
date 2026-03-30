@@ -76,26 +76,23 @@
                     
                 {% endif %}
 
-                <!-- Team Lead Menu -->
-                        {% if request.user.role|lower == 'TEAM_LEAD' %}
-            <!-- Unified Dashboard link -->
-                    <a href="{% url 'dashboard' %}" 
+                <!-- TEAM LEAD MENU -->
+                {% if request.user.role == 'TEAM_LEAD' %}
+                    <a href="{% url 'teamlead_view_users' %}" 
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Dashboard
+                    Members
                     </a>
 
-                    <!-- Optional: you can remove these if Dashboard has everything -->
-                    <!--
-                    <a href="{% url 'projects' %}" 
+                    <a href="{% url 'view_projects' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Projects
                     </a>
 
-                    <a href="{% url 'team_members' %}" 
+                    <!-- Analytics for Team Lead -->
+                    <a href="{% url 'user_analytics' %}" 
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Team Members
+                    Analytics
                     </a>
-                    -->
                 {% endif %}
 
                 <!-- Employee Menu -->
@@ -106,7 +103,7 @@
                     </a> -->
                 {% endif %}
 
-                <!-- Logout -->
+                <!--Logout!-->
                 <button
                     id="logoutBtn"
                     type="button"
@@ -119,18 +116,11 @@
     </aside>
     <!-- ================= END SIDEBAR ================= -->
 
-
-
     <!-- ================= MAIN AREA ================= -->
     <div class="flex-1 flex flex-col">
 
         <!-- Topbar -->
         <header class="bg-white shadow p-4 flex justify-between items-center">
-
-            <!-- <button onclick="window.history.back()"
-                class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition">
-                    <span>←</span> <span>Back</span>
-            </button> -->
 
             <h2 class="text-xl font-semibold text-gray-800">
                 {% block page_title %}Dashboard{% endblock %}
@@ -148,29 +138,23 @@
                     {% endif %}
                 </div>
 
-                <!-- Notification Dropdown Panel -->
-                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg overflow-hidden z-50">
-                    <div class="p-3 border-b font-semibold text-gray-700 text-sm">Notifications</div>
-                    <ul class="max-h-48 overflow-y-auto">
-                        {% for notif in recent_notifications|slice:":1" %}
-                        <li class="border-b last:border-b-0 {% if not notif.is_read %}bg-blue-50{% endif %}">
-                            <a href="{% url 'mark_as_read' notif.id %}" class="block p-3 hover:bg-gray-50">
-                                <p class="text-xs text-gray-800 {% if not notif.is_read %}font-semibold{% endif %} leading-tight">
-                                    {{ notif.message|truncatechars:40 }}
-                                </p>
-                                <p class="text-xs text-gray-400 mt-1">{{ notif.created_at|date:"M d, H:i" }}</p>
+                 <!-- Notification Dropdown Panel -->
+                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg overflow-hidden z-50">
+                    <div class="p-4 border-b font-semibold text-gray-700">Notifications</div>
+                    <ul class="max-h-64 overflow-y-auto">
+                        {% for notif in request.user.notifications.all|slice:":1" %}
+                        <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer {% if not notif.is_read %}font-bold{% endif %}">
+                            <a href="{% url 'mark_as_read' notif.id %}">
+                                {{ notif.message }}
+                                <div class="text-xs text-gray-400">{{ notif.created_at|date:"M d, H:i" }}</div>
                             </a>
                         </li>
                         {% empty %}
-                        <li class="p-4 text-center">
-                            <p class="text-xs text-gray-500">No notifications</p>
-                        </li>
+                        <li class="px-4 py-2 text-gray-500">No notifications</li>
                         {% endfor %}
                     </ul>
-                    <a href="{% url 'all_notifications' %}" class="block p-2 bg-gray-100 text-center text-xs text-gray-700 hover:bg-gray-200">
-                        View All
-                    </a>
-                </div>
+                    <a href="{% url 'all_notifications' %}" class="block px-4 py-2 bg-gray-100 text-center text-gray-700 hover:bg-gray-200">View All</a>
+            </div>
 
                 <!-- User Info -->
                 <div class="flex items-center space-x-2">
@@ -182,9 +166,13 @@
                     </span>
                 </div>
 
+                <!-- Logout Button -->
+                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                    Logout
+                </button>
+
             </div>
         </header>
-
 
         <!-- Content Area -->
         <main class="p-6 overflow-y-auto flex-1">
@@ -197,7 +185,6 @@
     <!-- ================= END MAIN AREA ================= -->
 
 </div>
-
 
 <script>
     function getCSRFToken() {
@@ -264,6 +251,32 @@
             });
         });
     }
+</script>
+
+<script>
+function logout() {
+    // Clear all cookies
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+    }
+    
+    // Call server logout endpoint
+    fetch('/logout/', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(() => {
+        window.location.href = '/render_login/';
+    })
+    .catch(() => {
+        window.location.href = '/render_login/';
+    });
+}
 </script>
 
 </body>

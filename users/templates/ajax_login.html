@@ -189,7 +189,7 @@
     <p class="login-subtitle">Sign in to your account</p>
 
     <form id="loginForm">
-        {% csrf_token %}
+        <!-- {% csrf_token %} -->
 
         <div class="form-group">
             <label for="email">Email address</label>
@@ -342,6 +342,18 @@ passwordInput.addEventListener("keypress", function(e) {
         form.dispatchEvent(new Event("submit"));
     }
 });
+
+// After successful login:
+setTimeout(() => {
+    const token = data.access_token;
+    if (data.role === "ADMIN") {
+        window.location.href = `/admin_dashboard/?token=${token}`;
+    } else if (data.role === "TEAM_LEAD") {
+        window.location.href = `/teamlead_dashboard/?token=${token}`;
+    } else {
+        window.location.href = `/employee_dashboard/?token=${token}`;
+    }
+}, 800);
 </script>
 </body>
 </html>
