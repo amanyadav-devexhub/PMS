@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,27 +8,56 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-notification {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100 font-sans">
 
-<div class="flex h-screen">
+    <div class="flex h-screen">
 
-    <!-- ================= SIDEBAR ================= -->
-    <aside class="w-64 bg-white shadow-lg">
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="w-64 bg-white shadow-lg">
 
-        <!-- Logo / Brand -->
-        <div class="p-6 border-b">
-            <h1 class="text-2xl font-bold text-orange-600">PMS</h1>
-        </div>
+            <!-- Logo / Brand -->
+            <div class="p-6 border-b">
+                <h1 class="text-2xl font-bold text-orange-600">PMS</h1>
+            </div>
 
-        <!-- Navigation -->
-        <nav class="p-4 space-y-2 text-gray-700">
+            <!-- Navigation -->
+            <nav class="p-4 space-y-2 text-gray-700">
 
-            {% if request.user.is_authenticated %}
+                {% if request.user.is_authenticated %}
                 <!-- Dashboard - Role Based (Simpler) -->
-            <a href="
+                <a href="
                 {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
                     {% url 'admin_dashboard' %}
                 {% elif request.user.role == 'TEAM_LEAD' %}
@@ -36,248 +66,648 @@
                     {% url 'employee_dashboard' %}
                 {% else %}
                     {% url 'dashboard' %}
-                {% endif %}"
-            class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-            Dashboard
-            </a>
+                {% endif %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Dashboard
+                </a>
 
                 {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-                     <!-- <a href="{% url 'create_user' %}" 
-                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                       Create User
-                    </a> -->
+                <a href="{% url 'admin_view_users' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Members
+                </a>
 
-                    <a href="{% url 'admin_view_users' %}" 
-                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                       Members
-                    </a>
-
-                    <a href="{% url 'view_projects' %}"
+                <a href="{% url 'view_projects' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Projects
-                    </a>
+                </a>
 
-                    <!-- Departments -->
-                    <a href="{% url 'departments' %}"
+                <!-- Departments -->
+                <a href="{% url 'departments' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Departments
-                    </a>
+                </a>
 
-                    <!-- Designations -->
-                    <a href="{% url 'designations' %}"
+                <!-- Designations -->
+                <a href="{% url 'designations' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Designations
-                    </a>
-                    <!--Analytics-->
-                    <a href="{% url 'user_analytics' %}" 
+                </a>
+                <!--Analytics-->
+                <a href="{% url 'user_analytics' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Analytics
-                    </a>
-                    
+                </a>
+
                 {% endif %}
 
                 <!-- TEAM LEAD MENU -->
                 {% if request.user.role == 'TEAM_LEAD' %}
-                    <a href="{% url 'teamlead_view_users' %}" 
+                <a href="{% url 'teamlead_view_users' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Members
-                    </a>
+                </a>
 
-                    <a href="{% url 'view_projects' %}"
+                <a href="{% url 'view_projects' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Projects
-                    </a>
+                </a>
 
-                    <!-- Analytics for Team Lead -->
-                    <a href="{% url 'user_analytics' %}" 
+                <!-- Analytics for Team Lead -->
+                <a href="{% url 'user_analytics' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Analytics
-                    </a>
+                </a>
                 {% endif %}
 
                 <!-- Employee Menu -->
                 {% if request.user.role == 'EMPLOYEE' %}
-                    <!-- <a href="{% url 'employee_tasks' %}" 
-                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                       My Tasks
-                    </a> -->
+                <a href="{% url 'employee_projects' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    My Projects
+                </a>
+
+                <a href="{% url 'task_dashboard' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    My Tasks
+                </a>
                 {% endif %}
 
                 <!--Logout!-->
-                <button
-                    id="logoutBtn"
-                    type="button"
+                <button id="logoutBtn" type="button"
                     class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
                     Logout
                 </button>
-            {% endif %}
+                {% endif %}
 
-        </nav>
-    </aside>
-    <!-- ================= END SIDEBAR ================= -->
+            </nav>
+        </aside>
+        <!-- ================= END SIDEBAR ================= -->
 
-    <!-- ================= MAIN AREA ================= -->
-    <div class="flex-1 flex flex-col">
+        <!-- ================= MAIN AREA ================= -->
+        <div class="flex-1 flex flex-col">
 
-        <!-- Topbar -->
-        <header class="bg-white shadow p-4 flex justify-between items-center">
+            <!-- Topbar -->
+            <header class="bg-white shadow p-4 flex justify-between items-center">
 
-            <h2 class="text-xl font-semibold text-gray-800">
-                {% block page_title %}Dashboard{% endblock %}
-            </h2>
+                <h2 class="text-xl font-semibold text-gray-800">
+                    {% block page_title %}Dashboard{% endblock %}
+                </h2>
 
-            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-4">
 
-                <!-- Notification Bell -->
-                <div class="relative cursor-pointer" id="notificationBell">
-                    <span class="text-xl">🔔</span>
-                    {% if unread_notifications_count > 0 %}
-                    <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
-                        {{ unread_notifications_count }}
-                    </span>
-                    {% endif %}
+                    <!-- Notification Bell with AJAX -->
+                    <div class="relative" id="notificationBellContainer">
+                        <button id="notificationBellBtn" class="relative focus:outline-none">
+                            <svg class="w-6 h-6 text-gray-600 hover:text-orange-500 transition" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                                </path>
+                            </svg>
+                            <!-- Unread Count Badge -->
+                            <span id="notificationBadge"
+                                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                                style="display: {% if unread_notifications_count > 0 %}flex{% else %}none{% endif %};">
+                                {{ unread_notifications_count }}
+                            </span>
+                        </button>
+
+                        <!-- Dropdown Menu - Shows ONLY 1 latest notification -->
+                        <div id="notificationDropdown"
+                            class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50">
+                            <div class="p-4 border-b border-gray-200">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="text-lg font-semibold text-gray-800">Latest Notification</h3>
+                                </div>
+                            </div>
+
+                            <div id="notificationList" class="max-h-96 overflow-y-auto">
+                                <!-- Single notification will appear here -->
+                                <div class="p-4 text-center text-gray-500">
+                                    <div
+                                        class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500">
+                                    </div>
+                                    <p class="mt-2 text-sm">Loading...</p>
+                                </div>
+                            </div>
+
+                            <div class="p-3 border-t border-gray-200">
+                                <a href="{% url 'all_notifications' %}"
+                                    class="block text-center text-orange-500 hover:text-orange-600 font-medium transition">
+                                    View all notifications
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- User Info -->
+                    <div class="flex items-center space-x-2">
+                        <img src="https://i.pravatar.cc/40" class="rounded-full w-10 h-10" alt="User">
+                        <span class="font-medium">
+                            {{ request.user.username }}
+                        </span>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                        Logout
+                    </button>
+
                 </div>
+            </header>
 
-                 <!-- Notification Dropdown Panel -->
-                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg overflow-hidden z-50">
-                    <div class="p-4 border-b font-semibold text-gray-700">Notifications</div>
-                    <ul class="max-h-64 overflow-y-auto">
-                        {% for notif in request.user.notifications.all|slice:":1" %}
-                        <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer {% if not notif.is_read %}font-bold{% endif %}">
-                            <a href="{% url 'mark_as_read' notif.id %}">
-                                {{ notif.message }}
-                                <div class="text-xs text-gray-400">{{ notif.created_at|date:"M d, H:i" }}</div>
-                            </a>
-                        </li>
-                        {% empty %}
-                        <li class="px-4 py-2 text-gray-500">No notifications</li>
-                        {% endfor %}
-                    </ul>
-                    <a href="{% url 'all_notifications' %}" class="block px-4 py-2 bg-gray-100 text-center text-gray-700 hover:bg-gray-200">View All</a>
-            </div>
+            <!-- Content Area -->
+            <main class="p-6 overflow-y-auto flex-1">
+                {% block content %}
+                <!-- Page Content Goes Here -->
+                {% endblock %}
+            </main>
 
-                <!-- User Info -->
-                <div class="flex items-center space-x-2">
-                    <img src="https://i.pravatar.cc/40" 
-                         class="rounded-full w-10 h-10" 
-                         alt="User">
-                    <span class="font-medium">
-                        {{ request.user.username }}
-                    </span>
-                </div>
-
-                <!-- Logout Button -->
-                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
-                    Logout
-                </button>
-
-            </div>
-        </header>
-
-        <!-- Content Area -->
-        <main class="p-6 overflow-y-auto flex-1">
-            {% block content %}
-            <!-- Page Content Goes Here -->
-            {% endblock %}
-        </main>
+        </div>
+        <!-- ================= END MAIN AREA ================= -->
 
     </div>
-    <!-- ================= END MAIN AREA ================= -->
 
-</div>
-
-<script>
-    function getCSRFToken() {
-        return document.cookie
-            .split('; ')
-            .find(row => row.startsWith('csrftoken='))
-            ?.split('=')[1] || '';
-    }
-
-    function getAccessToken() {
-        return localStorage.getItem('access_token');
-    }
-
-    $.ajaxSetup({
-        beforeSend: function (xhr) {
-            const token = getAccessToken();
-            if (token) {
-                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-            }
-            xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    <script>
+        function getCSRFToken() {
+            return document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1] || '';
         }
-    });
 
-    const bell = document.getElementById('notificationBell');
-    const dropdown = document.getElementById('notificationDropdown');
+        function getAccessToken() {
+            return localStorage.getItem('access_token');
+        }
 
-    if (bell && dropdown) {
-        bell.addEventListener('click', () => {
-            dropdown.classList.toggle('hidden');
-        });
-
-        // Click outside to close the dropdown
-        document.addEventListener('click', (event) => {
-            if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
-                dropdown.classList.add('hidden');
+        $.ajaxSetup({
+            beforeSend: function (xhr) {
+                const token = getAccessToken();
+                if (token) {
+                    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                }
+                xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             }
         });
-    }
 
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function () {
-            $.ajax({
-                url: '{% url "logout" %}',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    refresh_token: localStorage.getItem('refresh_token')
-                }),
-                success: function () {
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('refresh_token');
-                    localStorage.removeItem('user_role');
-                    localStorage.removeItem('username');
-                    localStorage.removeItem('user_id');
-                    localStorage.removeItem('user_email');
-                    window.location.href = '{% url "login_page" %}';
-                },
-                error: function () {
-                    localStorage.clear();
-                    window.location.href = '{% url "login_page" %}';
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function () {
+                $.ajax({
+                    url: '{% url "logout" %}',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        refresh_token: localStorage.getItem('refresh_token')
+                    }),
+                    success: function () {
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+                        localStorage.removeItem('user_role');
+                        localStorage.removeItem('username');
+                        localStorage.removeItem('user_id');
+                        localStorage.removeItem('user_email');
+                        window.location.href = '{% url "login_page" %}';
+                    },
+                    error: function () {
+                        localStorage.clear();
+                        window.location.href = '{% url "login_page" %}';
+                    }
+                });
+            });
+        }
+    </script>
+
+    <script>
+    function logout() {
+        // Clear session storage (for back button navigation)
+        sessionStorage.clear();
+        
+        // Clear all cookies
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const eqPos = cookie.indexOf('=');
+            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+        }
+
+        // Clear local storage (JWT tokens)
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('username');
+        localStorage.removeItem('user_id');
+        localStorage.removeItem('user_email');
+
+        // Call server logout endpoint
+        fetch('/logout/', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(() => {
+                window.location.href = '/render_login/';
+            })
+            .catch(() => {
+                window.location.href = '/render_login/';
+            });
+    }
+    </script>
+
+    <!-- Navigation Helper - Prevents Back Button Loops -->
+    <script>
+        // ========== GLOBAL NAVIGATION HELPER ==========
+        
+        // Store the previous page before any navigation
+        (function () {
+            sessionStorage.setItem('currentPage', window.location.pathname);
+            if (!sessionStorage.getItem('initialPage')) {
+                sessionStorage.setItem('initialPage', window.location.pathname);
+            }
+        })();
+
+        // Smart back button function - Fixed for loop issue
+        function goBack() {
+            const previousPage = sessionStorage.getItem('previousPage');
+            const currentPage = window.location.pathname;
+            
+            // If we have a stored previous page and it's different from current
+            if (previousPage && previousPage !== currentPage) {
+                sessionStorage.removeItem('previousPage');
+                window.location.href = previousPage;
+                return;
+            }
+            
+            // Check if it's a project detail page
+            if (currentPage.includes('view_project_detail')) {
+                {% if request.user.role == 'EMPLOYEE' %}
+                    window.location.href = "{% url 'employee_projects' %}";
+                {% else %}
+                    window.location.href = "{% url 'view_projects' %}";
+                {% endif %}
+                return;
+            }
+            
+            // If it's the projects page, go to dashboard
+            if (currentPage.includes('employee_projects') || currentPage.includes('view_projects')) {
+                {% if request.user.role == 'EMPLOYEE' %}
+                    window.location.href = "{% url 'employee_dashboard' %}";
+                {% else %}
+                    window.location.href = "{% url 'admin_dashboard' %}";
+                {% endif %}
+                return;
+            }
+            
+            // Check if there's browser history
+            if (document.referrer && document.referrer !== window.location.href) {
+                window.history.back();
+                return;
+            }
+            
+            // Final fallback to dashboard
+            {% if request.user.is_authenticated %}
+                {% if request.user.role == 'ADMIN' %}
+                    window.location.href = "{% url 'admin_dashboard' %}";
+                {% elif request.user.role == 'TEAM_LEAD' %}
+                    window.location.href = "{% url 'teamlead_dashboard' %}";
+                {% elif request.user.role == 'EMPLOYEE' %}
+                    window.location.href = "{% url 'employee_dashboard' %}";
+                {% else %}
+                    window.location.href = "{% url 'dashboard' %}";
+                {% endif %}
+            {% else %}
+                window.location.href = "{% url 'login_page' %}";
+            {% endif %}
+        }
+
+        // Automatically capture clicks on ALL links to track navigation
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('a');
+            if (link && link.href && !link.href.includes('#') && link.target !== '_blank') {
+                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes('goBack')) {
+                    return;
+                }
+                if (link.classList.contains('no-history')) {
+                    return;
+                }
+                if (link.href.includes('javascript:')) {
+                    return;
+                }
+                
+                const currentPath = window.location.pathname;
+                try {
+                    const linkPath = new URL(link.href).pathname;
+                    if (currentPath !== linkPath) {
+                        sessionStorage.setItem('previousPage', currentPath);
+                    }
+                } catch (e) {
+                    // Invalid URL, ignore
+                }
+            }
+        });
+
+        // Convert all existing back buttons to use goBack function
+        document.addEventListener('DOMContentLoaded', function () {
+            const backButtons = document.querySelectorAll('[onclick*="history.back"], [onclick*="window.history.back"]');
+            backButtons.forEach(btn => {
+                btn.setAttribute('onclick', 'goBack()');
+            });
+            
+            const backButtonsByClass = document.querySelectorAll('.back-btn, [data-back-button]');
+            backButtonsByClass.forEach(btn => {
+                if (!btn.getAttribute('onclick')) {
+                    btn.setAttribute('onclick', 'goBack()');
                 }
             });
         });
-    }
-</script>
+    </script>
 
-<script>
-function logout() {
-    // Clear all cookies
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-        document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-    }
-    
-    // Call server logout endpoint
-    fetch('/logout/', {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(() => {
-        window.location.href = '/render_login/';
-    })
-    .catch(() => {
-        window.location.href = '/render_login/';
-    });
-}
-</script>
+    <!-- Notification System JavaScript -->
+    <script>
+        // Notification Manager - Handles real-time updates
+        const NotificationManager = {
+            unreadCount: parseInt("{{ unread_notifications_count|default:'0' }}") || 0,
+            pollInterval: null,
+            isLoading: false,
+
+            init() {
+                console.log('Notification Manager Initialized');
+                this.loadLatestNotification();
+                this.startPolling();
+                this.attachEventListeners();
+            },
+
+            attachEventListeners() {
+                const bellBtn = document.getElementById('notificationBellBtn');
+                const dropdown = document.getElementById('notificationDropdown');
+
+                if (bellBtn && dropdown) {
+                    bellBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        dropdown.classList.toggle('hidden');
+                        if (!dropdown.classList.contains('hidden')) {
+                            this.loadLatestNotification();
+                        }
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!bellBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                            dropdown.classList.add('hidden');
+                        }
+                    });
+                }
+
+                const markAllBtn = document.getElementById('markAllReadBtn');
+                if (markAllBtn) {
+                    markAllBtn.addEventListener('click', () => this.markAllAsRead());
+                }
+            },
+
+            loadLatestNotification() {
+                if (this.isLoading) return;
+                this.isLoading = true;
+
+                fetch('/notifications/all/?page=1&page_size=1', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.renderSingleNotification(data.notifications);
+                            this.unreadCount = data.unread_count;
+                            this.updateBadge();
+                        }
+                        this.isLoading = false;
+                    })
+                    .catch(error => {
+                        console.error('Error loading notification:', error);
+                        this.isLoading = false;
+                    });
+            },
+
+            renderSingleNotification(notifications) {
+                const container = document.getElementById('notificationList');
+                if (!container) return;
+
+                const latestNotif = notifications && notifications.length > 0 ? notifications[0] : null;
+
+                if (!latestNotif) {
+                    container.innerHTML = `
+                        <div class="p-8 text-center">
+                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <p class="text-gray-500">No notifications yet</p>
+                            <p class="text-xs text-gray-400 mt-1">New notifications will appear here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const isUnread = !latestNotif.is_read;
+                const bgColor = isUnread ? 'bg-blue-50' : 'bg-white';
+
+                container.innerHTML = `
+                    <div class="p-4 border-b border-gray-100 ${bgColor}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-800 leading-relaxed">${this.escapeHtml(latestNotif.message)}</p>
+                                <p class="text-xs text-gray-400 mt-2">${this.formatDate(latestNotif.created_at)}</p>
+                            </div>
+                            ${isUnread ? `
+                            <button onclick="NotificationManager.markAsRead(${latestNotif.id})" 
+                                    class="text-xs text-blue-600 hover:text-blue-800 ml-2 px-2 py-1 rounded hover:bg-blue-100 whitespace-nowrap">
+                                Mark read
+                            </button>
+                            ` : `
+                            <span class="text-xs text-green-600 ml-2 whitespace-nowrap">
+                                ✓ Read
+                            </span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            },
+
+            markAsRead(notificationId) {
+                fetch(`/notifications/mark-read/${notificationId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.unreadCount = Math.max(0, this.unreadCount - 1);
+                            this.updateBadge();
+                            this.loadLatestNotification();
+
+                            if (window.location.pathname.includes('/notifications/all/')) {
+                                if (typeof loadNotifications === 'function') {
+                                    loadNotifications(1, 20);
+                                } else {
+                                    location.reload();
+                                }
+                            }
+
+                            this.showToast('Notification marked as read', 'success');
+                        }
+                    })
+                    .catch(error => console.error('Error marking as read:', error));
+            },
+
+            markAllAsRead() {
+                fetch('/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.unreadCount = 0;
+                            this.updateBadge();
+                            this.loadLatestNotification();
+                            this.showToast(data.message, 'success');
+                        }
+                    })
+                    .catch(error => console.error('Error marking all as read:', error));
+            },
+
+            updateBadge() {
+                const badge = document.getElementById('notificationBadge');
+                if (badge) {
+                    if (this.unreadCount > 0) {
+                        badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+
+                const title = document.title;
+                if (this.unreadCount > 0) {
+                    if (!title.startsWith('(')) {
+                        document.title = `(${this.unreadCount}) ${title}`;
+                    }
+                } else {
+                    document.title = title.replace(/^\(\d+\)\s/, '');
+                }
+            },
+
+            startPolling() {
+                this.pollInterval = setInterval(() => {
+                    if (!document.hidden) {
+                        this.checkForNewNotifications();
+                    }
+                }, 30000);
+            },
+
+            checkForNewNotifications() {
+                fetch('/notifications/all/?page=1&page_size=1', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.unread_count > this.unreadCount) {
+                            const newCount = data.unread_count - this.unreadCount;
+                            this.unreadCount = data.unread_count;
+                            this.updateBadge();
+                            this.showToast(`📬 ${newCount} new notification${newCount > 1 ? 's' : ''}`, 'info');
+
+                            const dropdown = document.getElementById('notificationDropdown');
+                            if (dropdown && !dropdown.classList.contains('hidden')) {
+                                this.loadLatestNotification();
+                            }
+                        } else if (data.success) {
+                            this.unreadCount = data.unread_count;
+                            this.updateBadge();
+                        }
+                    })
+                    .catch(error => console.error('Error checking notifications:', error));
+            },
+
+            getCsrfToken() {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                            cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            },
+
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            },
+
+            escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+
+            showToast(message, type = 'success') {
+                const existingToast = document.querySelector('.toast-notification');
+                if (existingToast) existingToast.remove();
+
+                const toast = document.createElement('div');
+                const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+                toast.className = `toast-notification fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
+                toast.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span>${message}</span>
+                        <button onclick="this.parentElement.parentElement.remove()" class="hover:text-gray-200 text-xl">&times;</button>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+
+                setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+                setTimeout(() => {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            NotificationManager.init();
+        });
+
+        window.NotificationManager = NotificationManager;
+    </script>
 
 </body>
+
 </html>
