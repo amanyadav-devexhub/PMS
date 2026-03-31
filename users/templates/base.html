@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PMS Dashboard{% endblock %}</title>
 
+
+    <script>
+        // Suppress Tailwind production warning
+        const consoleWarn = console.warn;
+        console.warn = function () {
+            if (arguments[0] && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) {
+                return;
+            }
+            consoleWarn.apply(console, arguments);
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
@@ -115,7 +129,7 @@
                 <!-- Analytics for Team Lead -->
                 <a href="{% url 'user_analytics' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Analytics
+                    Team Analytics
                 </a>
                 {% endif %}
 
@@ -279,46 +293,46 @@
     </script>
 
     <script>
-    function logout() {
-        // Clear session storage (for back button navigation)
-        sessionStorage.clear();
-        
-        // Clear all cookies
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-            const eqPos = cookie.indexOf('=');
-            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        }
+        function logout() {
+            // Clear session storage (for back button navigation)
+            sessionStorage.clear();
 
-        // Clear local storage (JWT tokens)
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('username');
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_email');
-
-        // Call server logout endpoint
-        fetch('/logout/', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+            // Clear all cookies
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const eqPos = cookie.indexOf('=');
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
             }
-        })
-            .then(() => {
-                window.location.href = '/render_login/';
+
+            // Clear local storage (JWT tokens)
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('username');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_email');
+
+            // Call server logout endpoint
+            fetch('/logout/', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
-            .catch(() => {
-                window.location.href = '/render_login/';
-            });
-    }
+                .then(() => {
+                    window.location.href = '/render_login/';
+                })
+                .catch(() => {
+                    window.location.href = '/render_login/';
+                });
+        }
     </script>
 
     <!-- Navigation Helper - Prevents Back Button Loops -->
     <script>
         // ========== GLOBAL NAVIGATION HELPER ==========
-        
+
         // Store the previous page before any navigation
         (function () {
             sessionStorage.setItem('currentPage', window.location.pathname);
@@ -331,53 +345,53 @@
         function goBack() {
             const previousPage = sessionStorage.getItem('previousPage');
             const currentPage = window.location.pathname;
-            
+
             // If we have a stored previous page and it's different from current
             if (previousPage && previousPage !== currentPage) {
                 sessionStorage.removeItem('previousPage');
                 window.location.href = previousPage;
                 return;
             }
-            
+
             // Check if it's a project detail page
             if (currentPage.includes('view_project_detail')) {
                 {% if request.user.role == 'EMPLOYEE' %}
-                    window.location.href = "{% url 'employee_projects' %}";
+                window.location.href = "{% url 'employee_projects' %}";
                 {% else %}
-                    window.location.href = "{% url 'view_projects' %}";
+                window.location.href = "{% url 'view_projects' %}";
                 {% endif %}
                 return;
             }
-            
+
             // If it's the projects page, go to dashboard
-            if (currentPage.includes('employee_projects') || currentPage.includes('view_projects')) {
+            if (currentPage.includes('employee_projects') || currentPage.includes('projects/')) {
                 {% if request.user.role == 'EMPLOYEE' %}
-                    window.location.href = "{% url 'employee_dashboard' %}";
+                window.location.href = "{% url 'employee_dashboard' %}";
                 {% else %}
-                    window.location.href = "{% url 'admin_dashboard' %}";
+                window.location.href = "{% url 'admin_dashboard' %}";
                 {% endif %}
                 return;
             }
-            
+
             // Check if there's browser history
             if (document.referrer && document.referrer !== window.location.href) {
                 window.history.back();
                 return;
             }
-            
+
             // Final fallback to dashboard
             {% if request.user.is_authenticated %}
-                {% if request.user.role == 'ADMIN' %}
-                    window.location.href = "{% url 'admin_dashboard' %}";
-                {% elif request.user.role == 'TEAM_LEAD' %}
-                    window.location.href = "{% url 'teamlead_dashboard' %}";
-                {% elif request.user.role == 'EMPLOYEE' %}
-                    window.location.href = "{% url 'employee_dashboard' %}";
-                {% else %}
-                    window.location.href = "{% url 'dashboard' %}";
-                {% endif %}
+            {% if request.user.role == 'ADMIN' %}
+            window.location.href = "{% url 'admin_dashboard' %}";
+            {% elif request.user.role == 'TEAM_LEAD' %}
+            window.location.href = "{% url 'teamlead_dashboard' %}";
+            {% elif request.user.role == 'EMPLOYEE' %}
+            window.location.href = "{% url 'employee_dashboard' %}";
             {% else %}
-                window.location.href = "{% url 'login_page' %}";
+            window.location.href = "{% url 'dashboard' %}";
+            {% endif %}
+            {% else %}
+            window.location.href = "{% url 'login_page' %}";
             {% endif %}
         }
 
@@ -394,7 +408,7 @@
                 if (link.href.includes('javascript:')) {
                     return;
                 }
-                
+
                 const currentPath = window.location.pathname;
                 try {
                     const linkPath = new URL(link.href).pathname;
@@ -413,7 +427,7 @@
             backButtons.forEach(btn => {
                 btn.setAttribute('onclick', 'goBack()');
             });
-            
+
             const backButtonsByClass = document.querySelectorAll('.back-btn, [data-back-button]');
             backButtonsByClass.forEach(btn => {
                 if (!btn.getAttribute('onclick')) {
@@ -432,7 +446,6 @@
             isLoading: false,
 
             init() {
-                console.log('Notification Manager Initialized');
                 this.loadLatestNotification();
                 this.startPolling();
                 this.attachEventListeners();

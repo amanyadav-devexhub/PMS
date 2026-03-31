@@ -187,8 +187,8 @@ def view_projects(request):
                 'status_class': status['class'],
                 'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
                 'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
-                'view_url': f"/view_project_detail/{project.id}/",
-                'delete_url': f"/delete_project/{project.id}/"
+                'view_url': f"/project/{project.id}/",
+                'delete_url': f"/project/{{ project.id }}/delete/"
             })
         
         return JsonResponse({
@@ -259,7 +259,7 @@ def edit_projects(request, project_id):
         """Return users based on role - Admin sees all, TL sees only employees"""
         if user.role == 'ADMIN':
             # Admin can see all active users (including TL and Employees)
-            return User.objects.filter(is_active=True).order_by('first_name', 'username')
+            return User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True).order_by('first_name', 'username')
         else:
             # Team Lead sees only employees
             return User.objects.filter(
@@ -441,6 +441,19 @@ def edit_task(request, task_id):
             else:
                 # Admin sees all projects
                 self.fields['project'].queryset = Projects.objects.all()
+
+                   # 🔽 ADDED: Filter out admin users from assignee and observer fields
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['observers'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['assigned_by'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
     
     if request.method == 'POST':
         form = FilteredTaskForm(request.POST, instance=task)
@@ -1043,8 +1056,8 @@ def admin_dashboard(request):
                 'email': user.email,
                 'role': user.role,
                 'is_active': user.is_active,
-                'edit_url': f"/edit-user/{user.id}/",
-                'delete_url': f"/delete_user/{user.id}/"
+                'edit_url': f"/user/{user.id}/edit/",
+                'delete_url': f"/user/{user.id}/delete/"
             })
         
         return JsonResponse({
@@ -1336,7 +1349,7 @@ def employee_projects(request):
                 'end_date': project.end_date.strftime('%b %d, %Y') if project.end_date else 'N/A',
                 'assigned_users': assigned_users,
                 'total_assigned': project.assigned_to.count(),
-                'view_url': f"/view_project_detail/{project.id}/"
+                'view_url': f"/project/{project.id}/"
             })
         
         return JsonResponse({
@@ -1567,8 +1580,8 @@ def admin_view_users(request):
                 'role_display': user.role,
                 'role_class': role_class,
                 'is_active': user.is_active,
-                'view_url': f"/view_user_details/{user.id}/",
-                'delete_url': f"/delete_user/{user.id}/"
+                'view_url': f"/user/{user.id}/",
+                'delete_url': f"/user/{user.id}/delete/"
             })
         
         return JsonResponse({
@@ -1639,8 +1652,8 @@ def teamlead_view_users(request):
                 'role_display': user.role,
                 'is_active': user.is_active,
                 'avatar_initial': user.username[0].upper(),
-                'tasks_url': f"/employee_tasks/?employee_id={user.id}",
-                'assign_task_url': f"/assign_task/?employee={user.id}"
+                'tasks_url': f"/employee/tasks/?employee_id={user.id}",
+                'assign_task_url': f"/task/assign/?employee={user.id}"
             })
         
         return JsonResponse({
@@ -1910,6 +1923,19 @@ def assign_task(request):
             else:
                 # Admin sees all projects
                 self.fields['project'].queryset = Projects.objects.all()
+
+                # 🔽 ADDED: Filter out admin users from assignee and observer fields
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['observers'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['assigned_by'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
     
     if request.method == "POST":
         form = FilteredTaskForm(request.POST)
@@ -2033,13 +2059,13 @@ def create_project(request):
         """Return users based on role - Admin sees all, TL sees only employees"""
         if user.role == 'ADMIN':
             # Admin can see all active users (including TL and Employees)
-            return User.objects.filter(is_active=True).order_by('first_name', 'username')
+            return User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True).order_by('first_name', 'username')
         else:
             # Team Lead sees only employees
             return User.objects.filter(
                 role='EMPLOYEE',
                 is_active=True
-            ).order_by('first_name', 'username')
+            ).exclude(is_superuser=True).order_by('first_name', 'username')
     
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -2103,7 +2129,7 @@ def create_project(request):
                 # Determine redirect URL based on user role
                 redirect_url = request.POST.get('redirect_url', '')
                 if not redirect_url:
-                    redirect_url = "view_projects" if request.user.role == "ADMIN" else "teamlead_dashboard"
+                    redirect_url = "projects/" if request.user.role == "ADMIN" else "teamlead_dashboard"
                 
                 return JsonResponse({
                     'success': True,
@@ -2340,7 +2366,7 @@ def task_dashboard(request):
                 'project_name': task.project.name[:15] if task.project.name else 'N/A',
                 'assignees': assignees_list,
                 'total_assignees': task.assigned_to.count(),
-                'view_url': f"/employee_tasks/?task_id={task.id}"
+                'view_url': f"/employee/tasks/?task_id={task.id}"
             })
         
         return JsonResponse({
@@ -3175,63 +3201,6 @@ def delete_designation(request, desig_id):
 #     return render(request,"edit_user.html",{"user":user})
 
 
-# Only logged-in users can access
-# Allow POST requests from our forms
-# users/views.py
-from services.gemini_service import GeminiService
-@jwt_or_session_required
-@csrf_exempt    
-def ai_generate_description(request):
-    """
-    API endpoint for AI-powered task descriptions.
-    
-    Why this structure?
-    - POST only (we're creating something)
-    - Returns JSON (for JavaScript to use)
-    - Has clear success/error format
-    """
-    
-    # Step 1: Check if it's a POST request
-    if request.method != "POST":
-        return JsonResponse({
-            'success': False,
-            'error': 'This endpoint only accepts POST requests'
-        }, status=405)  # 405 = Method Not Allowed
-    
-    # Step 2: Try to parse the JSON data
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON format'
-        }, status=400)  # 400 = Bad Request
-    
-    # Step 3: Extract data from request
-    task_name = data.get('task_name', '').strip()
-    project_name = data.get('project_name', '')
-    current_description = data.get('current_description', '')
-    action = data.get('action', 'generate')
-    
-    # Step 4: Validate required fields
-    if not task_name:
-        return JsonResponse({
-            'success': False,
-            'error': 'Task name is required'
-        }, status=400)
-    
-    # Step 5: Initialize AI service
-    ai_service = GeminiService()
-    
-    # Step 6: Perform the requested action
-    if action == 'enhance' and current_description:
-        result = ai_service.enhance_description(current_description, task_name)
-    else:
-        result = ai_service.gen_task_description(task_name, project_name)
-    
-    # Step 7: Return the result
-    return JsonResponse(result)
-
 ## User Analytics
 @jwt_or_session_required
 @allowed_roles(['ADMIN', 'TEAM_LEAD'])
@@ -3505,6 +3474,32 @@ def home(request):
             'is_authenticated': user_data is not None,
             'user': user_data
         })
-    
     # Regular request - return template
     return render(request, "home.html")
+
+
+## Check email exists
+from django.views.decorators.http import require_http_methods
+import json
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def check_email_exists(request):
+    """Check if email is registered in the system - Public endpoint"""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email')
+        
+        if not email:
+            return JsonResponse({'exists': False, 'error': 'Email is required'}, status=400)
+        
+        # Check if user exists with this email
+        user_exists = User.objects.filter(email=email).exists()
+        
+        return JsonResponse({
+            'exists': user_exists,
+            'message': 'Email found' if user_exists else 'No account found with this email'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'exists': False, 'error': str(e)}, status=500)

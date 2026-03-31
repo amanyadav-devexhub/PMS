@@ -12,7 +12,7 @@
     <div class="mb-4">
         <button onclick="goBack()"
                 class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 20 20">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
             Back
@@ -71,7 +71,7 @@
                     {% endif %}
                 </div>
 
-                <!-- Assigned to (Multiple) -->
+                <!-- Assigned to (Multiple) - SEARCHABLE DROPDOWN -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-2">
                         Assign Employees to Project
@@ -79,31 +79,77 @@
                         <span class="text-xs text-orange-500 ml-2">(Only employees in your team)</span>
                         {% endif %}
                     </label>
-                    <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
-                        {% if form.assigned_to.field.queryset %}
-                            {% for user in form.assigned_to.field.queryset %}
-                                <div class="flex items-center space-x-2 py-1">
-                                    <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
-                                        id="user_{{ user.id }}"
-                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                        {% if user in form.assigned_to.value %}checked{% endif %}>
-                                    <label for="user_{{ user.id }}" class="text-sm text-gray-700">
-                                        {% if request.user.role == 'TEAM_LEAD' %}👥 {% endif %}
-                                        {{ user.get_full_name|default:user.username }} ({{ user.email }})
-                                    </label>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="text-center py-4 text-gray-500">
-                                {% if request.user.role == 'TEAM_LEAD' %}
-                                    <p>No employees found in your team yet.</p>
-                                    <p class="text-xs mt-1">Employees will appear here once they are assigned to tasks in your projects.</p>
+                    
+                    <!-- Custom Select Dropdown -->
+                    <div class="custom-select-wrapper" style="position: relative;">
+                        <!-- Selected Items Display -->
+                        <div id="selectedItemsDisplay" 
+                             class="border border-gray-300 rounded-lg px-3 py-2 min-h-[42px] cursor-pointer bg-white flex flex-wrap gap-1 items-center"
+                             style="cursor: pointer;">
+                            <span class="text-gray-400 text-sm" id="placeholderText">Select employees...</span>
+                        </div>
+                        
+                        <!-- Hidden Arrow -->
+                        <div class="absolute right-3 top-2.5 pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        
+                        <!-- Dropdown List -->
+                        <div id="customDropdown" 
+                             class="hidden absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg"
+                             style="display: none;">
+                            
+                            <!-- Search Bar Inside Dropdown -->
+                            <div class="sticky top-0 bg-white p-2 border-b border-gray-200">
+                                <input type="text" 
+                                       id="employeeSearchInput" 
+                                       placeholder="🔍 Search employees..." 
+                                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                            
+                            <!-- Options List -->
+                            <div id="dropdownOptions" class="max-h-60 overflow-y-auto">
+                                {% if form.assigned_to.field.queryset %}
+                                    {% for user in form.assigned_to.field.queryset %}
+                                        <div class="dropdown-option flex items-center px-3 py-2 hover:bg-indigo-50 cursor-pointer"
+                                             data-value="{{ user.id }}"
+                                             data-label="{{ user.get_full_name|default:user.username }}"
+                                             data-email="{{ user.email }}">
+                                            <input type="checkbox" 
+                                                   class="option-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-3"
+                                                   value="{{ user.id }}"
+                                                   id="option_{{ user.id }}">
+                                            <label for="option_{{ user.id }}" class="flex-1 text-sm text-gray-700 cursor-pointer">
+                                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
+                                                <span class="text-gray-400 text-xs block">{{ user.email }}</span>
+                                            </label>
+                                        </div>
+                                    {% endfor %}
                                 {% else %}
-                                    <p>No employees available. Please create employee accounts first.</p>
+                                    <div class="text-center py-4 text-gray-500">
+                                        {% if request.user.role == 'TEAM_LEAD' %}
+                                            <p>No employees found in your team yet.</p>
+                                            <p class="text-xs mt-1">Employees will appear here once they are assigned to tasks in your projects.</p>
+                                        {% else %}
+                                            <p>No employees available. Please create employee accounts first.</p>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
                             </div>
-                        {% endif %}
+                            
+                            <!-- Dropdown Footer -->
+                            <div class="sticky bottom-0 bg-gray-50 p-2 border-t border-gray-200 flex justify-between">
+                                <button type="button" id="selectAllOptions" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Select All</button>
+                                <button type="button" id="clearAllOptions" class="text-xs text-red-600 hover:text-red-800 font-medium">Clear All</button>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <!-- Hidden container for form submission -->
+                    <div id="selectedValuesContainer"></div>
+                    
                     <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     {{ form.assigned_to.errors }}
                 </div>
@@ -166,7 +212,7 @@
                 </div>
             </div>
 
-            <!-- Project Resources Section - IMPROVED VERSION -->
+            <!-- Project Resources Section -->
             <div class="mt-8">
                 <div class="flex items-center justify-between mb-4">
                     <div>
@@ -183,7 +229,6 @@
 
                     {% for form in resource_formset %}
                         <div class="resource-form bg-gray-50 border border-gray-200 rounded-lg p-5 relative" data-resource-index="{{ forloop.counter0 }}">
-                            <!-- Resource Header -->
                             <div class="flex items-center justify-between mb-3">
                                 <h4 class="font-medium text-gray-700 flex items-center">
                                     <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">
@@ -192,13 +237,12 @@
                                     Resource #{{ forloop.counter }}
                                 </h4>
                                 <button type="button" class="remove-resource text-red-500 hover:text-red-700 transition" title="Remove resource">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 20 20">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                     </svg>
                                 </button>
                             </div>
 
-                            <!-- Resource Fields Grid -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {% for field in form %}
                                     {% if field.name != 'id' and field.name != 'DELETE' %}
@@ -208,11 +252,6 @@
                                                 {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
                                             </label>
                                             {{ field|add_class:"w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                                            
-                                            {% if field.help_text %}
-                                                <p class="text-xs text-gray-400 mt-1">{{ field.help_text }}</p>
-                                            {% endif %}
-                                            
                                             <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                                             {{ field.errors }}
                                         </div>
@@ -220,25 +259,19 @@
                                 {% endfor %}
                             </div>
                             
-                            <!-- Hidden DELETE field -->
                             {% if form.DELETE %}
-                                <div class="hidden">
-                                    {{ form.DELETE }}
-                                </div>
+                                <div class="hidden">{{ form.DELETE }}</div>
                             {% endif %}
                             {% if form.id %}
-                                <div class="hidden">
-                                    {{ form.id }}
-                                </div>
+                                <div class="hidden">{{ form.id }}</div>
                             {% endif %}
                         </div>
                     {% endfor %}
                 </div>
 
-                <!-- Add Resource Button -->
                 <button type="button" id="add-resource"
                         class="mt-4 w-full md:w-auto bg-green-50 hover:bg-green-100 text-green-600 border-2 border-green-200 border-dashed rounded-lg px-6 py-3 transition flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 20 20">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
                     <span class="font-medium">Add Another Resource</span>
@@ -262,13 +295,196 @@
     </div>
 </div>
 
-<!-- AJAX JavaScript -->
+<!-- JavaScript -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('projectForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const notificationContainer = document.getElementById('notificationContainer');
         const submitBtn = document.getElementById('submitBtn');
+        
+        // ==================== SEARCHABLE DROPDOWN ====================
+        const selectedDisplay = document.getElementById('selectedItemsDisplay');
+        const customDropdown = document.getElementById('customDropdown');
+        const searchInput = document.getElementById('employeeSearchInput');
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        const selectedValuesContainer = document.getElementById('selectedValuesContainer');
+        const placeholderText = document.getElementById('placeholderText');
+        
+        let selectedValues = new Set(); // Store selected employee IDs
+        
+        // Function to update display
+        function updateDisplay() {
+            // Clear display
+            selectedDisplay.innerHTML = '';
+            
+            if (selectedValues.size === 0) {
+                // Show placeholder
+                const placeholder = document.createElement('span');
+                placeholder.className = 'text-gray-400 text-sm';
+                placeholder.innerText = 'Select employees...';
+                selectedDisplay.appendChild(placeholder);
+            } else {
+                // Show selected items as badges
+                selectedValues.forEach(value => {
+                    const option = document.querySelector(`.dropdown-option[data-value="${value}"]`);
+                    if (option) {
+                        const label = option.getAttribute('data-label');
+                        const badge = document.createElement('span');
+                        badge.className = 'bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs flex items-center gap-1';
+                        badge.innerHTML = `
+                            ${label}
+                            <button type="button" class="remove-badge ml-1 text-indigo-500 hover:text-indigo-700" data-value="${value}">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        `;
+                        selectedDisplay.appendChild(badge);
+                    }
+                });
+                
+                // Add hidden inputs for form submission
+                selectedValuesContainer.innerHTML = '';
+                selectedValues.forEach(value => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'assigned_to';
+                    hiddenInput.value = value;
+                    selectedValuesContainer.appendChild(hiddenInput);
+                });
+            }
+            
+            // Attach remove badge listeners
+            document.querySelectorAll('.remove-badge').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const value = this.getAttribute('data-value');
+                    selectedValues.delete(value);
+                    
+                    // Uncheck checkbox
+                    const checkbox = document.querySelector(`.option-checkbox[value="${value}"]`);
+                    if (checkbox) checkbox.checked = false;
+                    
+                    updateDisplay();
+                });
+            });
+        }
+        
+        // Toggle dropdown
+        function toggleDropdown(show) {
+            if (show) {
+                customDropdown.style.display = 'block';
+                customDropdown.classList.remove('hidden');
+                // Focus search input when opening
+                if (searchInput) setTimeout(() => searchInput.focus(), 100);
+            } else {
+                customDropdown.style.display = 'none';
+                customDropdown.classList.add('hidden');
+            }
+        }
+        
+        // Handle checkbox change
+        function handleCheckboxChange(checkbox, value) {
+            if (checkbox.checked) {
+                selectedValues.add(value);
+            } else {
+                selectedValues.delete(value);
+            }
+            updateDisplay();
+        }
+        
+        // Search filter
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = document.querySelectorAll('.dropdown-option');
+                
+                options.forEach(option => {
+                    const label = option.getAttribute('data-label').toLowerCase();
+                    const email = option.getAttribute('data-email').toLowerCase();
+                    
+                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
+                        option.style.display = '';
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Select All
+        const selectAllBtn = document.getElementById('selectAllOptions');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.dropdown-option').forEach(option => {
+                    const checkbox = option.querySelector('.option-checkbox');
+                    const value = option.getAttribute('data-value');
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.checked = true;
+                        selectedValues.add(value);
+                    }
+                });
+                updateDisplay();
+            });
+        }
+        
+        // Clear All
+        const clearAllBtn = document.getElementById('clearAllOptions');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                selectedValues.clear();
+                updateDisplay();
+            });
+        }
+        
+        // Click on selected display to toggle dropdown
+        if (selectedDisplay) {
+            selectedDisplay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = customDropdown.style.display === 'block';
+                toggleDropdown(!isOpen);
+            });
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!selectedDisplay?.contains(e.target) && !customDropdown?.contains(e.target)) {
+                toggleDropdown(false);
+            }
+        });
+        
+        // Attach checkbox listeners
+        function attachCheckboxListeners() {
+            document.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                checkbox.removeEventListener('change', checkbox._listener);
+                const listener = function(e) {
+                    const value = this.value;
+                    handleCheckboxChange(this, value);
+                };
+                checkbox.addEventListener('change', listener);
+                checkbox._listener = listener;
+            });
+        }
+        
+        attachCheckboxListeners();
+        
+        // Pre-select existing values (for edit mode)
+        {% if form.assigned_to.value %}
+            const preSelectedIds = {{ form.assigned_to.value|safe }};
+            preSelectedIds.forEach(id => {
+                const idStr = id.toString();
+                selectedValues.add(idStr);
+                const checkbox = document.querySelector(`.option-checkbox[value="${idStr}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            updateDisplay();
+        {% endif %}
+        
+        // ==================== END SEARCHABLE DROPDOWN ====================
         
         // Function to show notification
         function showNotification(message, type = 'success') {
@@ -295,13 +511,10 @@
                 </div>
             `;
             notificationContainer.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 5000);
+            setTimeout(() => notification.remove(), 5000);
         }
         
-        // Function to clear all error messages
+        // Function to clear errors
         function clearErrors() {
             document.querySelectorAll('.error-message').forEach(el => {
                 el.classList.add('hidden');
@@ -315,17 +528,14 @@
         // Function to display errors
         function displayErrors(errors) {
             clearErrors();
-            
             for (const [field, errorList] of Object.entries(errors)) {
                 const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
-                
                 if (field === 'date_error') {
                     const startDate = document.getElementById('start_date');
                     const endDate = document.getElementById('end_date');
                     if (startDate && endDate) {
                         startDate.classList.add('border-red-500', 'bg-red-50');
                         endDate.classList.add('border-red-500', 'bg-red-50');
-                        
                         const errorDiv = endDate.parentElement.querySelector('.error-message');
                         if (errorDiv) {
                             errorDiv.innerHTML = errorMessage;
@@ -343,86 +553,59 @@
                             errorDiv.classList.remove('hidden');
                         }
                     }
-                } else if (field.startsWith('resource_')) {
-                    const resourceField = document.querySelector(`[name="${field}"]`);
-                    if (resourceField) {
-                        resourceField.classList.add('border-red-500', 'bg-red-50');
-                        const errorDiv = resourceField.parentElement.querySelector('.error-message');
-                        if (errorDiv) {
-                            errorDiv.innerHTML = errorMessage;
-                            errorDiv.classList.remove('hidden');
-                        }
-                    }
                 }
             }
         }
         
-        // Date validation function
+        // Date validation
         function validateDates() {
             const startDate = document.getElementById('start_date');
             const endDate = document.getElementById('end_date');
             let isValid = true;
-            
             if (startDate && endDate && startDate.value && endDate.value) {
                 if (startDate.value >= endDate.value) {
                     endDate.classList.add('border-red-500', 'bg-red-50');
                     startDate.classList.add('border-red-500', 'bg-red-50');
-                    
-                    const endDateGroup = endDate.parentElement;
-                    const errorDiv = endDateGroup.querySelector('.error-message');
+                    const errorDiv = endDate.parentElement.querySelector('.error-message');
                     if (errorDiv) {
                         errorDiv.innerHTML = 'End date must be after start date';
                         errorDiv.classList.remove('hidden');
                     }
                     isValid = false;
-                } else {
-                    endDate.classList.remove('border-red-500', 'bg-red-50');
-                    startDate.classList.remove('border-red-500', 'bg-red-50');
-                    
-                    const endDateGroup = endDate.parentElement;
-                    const errorDiv = endDateGroup.querySelector('.error-message');
-                    if (errorDiv) {
-                        errorDiv.classList.add('hidden');
-                        errorDiv.innerHTML = '';
-                    }
                 }
             }
             return isValid;
         }
         
-        // Add date validation listeners
         const startDate = document.getElementById('start_date');
         const endDate = document.getElementById('end_date');
-        
         if (startDate && endDate) {
             startDate.addEventListener('change', validateDates);
             endDate.addEventListener('change', validateDates);
         }
         
-        // Resource formset functionality
+        // Resource formset
         const addBtn = document.getElementById('add-resource');
         const formsetDiv = document.getElementById('resource_formset');
         const totalForms = document.querySelector('#id_resources-TOTAL_FORMS');
         const resourceCount = document.getElementById('resource-count');
-
+        
         function updateResourceCount() {
             const forms = document.querySelectorAll('.resource-form');
             resourceCount.textContent = forms.length + ' Resource' + (forms.length !== 1 ? 's' : '');
         }
-
+        
         function attachRemoveListeners() {
             document.querySelectorAll('.remove-resource').forEach(btn => {
                 btn.onclick = function() {
                     if (document.querySelectorAll('.resource-form').length > 1) {
                         this.closest('.resource-form').remove();
-                        
                         document.querySelectorAll('.resource-form').forEach((form, index) => {
                             form.setAttribute('data-resource-index', index);
                             const header = form.querySelector('h4');
                             if (header) {
                                 header.innerHTML = `<span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">${index + 1}</span> Resource #${index + 1}`;
                             }
-                            
                             form.querySelectorAll('input, select, textarea').forEach(input => {
                                 if (input.name) {
                                     input.name = input.name.replace(/resources-\d+-/, `resources-${index}-`);
@@ -432,7 +615,6 @@
                                 }
                             });
                         });
-                        
                         totalForms.value = document.querySelectorAll('.resource-form').length;
                         updateResourceCount();
                     } else {
@@ -441,49 +623,37 @@
                 };
             });
         }
-
+        
         if (addBtn) {
             addBtn.addEventListener('click', () => {
                 let currentFormCount = parseInt(totalForms.value);
                 const formTemplate = formsetDiv.querySelector('.resource-form').cloneNode(true);
-                
                 formTemplate.querySelectorAll('input, select, textarea').forEach(input => {
                     if (input.type !== 'hidden') {
                         input.value = '';
                     }
                 });
-                
-                formTemplate.innerHTML = formTemplate.innerHTML.replace(
-                    /resources-\d+-/g, 
-                    `resources-${currentFormCount}-`
-                );
-                
+                formTemplate.innerHTML = formTemplate.innerHTML.replace(/resources-\d+-/g, `resources-${currentFormCount}-`);
                 const header = formTemplate.querySelector('h4');
                 if (header) {
                     header.innerHTML = `<span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">${currentFormCount + 1}</span> Resource #${currentFormCount + 1}`;
                 }
-                
                 formTemplate.setAttribute('data-resource-index', currentFormCount);
                 formsetDiv.appendChild(formTemplate);
                 totalForms.value = currentFormCount + 1;
-                
                 attachRemoveListeners();
                 updateResourceCount();
             });
         }
-
+        
         attachRemoveListeners();
         updateResourceCount();
         
-        // Handle form submission with AJAX
+        // Form submission
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
             clearErrors();
-            
-            if (!validateDates()) {
-                return;
-            }
+            if (!validateDates()) return;
             
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -508,36 +678,28 @@
                 if (response.ok && data.success) {
                     showNotification(data.message, 'success');
                     form.reset();
+                    selectedValues.clear();
+                    updateDisplay();
+                    document.querySelectorAll('.option-checkbox').forEach(cb => cb.checked = false);
                     
                     const resourceForms = document.querySelectorAll('.resource-form');
-                    for (let i = resourceForms.length - 1; i > 0; i--) {
-                        resourceForms[i].remove();
-                    }
-                    
+                    for (let i = resourceForms.length - 1; i > 0; i--) resourceForms[i].remove();
                     const firstForm = document.querySelector('.resource-form');
                     if (firstForm) {
                         firstForm.querySelectorAll('input, select, textarea').forEach(input => {
-                            if (input.type !== 'hidden') {
-                                input.value = '';
-                            }
+                            if (input.type !== 'hidden') input.value = '';
                         });
                     }
-                    
                     totalForms.value = 1;
                     updateResourceCount();
                     
-                    setTimeout(() => {
-                        window.location.href = data.redirect_url;
-                    }, 1500);
+                    setTimeout(() => window.location.href = data.redirect_url, 1500);
                 } else {
-                    if (data.errors) {
-                        displayErrors(data.errors);
-                    }
-                    showNotification(data.message || 'Error creating project. Please check the form for errors.', 'error');
+                    if (data.errors) displayErrors(data.errors);
+                    showNotification(data.message || 'Error creating project.', 'error');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                showNotification('An unexpected error occurred. Please try again.', 'error');
+                showNotification('An unexpected error occurred.', 'error');
             } finally {
                 loadingOverlay.classList.add('hidden');
                 submitBtn.disabled = false;
@@ -548,29 +710,15 @@
 </script>
 
 <style>
-    #loadingOverlay {
-        transition: all 0.3s ease;
-    }
-    
+    #loadingOverlay { transition: all 0.3s ease; }
     @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    
-    #notificationContainer > div {
-        animation: slideIn 0.3s ease-out;
-    }
-    
-    button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+    #notificationContainer > div { animation: slideIn 0.3s ease-out; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .dropdown-option:hover { background-color: #eef2ff; }
+    .custom-select-wrapper { position: relative; }
 </style>
 
 {% endblock %}

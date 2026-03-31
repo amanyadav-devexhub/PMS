@@ -1,7 +1,19 @@
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser   ## Abstractuser -- it is a built in class in django which is used to create custom user model
+from django.contrib.auth.models import AbstractUser,Permission   ## Abstractuser -- it is a built in class in django which is used to create custom user model
 
+## Role and Permission management
+class Role(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    permissions = models.ManyToManyField(
+        Permission,
+        blank=True,
+        related_name='roles'
+    )
+
+    def __str__(self):
+        return self.name
+    
 # Create your models here.
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -11,8 +23,45 @@ class User(AbstractUser):
     )
     role = models.CharField(max_length=20,choices=ROLE_CHOICES)
     email = models.EmailField(unique=True)
+    role_obj = models.ForeignKey(
+        Role,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users'
+    )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+
+    # ── ADD THIS save() METHOD ──
+    def save(self, *args, **kwargs):
+        if self.role:
+            try:
+                self.role_obj = Role.objects.get(name=self.role)
+            except Role.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+    # ── ADD THESE 2 PERMISSION METHODS ──
+    def has_perm(self, perm, obj=None):
+        if self.is_active and self.is_superuser:
+            return True
+        if self.role_obj:
+            app_label, codename = perm.split('.')
+            return self.role_obj.permissions.filter(
+                content_type__app_label=app_label,
+                codename=codename
+            ).exists()
+        return False
+    
+    def has_module_perms(self, app_label):
+        if self.is_active and self.is_superuser:
+            return True
+        if self.role_obj:
+            return self.role_obj.permissions.filter(
+                content_type__app_label=app_label
+            ).exists()
+        return False
     
 
 

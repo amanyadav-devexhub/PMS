@@ -160,10 +160,9 @@ EMAIL_HOST_PASSWORD = "yibiguqicxrtuwxv"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
-LOGIN_URL = "/render_login/"    
+LOGIN_URL = "/login/"    
 
 ## settings for AI features
 import os
 
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY','AIzaSyDsR7_Lz8CgzVfrthUhJMSKCfQEGS1_3Hg')
 

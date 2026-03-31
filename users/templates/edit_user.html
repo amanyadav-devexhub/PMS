@@ -361,7 +361,7 @@ if (form) {
                 showNotification(data.message, 'success');
                 setTimeout(() => {
                     const userId = {{ user.id }};
-                    window.location.href = `/view_user_details/${userId}/`;
+                    window.location.href = `/user/${userId}/`;;
                 }, 1500);
             } else {
                 if (data.errors) {

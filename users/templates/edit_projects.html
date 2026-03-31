@@ -12,7 +12,7 @@
     <div class="mb-4">
         <button onclick="goBack()"
                 class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 20 20">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
             Back
@@ -71,24 +71,76 @@
                 <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
             </div>
 
-            <!-- Assigned to (Multiple) -->
+            <!-- Assigned to (Multiple) - SEARCHABLE DROPDOWN -->
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-2">
-                    Assigned to
+                    Assign Employees to Project
                 </label>
-                <div class="border border-gray-300 rounded p-3 max-h-40 overflow-y-auto">
-                    {% for user in form.assigned_to.field.queryset %}
-                        <div class="flex items-center space-x-2 py-1">
-                            <input type="checkbox" name="assigned_to" value="{{ user.id }}" 
-                                   id="user_{{ user.id }}"
-                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                   {% if user in project.assigned_to.all %}checked{% endif %}>
-                            <label for="user_{{ user.id }}" class="text-sm text-gray-700">
-                                {{ user.get_full_name|default:user.username }} ({{ user.email }})
-                            </label>
+                
+                <!-- Custom Select Dropdown -->
+                <div class="custom-select-wrapper" style="position: relative;">
+                    <!-- Selected Items Display -->
+                    <div id="selectedItemsDisplay" 
+                         class="border border-gray-300 rounded-lg px-3 py-2 min-h-[42px] cursor-pointer bg-white flex flex-wrap gap-1 items-center"
+                         style="cursor: pointer;">
+                        <span class="text-gray-400 text-sm" id="placeholderText">Select employees...</span>
+                    </div>
+                    
+                    <!-- Hidden Arrow -->
+                    <div class="absolute right-3 top-2.5 pointer-events-none">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                    
+                    <!-- Dropdown List -->
+                    <div id="customDropdown" 
+                         class="hidden absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg"
+                         style="display: none;">
+                        
+                        <!-- Search Bar Inside Dropdown -->
+                        <div class="sticky top-0 bg-white p-2 border-b border-gray-200">
+                            <input type="text" 
+                                   id="employeeSearchInput" 
+                                   placeholder="🔍 Search employees..." 
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                         </div>
-                    {% endfor %}
+                        
+                        <!-- Options List -->
+                        <div id="dropdownOptions" class="max-h-60 overflow-y-auto">
+                            {% for user in form.assigned_to.field.queryset %}
+                                <div class="dropdown-option flex items-center px-3 py-2 hover:bg-indigo-50 cursor-pointer"
+                                     data-value="{{ user.id }}"
+                                     data-label="{{ user.get_full_name|default:user.username }}"
+                                     data-email="{{ user.email }}">
+                                    <input type="checkbox" 
+                                           class="option-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-3"
+                                           value="{{ user.id }}"
+                                           id="option_{{ user.id }}"
+                                           {% if user in project.assigned_to.all %}checked{% endif %}>
+                                    <label for="option_{{ user.id }}" class="flex-1 text-sm text-gray-700 cursor-pointer">
+                                        <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
+                                        <span class="text-gray-400 text-xs block">{{ user.email }}</span>
+                                    </label>
+                                </div>
+                            {% empty %}
+                                <div class="text-center py-4 text-gray-500">
+                                    <p>No employees available.</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Dropdown Footer -->
+                        <div class="sticky bottom-0 bg-gray-50 p-2 border-t border-gray-200 flex justify-between">
+                            <button type="button" id="selectAllOptions" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Select All</button>
+                            <button type="button" id="clearAllOptions" class="text-xs text-red-600 hover:text-red-800 font-medium">Clear All</button>
+                        </div>
+                    </div>
                 </div>
+                
+                <!-- Hidden container for form submission -->
+                <div id="selectedValuesContainer"></div>
+                
                 <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                 {{ form.assigned_to.errors }}
             </div>
@@ -150,6 +202,187 @@
         const form = document.getElementById('editProjectForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const notificationContainer = document.getElementById('notificationContainer');
+        
+        // ==================== SEARCHABLE DROPDOWN ====================
+        const selectedDisplay = document.getElementById('selectedItemsDisplay');
+        const customDropdown = document.getElementById('customDropdown');
+        const searchInput = document.getElementById('employeeSearchInput');
+        const selectedValuesContainer = document.getElementById('selectedValuesContainer');
+        const placeholderText = document.getElementById('placeholderText');
+        
+        let selectedValues = new Set(); // Store selected employee IDs
+        
+        // Initialize selected values from pre-checked checkboxes
+        function initializeSelectedValues() {
+            document.querySelectorAll('.option-checkbox:checked').forEach(checkbox => {
+                selectedValues.add(checkbox.value);
+            });
+            updateDisplay();
+        }
+        
+        // Function to update display
+        function updateDisplay() {
+            // Clear display
+            selectedDisplay.innerHTML = '';
+            
+            if (selectedValues.size === 0) {
+                // Show placeholder
+                const placeholder = document.createElement('span');
+                placeholder.className = 'text-gray-400 text-sm';
+                placeholder.innerText = 'Select employees...';
+                selectedDisplay.appendChild(placeholder);
+            } else {
+                // Show selected items as badges
+                selectedValues.forEach(value => {
+                    const option = document.querySelector(`.dropdown-option[data-value="${value}"]`);
+                    if (option) {
+                        const label = option.getAttribute('data-label');
+                        const badge = document.createElement('span');
+                        badge.className = 'bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs flex items-center gap-1';
+                        badge.innerHTML = `
+                            ${label}
+                            <button type="button" class="remove-badge ml-1 text-indigo-500 hover:text-indigo-700" data-value="${value}">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        `;
+                        selectedDisplay.appendChild(badge);
+                    }
+                });
+                
+                // Add hidden inputs for form submission
+                selectedValuesContainer.innerHTML = '';
+                selectedValues.forEach(value => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'assigned_to';
+                    hiddenInput.value = value;
+                    selectedValuesContainer.appendChild(hiddenInput);
+                });
+            }
+            
+            // Attach remove badge listeners
+            document.querySelectorAll('.remove-badge').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const value = this.getAttribute('data-value');
+                    selectedValues.delete(value);
+                    
+                    // Uncheck checkbox
+                    const checkbox = document.querySelector(`.option-checkbox[value="${value}"]`);
+                    if (checkbox) checkbox.checked = false;
+                    
+                    updateDisplay();
+                });
+            });
+        }
+        
+        // Toggle dropdown
+        function toggleDropdown(show) {
+            if (show) {
+                customDropdown.style.display = 'block';
+                customDropdown.classList.remove('hidden');
+                // Focus search input when opening
+                if (searchInput) setTimeout(() => searchInput.focus(), 100);
+            } else {
+                customDropdown.style.display = 'none';
+                customDropdown.classList.add('hidden');
+            }
+        }
+        
+        // Handle checkbox change
+        function handleCheckboxChange(checkbox, value) {
+            if (checkbox.checked) {
+                selectedValues.add(value);
+            } else {
+                selectedValues.delete(value);
+            }
+            updateDisplay();
+        }
+        
+        // Search filter
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = document.querySelectorAll('.dropdown-option');
+                
+                options.forEach(option => {
+                    const label = option.getAttribute('data-label').toLowerCase();
+                    const email = option.getAttribute('data-email').toLowerCase();
+                    
+                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
+                        option.style.display = '';
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Select All
+        const selectAllBtn = document.getElementById('selectAllOptions');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.dropdown-option').forEach(option => {
+                    const checkbox = option.querySelector('.option-checkbox');
+                    const value = option.getAttribute('data-value');
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.checked = true;
+                        selectedValues.add(value);
+                    }
+                });
+                updateDisplay();
+            });
+        }
+        
+        // Clear All
+        const clearAllBtn = document.getElementById('clearAllOptions');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                selectedValues.clear();
+                updateDisplay();
+            });
+        }
+        
+        // Click on selected display to toggle dropdown
+        if (selectedDisplay) {
+            selectedDisplay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = customDropdown.style.display === 'block';
+                toggleDropdown(!isOpen);
+            });
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!selectedDisplay?.contains(e.target) && !customDropdown?.contains(e.target)) {
+                toggleDropdown(false);
+            }
+        });
+        
+        // Attach checkbox listeners
+        function attachCheckboxListeners() {
+            document.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                checkbox.removeEventListener('change', checkbox._listener);
+                const listener = function(e) {
+                    const value = this.value;
+                    handleCheckboxChange(this, value);
+                };
+                checkbox.addEventListener('change', listener);
+                checkbox._listener = listener;
+            });
+        }
+        
+        attachCheckboxListeners();
+        
+        // Initialize selected values from pre-checked checkboxes
+        initializeSelectedValues();
+        
+        // ==================== END SEARCHABLE DROPDOWN ====================
         
         // Function to show notification
         function showNotification(message, type = 'success') {
@@ -362,6 +595,14 @@
     
     input:focus, select:focus, textarea:focus {
         transform: translateY(-1px);
+    }
+    
+    .dropdown-option:hover {
+        background-color: #eef2ff;
+    }
+    
+    .custom-select-wrapper {
+        position: relative;
     }
 </style>
 

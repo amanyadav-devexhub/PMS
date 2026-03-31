@@ -33,7 +33,7 @@ function loadDesignationUsers(desigId) {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
     
-    fetch(`/designation_detail/${desigId}/`, {
+    fetch(`/designation/${desigId}/`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }

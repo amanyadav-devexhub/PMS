@@ -33,7 +33,7 @@ function loadDepartmentUsers(deptId) {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
     
-    fetch(`/department_detail/${deptId}/`, {
+    fetch(`/department/${deptId}/`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }

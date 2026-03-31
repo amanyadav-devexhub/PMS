@@ -13,7 +13,7 @@
             All Projects
         </h2>
 
-        <!-- Add Project Button - Only visible to ADMIN -->
+        <!-- Add Project Button - Visible to ADMIN and TEAM_LEAD -->
         <div id="addProjectButtonContainer" style="display: none;">
             <a href="{% url 'create_project' %}"
                class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
@@ -179,23 +179,30 @@
         return localStorage.getItem('user_role');
     }
     
-    // Check if user is ADMIN
+    // Check if user is ADMIN or TEAM_LEAD (can add projects)
+    function canAddProject() {
+        const role = getUserRole();
+        return role === 'ADMIN' || role === 'TEAM_LEAD';
+    }
+    
+    // Check if user is ADMIN (can delete projects)
     function isAdmin() {
         const role = getUserRole();
         return role === 'ADMIN';
     }
     
-    // Show/hide buttons based on user role (ADMIN only)
+    // Show/hide buttons based on user role
     function updateButtonVisibility() {
+        const canAdd = canAddProject();
         const admin = isAdmin();
         
-        // Show/hide Add Project button
+        // Show/hide Add Project button (visible for ADMIN and TEAM_LEAD)
         const addButtonContainer = document.getElementById('addProjectButtonContainer');
         if (addButtonContainer) {
-            addButtonContainer.style.display = admin ? 'block' : 'none';
+            addButtonContainer.style.display = canAdd ? 'block' : 'none';
         }
         
-        // Show/hide all delete buttons
+        // Show/hide delete buttons (only for ADMIN)
         const deleteButtons = document.querySelectorAll('.delete-project-btn');
         deleteButtons.forEach(btn => {
             btn.style.display = admin ? 'inline-block' : 'none';
@@ -347,7 +354,7 @@
         let html = '';
         projects.forEach((project, index) => {
             const counter = (currentPage - 1) * currentPageSize + index + 1;
-            const viewDetailUrl = `/view_project_detail/${project.id}/`;
+            const viewDetailUrl = `/project/${project.id}/`;
             
             html += `
                 <tr class="hover:bg-gray-50 transition" id="project-row-${project.id}">
@@ -426,7 +433,7 @@
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
         
-        authFetch(`/delete_project/${projectId}/`, {
+        authFetch(`/project/${projectId}/delete/`, {
             method: 'POST'
         })
         .then(response => response.json())
