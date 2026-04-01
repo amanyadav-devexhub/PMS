@@ -7,7 +7,7 @@
 
 <!-- Back Button -->
 <div class="max-w-4xl mx-auto mb-4">
-    <button onclick="window.history.back()"
+    <button onclick="goBack()"
             class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -86,12 +86,16 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Role <span class="text-red-500">*</span>
                         </label>
-                        <select name="role" required
+                        <select name="role_obj" required
                                 class="w-full border border-gray-300 rounded-lg px-4 py-2.5
                                        focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
-                            <option value="ADMIN" {% if user.role == "ADMIN" %}selected{% endif %}>Admin</option>
-                            <option value="TEAM_LEAD" {% if user.role == "TEAM_LEAD" %}selected{% endif %}>Team Lead</option>
-                            <option value="EMPLOYEE" {% if user.role == "EMPLOYEE" %}selected{% endif %}>Employee</option>
+                            <option value="">Select Role</option>
+                            {% for role in roles %}
+                                <option value="{{ role.id }}"
+                                    {% if user.role_obj_id == role.id or user.role == role.name %}selected{% endif %}>
+                                    {{ role.name }}
+                                </option>
+                            {% endfor %}
                         </select>
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
@@ -361,7 +365,7 @@ if (form) {
                 showNotification(data.message, 'success');
                 setTimeout(() => {
                     const userId = {{ user.id }};
-                    window.location.href = `/view_user_details/${userId}/`;
+                    window.location.href = `/user/${userId}/`;;
                 }, 1500);
             } else {
                 if (data.errors) {

@@ -13,7 +13,7 @@
             All Projects
         </h2>
 
-        <!-- Add Project Button - Only visible to ADMIN -->
+        <!-- Add Project Button -->
         <div id="addProjectButtonContainer" style="display: none;">
             <a href="{% url 'create_project' %}"
                class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
@@ -109,7 +109,7 @@
                                 View
                             </a>
                         
-                            <!-- Delete button - Only visible to ADMIN -->
+                                <!-- Delete button -->
                             <button type="button" 
                                     onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
                                     class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition delete-project-btn"
@@ -169,36 +169,29 @@
 
 <!-- AJAX JavaScript with Pagination -->
 <script>
+    const canAddProjects = {{ can_add_projects|yesno:"true,false" }};
+    const canDeleteProjects = {{ can_delete_projects|yesno:"true,false" }};
+
     // Get JWT token from localStorage
     function getAccessToken() {
         return localStorage.getItem('access_token');
     }
     
-    // Get user role from localStorage
-    function getUserRole() {
-        return localStorage.getItem('user_role');
-    }
-    
-    // Check if user is ADMIN
-    function isAdmin() {
-        const role = getUserRole();
-        return role === 'ADMIN';
-    }
-    
-    // Show/hide buttons based on user role (ADMIN only)
+    // Show/hide buttons based on permission flags
     function updateButtonVisibility() {
-        const admin = isAdmin();
+        const canAdd = canAddProjects;
+        const canDelete = canDeleteProjects;
         
         // Show/hide Add Project button
         const addButtonContainer = document.getElementById('addProjectButtonContainer');
         if (addButtonContainer) {
-            addButtonContainer.style.display = admin ? 'block' : 'none';
+            addButtonContainer.style.display = canAdd ? 'block' : 'none';
         }
         
-        // Show/hide all delete buttons
+        // Show/hide delete buttons
         const deleteButtons = document.querySelectorAll('.delete-project-btn');
         deleteButtons.forEach(btn => {
-            btn.style.display = admin ? 'inline-block' : 'none';
+            btn.style.display = canDelete ? 'inline-block' : 'none';
         });
     }
     
@@ -207,7 +200,7 @@
         const token = getAccessToken();
         
         if (!token) {
-            window.location.href = '/render_login/';
+            window.location.href = "{% url 'login_page' %}";
             return Promise.reject('No token');
         }
         
@@ -220,7 +213,7 @@
         return fetch(url, options).then(response => {
             if (response.status === 401) {
                 localStorage.clear();
-                window.location.href = '/render_login/';
+                window.location.href = "{% url 'login_page' %}";
                 throw new Error('Unauthorized');
             }
             return response;
@@ -342,12 +335,12 @@
             return;
         }
         
-        const admin = isAdmin();
+        const canDelete = canDeleteProjects;
         
         let html = '';
         projects.forEach((project, index) => {
             const counter = (currentPage - 1) * currentPageSize + index + 1;
-            const viewDetailUrl = `/view_project_detail/${project.id}/`;
+            const viewDetailUrl = `/project/${project.id}/`;
             
             html += `
                 <tr class="hover:bg-gray-50 transition" id="project-row-${project.id}">
@@ -370,7 +363,7 @@
                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
                             View
                         </a>
-                        ${admin ? `
+                        ${canDelete ? `
                         <button type="button" 
                                 onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
                                 class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
@@ -426,7 +419,7 @@
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
         
-        authFetch(`/delete_project/${projectId}/`, {
+        authFetch(`/project/${projectId}/delete/`, {
             method: 'POST'
         })
         .then(response => response.json())

@@ -49,14 +49,14 @@ function loadDashboard() {
 function renderDashboard(data) {
     const container = document.getElementById('dashboardContent');
     
-    if (data.role === 'ADMIN') {
+    if (data.dashboard_variant === 'owner') {
         container.innerHTML = `
             <!-- Welcome Header with Gradient -->
             <div class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
                 <div class="flex justify-between items-center">
                     <div>
                         <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👑</h1>
-                        <p class="text-orange-100 text-lg">System Administrator • Full access to all modules</p>
+                        <p class="text-orange-100 text-lg">Workspace management access</p>
                     </div>
                     <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
                         <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
@@ -141,7 +141,7 @@ function renderDashboard(data) {
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(user.email)}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 py-1 text-xs rounded-full ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : user.role === 'TEAM_LEAD' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                        <span class="px-2 py-1 text-xs rounded-full ${user.role_tier === 'owner' ? 'bg-purple-100 text-purple-800' : user.role_tier === 'manager' ? 'bg-blue-100 text-blue-800' : user.role_tier === 'contributor' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
                                             ${user.role}
                                         </span>
                                     </td>
@@ -159,14 +159,14 @@ function renderDashboard(data) {
             </div>
         `;
     } 
-    else if (data.role === 'TEAMLEAD') {
+    else if (data.dashboard_variant === 'manager') {
         container.innerHTML = `
             <!-- Welcome Header -->
             <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-8 rounded-2xl shadow-xl mb-8">
                 <div class="flex justify-between items-center">
                     <div>
                         <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👋</h1>
-                        <p class="text-blue-100 text-lg">Team Lead • Manage your team and projects</p>
+                        <p class="text-blue-100 text-lg">Manager view • Manage your team and projects</p>
                     </div>
                     <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
                         <p class="text-sm opacity-90">{{ request.user.email }}</p>
@@ -195,7 +195,7 @@ function renderDashboard(data) {
             </div>
         `;
     } 
-    else if (data.role === 'EMPLOYEE') {
+    else if (data.dashboard_variant === 'contributor') {
         container.innerHTML = `
             <!-- Welcome Header -->
             <div class="bg-gradient-to-r from-green-500 to-teal-600 text-white p-8 rounded-2xl shadow-xl mb-8">
@@ -226,6 +226,40 @@ function renderDashboard(data) {
                 </div>
                 <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
                     <p class="text-gray-500 text-sm">My Projects</p>
+                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.projects_count}</h3>
+                </div>
+            </div>
+        `;
+    }
+    else {
+        container.innerHTML = `
+            <div class="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-8 rounded-2xl shadow-xl mb-8">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}!</h1>
+                        <p class="text-slate-100 text-lg">Role-based workspace</p>
+                    </div>
+                    <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
+                        <p class="text-sm opacity-90">{{ request.user.email }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+                    <p class="text-gray-500 text-sm">My Tasks</p>
+                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.tasks_count}</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-indigo-500">
+                    <p class="text-gray-500 text-sm">Ongoing</p>
+                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.ongoing_tasks}</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                    <p class="text-gray-500 text-sm">Completed</p>
+                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.completed_tasks}</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+                    <p class="text-gray-500 text-sm">Projects</p>
                     <h3 class="text-3xl font-bold text-gray-800">${data.stats.projects_count}</h3>
                 </div>
             </div>

@@ -75,13 +75,55 @@ def allowed_roles(allowed_roles=[]):
                     'success': False,
                     'error': 'Authentication required'
                 }, status=401)
-            
-            if request.user.role not in allowed_roles and not request.user.is_superuser:
+
+            current_role_name = request.user.role_obj.name if getattr(request.user, 'role_obj', None) else request.user.role
+            allowed_by_role_name = current_role_name in allowed_roles
+
+            if not (allowed_by_role_name or request.user.is_superuser):
                 return JsonResponse({
                     'success': False,
-                    'error': f'Access denied. Required role: {", ".join(allowed_roles)}. Your role: {request.user.role}'
+                    'error': f'Access denied. Required role: {", ".join(allowed_roles)}. Your role: {current_role_name}'
                 }, status=403)
             
             return view_func(request, *args, **kwargs)
+        return wrapped_view
+    return decorator
+
+
+## Role and Permission-based access control decorator
+def permission_required(perm):
+    """
+    Permission-based access control decorator.
+    Checks if user's Role has the specific permission.
+    Usage: @permission_required('projects.delete_projects')
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Authentication required'
+                    }, status=401)
+                return redirect(reverse('login_page'))
+
+            # Superuser always passes
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+
+            # Check permission via Role object
+            if request.user.has_perm(perm):
+                return view_func(request, *args, **kwargs)
+
+            # Access denied
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Access denied. Required permission: {perm}'
+                }, status=403)
+
+            return redirect(reverse('dashboard'))
+
         return wrapped_view
     return decorator

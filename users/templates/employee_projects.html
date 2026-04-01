@@ -7,7 +7,7 @@
 
     <!-- Back Button -->
     <div class="mb-4">
-        <button onclick="window.history.back()"
+        <button onclick="goBack()"
             class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
@@ -145,36 +145,57 @@
 </div>
 
 <script>
+
+    // Flag to prevent duplicate loading
+    let isInitialLoad = true;
+
+    function loadEmployeeProjects(search = '', page = 1, pageSize = 9) {
+        // Skip if it's initial load and we already have data
+        if (isInitialLoad && page === 1 && !search) {
+            const projectsGrid = document.getElementById('projectsGrid');
+            if (projectsGrid && projectsGrid.innerHTML.includes('project-card')) {
+                console.log('Skipping AJAX - projects already loaded via Django');
+                isInitialLoad = false;
+                return;
+            }
+        }
+
+        isInitialLoad = false;
+
+        // ... rest of your loadEmployeeProjects function
+    }
+
+
     // ========== SYNC TOKEN FUNCTION ==========
     function ensureTokenInCookies() {
         const token = localStorage.getItem('access_token');
         if (token) {
             // Check if cookie exists
             const hasTokenCookie = document.cookie.includes('access_token=');
-            
+
             if (!hasTokenCookie) {
                 console.log('Syncing token to cookies at:', new Date().toLocaleTimeString());
                 const date = new Date();
                 date.setTime(date.getTime() + (1 * 60 * 60 * 1000));
                 document.cookie = `access_token=${token}; expires=${date.toUTCString()}; path=/; SameSite=Lax`;
-                
+
                 const refreshToken = localStorage.getItem('refresh_token');
                 if (refreshToken) {
                     const refreshDate = new Date();
                     refreshDate.setTime(refreshDate.getTime() + (24 * 60 * 60 * 1000));
                     document.cookie = `refresh_token=${refreshToken}; expires=${refreshDate.toUTCString()}; path=/; SameSite=Lax`;
                 }
-                
+
                 console.log('Cookies after sync:', document.cookie);
             }
         } else {
             console.log('No token found in localStorage');
         }
     }
-    
+
     // Run sync on page load
     ensureTokenInCookies();
-    
+
     // Also sync after 1 second (in case localStorage loads late)
     setTimeout(ensureTokenInCookies, 1000);
     // ========== END SYNC TOKEN FUNCTION ==========
@@ -212,7 +233,7 @@
     function loadEmployeeProjects(search = '', page = 1, pageSize = 9) {
         // Sync token before every AJAX request
         ensureTokenInCookies();
-        
+
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.classList.remove('hidden');
 
@@ -398,8 +419,19 @@
     }
 
     // Load projects on page load
-    loadEmployeeProjects('', 1, 9);
-    
+    // Load projects on page load - but skip if coming from back navigation
+    document.addEventListener('DOMContentLoaded', function() {
+        const isBackNavigation = sessionStorage.getItem('isBackNavigation');
+        
+        if (!isBackNavigation) {
+            loadEmployeeProjects('', 1, 9);
+        }
+        
+        // Clear the flag after checking
+        sessionStorage.removeItem('isBackNavigation');
+    });
+
+
     // Debug: Log cookies and localStorage on page load
     console.log('=== Debug Info ===');
     console.log('localStorage token:', localStorage.getItem('access_token'));

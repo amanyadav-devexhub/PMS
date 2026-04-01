@@ -176,6 +176,8 @@
 
 <script>
 // ========== JWT AUTHENTICATION ==========
+const contributorDashboardAllowed = {{ can_view_task|yesno:"true,false" }} && !{{ is_manager_like|yesno:"true,false" }};
+
 function getAccessToken() {
     return localStorage.getItem('access_token');
 }
@@ -188,22 +190,12 @@ function getUserEmail() {
     return localStorage.getItem('user_email');
 }
 
-function getUserRole() {
-    return localStorage.getItem('user_role');
-}
-
-// Check if user is EMPLOYEE
-function isEmployee() {
-    const role = getUserRole();
-    return role === 'EMPLOYEE';
-}
-
 // Authenticated fetch wrapper
 function authFetch(url, options = {}) {
     const token = getAccessToken();
     
     if (!token) {
-        window.location.href = '/render_login/';
+        window.location.href = "{% url 'login_page' %}";
         return Promise.reject('No token');
     }
     
@@ -216,7 +208,7 @@ function authFetch(url, options = {}) {
     return fetch(url, options).then(response => {
         if (response.status === 401) {
             localStorage.clear();
-            window.location.href = '/render_login/';
+            window.location.href = "{% url 'login_page' %}";
             throw new Error('Unauthorized');
         }
         return response;
@@ -226,12 +218,14 @@ function authFetch(url, options = {}) {
 // Check authentication on page load
 (function() {
     const token = getAccessToken();
-    const role = getUserRole();
     
-    console.log('🔍 Employee Dashboard Auth:', { hasToken: !!token, role: role });
-    
-    if (!token || role !== 'EMPLOYEE') {
-        window.location.href = '/render_login/';
+    if (!token) {
+        window.location.href = "{% url 'login_page' %}";
+        return;
+    }
+
+    if (!contributorDashboardAllowed) {
+        window.location.href = "{{ dashboard_url }}";
         return;
     }
     
@@ -336,8 +330,12 @@ function loadDashboardData() {
 // Load dashboard data on page load
 document.addEventListener('DOMContentLoaded', function() {
     const token = getAccessToken();
-    if (!token || getUserRole() !== 'EMPLOYEE') {
-        window.location.href = '/render_login/';
+    if (!token) {
+        window.location.href = "{% url 'login_page' %}";
+        return;
+    }
+    if (!contributorDashboardAllowed) {
+        window.location.href = "{{ dashboard_url }}";
         return;
     }
     loadDashboardData();

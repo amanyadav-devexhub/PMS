@@ -314,13 +314,7 @@ form.addEventListener("submit", function (event) {
                 showMessage(`Welcome back, ${data.username}! Redirecting...`, "success");
 
                 setTimeout(() => {
-                    if (data.role === "ADMIN") {
-                        window.location.href = "/admin_dashboard/";
-                    } else if (data.role === "TEAM_LEAD") {
-                        window.location.href = "/teamlead_dashboard/";
-                    } else {
-                        window.location.href = "/employee_dashboard/";
-                    }
+                    window.location.href = data.redirect_url || "/dashboard/";
                 }, 800);
             } else {
                 showMessage(data.error || "Login failed", "error");
@@ -343,17 +337,6 @@ passwordInput.addEventListener("keypress", function(e) {
     }
 });
 
-// After successful login:
-setTimeout(() => {
-    const token = data.access_token;
-    if (data.role === "ADMIN") {
-        window.location.href = `/admin_dashboard/?token=${token}`;
-    } else if (data.role === "TEAM_LEAD") {
-        window.location.href = `/teamlead_dashboard/?token=${token}`;
-    } else {
-        window.location.href = `/employee_dashboard/?token=${token}`;
-    }
-}, 800);
 </script>
 </body>
 </html>

@@ -2,10 +2,11 @@
 
 # Create your views here.
 ## login & logout required libraries
-from .decorators import allowed_roles
+from .decorators import allowed_roles, permission_required
 from users.decorators import jwt_or_session_required
 from django.contrib.auth import authenticate
 from django.contrib.auth import logout
+from collections import defaultdict
 
 ## email related libraries
 from django.core.mail import send_mail
@@ -27,23 +28,50 @@ from projects.forms import ProjectResourceForm
 
 ## for notification logic
 from notifications.models import Notification
-from users.models import User
+from users.models import Role, User
+from users.permissions import (
+    can_add_task,
+    can_change_task,
+    can_delete_task,
+    can_manage_all_tasks,
+    can_manage_projects,
+    can_manage_users,
+    can_view_all_projects,
+    can_view_all_tasks,
+    can_view_task,
+    dashboard_url_for,
+    is_manager_like,
+)
 
 ## Used for Session based login
 def login_view(request):
     return redirect("login_page")
 
 
+def _active_users_queryset():
+    return User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
+
+
+def _contributor_user_ids():
+    return [user.id for user in _active_users_queryset() if not is_manager_like(user)]
+
+
+def _contributor_users_queryset():
+    contributor_ids = _contributor_user_ids()
+    return User.objects.filter(id__in=contributor_ids)
+
+
 from django.http import JsonResponse
 import json
 
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.http import JsonResponse
 from django.contrib.auth import authenticate,get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.views.decorators.csrf import csrf_exempt
 import json
+from django.contrib.auth.models import Permission
 User = get_user_model()
 
 ## ajax login
@@ -79,13 +107,13 @@ def ajax_login(request):
     if user is None:
         return JsonResponse({"status": "error", "error": "Incorrect password"}, status=401)
 
-    # Set role for superuser
-    if user.is_superuser and not user.role:
-        user.role = 'ADMIN'
-        user.save()
-        print(f"Set superuser role to ADMIN for {user.username}")
+    # Keep legacy role text synced when a Role object exists.
+    if user.role_obj and user.role != user.role_obj.name:
+        user.role = user.role_obj.name
+        user.save(update_fields=['role'])
 
-    role = user.role if user.role else 'EMPLOYEE'
+    role = user.role_obj.name if user.role_obj else (user.role or 'USER')
+    redirect_url = dashboard_url_for(user)
 
     refresh = RefreshToken.for_user(user)
     access_token = str(refresh.access_token)
@@ -94,6 +122,7 @@ def ajax_login(request):
     response = JsonResponse({
         "status": "success",
         "role": role,
+        "redirect_url": redirect_url,
         "username": user.username,
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -120,6 +149,7 @@ from rest_framework.response import Response
 ## View Projects
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
+@permission_required('projects.view_projects')
 def view_projects(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -127,12 +157,9 @@ def view_projects(request):
         page = request.GET.get("page", 1)
         page_size = request.GET.get("page_size", 10)
         
-        # Base queryset based on role
-        if request.user.role == "ADMIN":
+        if can_view_all_projects(request.user):
             projects = Projects.objects.all()
-        elif request.user.role == "TEAM_LEAD":
-            projects = Projects.objects.filter(assigned_to=request.user)
-        else:  # EMPLOYEE
+        else:
             projects = Projects.objects.filter(assigned_to=request.user)
 
         # Apply search filter
@@ -187,8 +214,8 @@ def view_projects(request):
                 'status_class': status['class'],
                 'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
                 'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
-                'view_url': f"/view_project_detail/{project.id}/",
-                'delete_url': f"/delete_project/{project.id}/"
+                'view_url': f"/project/{project.id}/",
+                'delete_url': f"/project/{{ project.id }}/delete/"
             })
         
         return JsonResponse({
@@ -210,12 +237,9 @@ def view_projects(request):
     page = request.GET.get("page", 1)
     page_size = 10
     
-    # Base queryset based on role
-    if request.user.role == "ADMIN":
+    if can_view_all_projects(request.user):
         projects = Projects.objects.all()
-    elif request.user.role == "TEAM_LEAD":
-        projects = Projects.objects.filter(assigned_to=request.user)
-    else:  # EMPLOYEE
+    else:
         projects = Projects.objects.filter(assigned_to=request.user)
 
     if search_query:
@@ -249,13 +273,25 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.core.exceptions import ValidationError
 
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN","TEAM_LEAD"])
+@permission_required('projects.change_projects')
 @csrf_exempt
 def edit_projects(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
-    # Check if team lead can edit (only projects they created)
-    if request.user.role == "TEAM_LEAD" and project.created_by != request.user:
+    # Helper function to get users based on capability
+    def get_filtered_users(user):
+        all_active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True).order_by('first_name', 'username')
+
+        # Organization managers can assign any active user.
+        if can_manage_users(user):
+            return all_active_users
+
+        # Project managers can assign contributors (users without manager-like capabilities).
+        manager_ids = [u.id for u in all_active_users if is_manager_like(u)]
+        return all_active_users.exclude(id__in=manager_ids)
+
+    # Scoped managers can edit only projects they own.
+    if not can_view_all_projects(request.user) and project.created_by != request.user:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': False,
@@ -267,7 +303,15 @@ def edit_projects(request, project_id):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if request.method == "POST":
-            form = ProjectForm(request.POST, instance=project)
+            # Get filtered users based on role
+            filtered_users = get_filtered_users(request.user)
+            
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            form = FilteredProjectForm(request.POST, instance=project)
             
             # Get dates for validation
             start_date = request.POST.get('start_date')
@@ -315,7 +359,14 @@ def edit_projects(request, project_id):
         
         # GET request - return project data
         elif request.method == "GET":
-            form = ProjectForm(instance=project)
+            filtered_users = get_filtered_users(request.user)
+            
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            form = FilteredProjectForm(instance=project)
             return JsonResponse({
                 'success': True,
                 'project': {
@@ -336,7 +387,14 @@ def edit_projects(request, project_id):
     
     # Handle regular (non-AJAX) request
     if request.method == "POST":
-        form = ProjectForm(request.POST, instance=project)
+        filtered_users = get_filtered_users(request.user)
+        
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        form = FilteredProjectForm(request.POST, instance=project)
         
         # Get dates for validation
         start_date = request.POST.get('start_date')
@@ -369,7 +427,14 @@ def edit_projects(request, project_id):
             return render(request, "edit_projects.html", context)
         
     else:
-        form = ProjectForm(instance=project)
+        filtered_users = get_filtered_users(request.user)
+        
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        form = FilteredProjectForm(instance=project)
 
     return render(request, "edit_projects.html", {
         "form": form,
@@ -377,7 +442,7 @@ def edit_projects(request, project_id):
     })
 
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+@permission_required('Tasks.change_task')
 @csrf_exempt
 def edit_task(request, task_id):
     """Edit Task - AJAX enabled"""
@@ -387,18 +452,30 @@ def edit_task(request, task_id):
     
     # Check if it's an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    default_redirect = dashboard_url_for(request.user)
     
     # Create form with filtered projects based on role
     class FilteredTaskForm(TaskForm):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            # Filter projects based on user role
-            if request.user.role == 'TEAM_LEAD':
-                # Team Lead sees only projects assigned to them
-                self.fields['project'].queryset = Projects.objects.filter(assigned_to=request.user)
-            else:
-                # Admin sees all projects
+            if can_view_all_projects(request.user):
                 self.fields['project'].queryset = Projects.objects.all()
+            else:
+                self.fields['project'].queryset = Projects.objects.filter(assigned_to=request.user)
+
+                   # 🔽 ADDED: Filter out admin users from assignee and observer fields
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['observers'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['assigned_by'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
     
     if request.method == 'POST':
         form = FilteredTaskForm(request.POST, instance=task)
@@ -474,7 +551,7 @@ def edit_task(request, task_id):
 
 ## delete task
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD"])
+@permission_required('Tasks.delete_task')
 @csrf_exempt
 def delete_task(request, task_id):
     """Delete a task - AJAX enabled"""
@@ -509,12 +586,12 @@ def delete_task(request, task_id):
 
 ### view_project_details
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN", "TEAM_LEAD", "EMPLOYEE"])
+@permission_required('projects.view_projects')
 def view_project_detail(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
-    # Check if team lead has access
-    if request.user.role == "TEAM_LEAD" and request.user not in project.assigned_to.all():
+    # Scoped users can only access projects assigned to them.
+    if not can_view_all_projects(request.user) and request.user not in project.assigned_to.all():
         messages.error(request, "You don't have permission to view this project.")
         return redirect('view_projects')
     
@@ -641,7 +718,7 @@ def view_project_detail(request, project_id):
 ## View Users detail
 from users.models import UserProfile
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN"])
+@permission_required('users.view_user')
 def view_user_details(request, user_id):
     # Only allow GET requests for this view
     if request.method != "GET":
@@ -754,7 +831,7 @@ def add_project_resource(request, project_id):
 
 ## delete Projects
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["TEAM_LEAD", "ADMIN"])
+@permission_required('projects.delete_projects')
 @csrf_exempt
 def delete_project(request, id):
     """Delete a project - AJAX enabled"""
@@ -777,10 +854,9 @@ def delete_project(request, id):
         else:
             # Regular form submission fallback
             messages.success(request, f'Project "{project_name}" deleted successfully!')
-            if request.user.role == "ADMIN":
+            if can_view_all_projects(request.user):
                 return redirect("view_projects")
-            else:
-                return redirect("teamlead_dashboard")
+            return redirect(dashboard_url_for(request.user))
     
     # GET request - redirect to list (for non-AJAX fallback)
     # Since this view doesn't have a confirmation template, we'll redirect
@@ -805,9 +881,7 @@ def login_page(request):
 def dashboard(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        role = request.user.role.upper()
-        
-        if role == "ADMIN":
+        if can_manage_users(request.user):
             total_users = User.objects.count()
             total_projects = Projects.objects.count()
             total_tasks = Task.objects.count()
@@ -815,17 +889,29 @@ def dashboard(request):
             
             users_data = []
             for user in users:
+                role_label = user.role_obj.name if user.role_obj else (user.role or 'UNASSIGNED')
+                if can_manage_users(user):
+                    role_tier = 'owner'
+                elif is_manager_like(user):
+                    role_tier = 'manager'
+                elif can_view_task(user):
+                    role_tier = 'contributor'
+                else:
+                    role_tier = 'custom'
+
                 users_data.append({
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'role': user.role,
+                    'role': role_label,
+                    'role_tier': role_tier,
                     'is_active': user.is_active,
                 })
             
             return JsonResponse({
                 'success': True,
-                'role': 'ADMIN',
+                'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
+                'dashboard_variant': 'owner',
                 'stats': {
                     'total_users': total_users,
                     'total_projects': total_projects,
@@ -833,30 +919,34 @@ def dashboard(request):
                 },
                 'users': users_data
             })
-        
-        elif role == "TEAMLEAD":
+
+        if can_add_task(request.user):
             my_projects = Projects.objects.filter(assigned_to=request.user)
             my_project_ids = my_projects.values_list('id', flat=True)
             tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+            active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
+            team_members_total = sum(1 for member in active_users if not is_manager_like(member))
             
             return JsonResponse({
                 'success': True,
-                'role': 'TEAMLEAD',
+                'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
+                'dashboard_variant': 'manager',
                 'stats': {
                     'total_projects': my_projects.count(),
                     'active_tasks': tasks_from_my_projects.filter(status='ONGOING').count(),
                     'completed_tasks': tasks_from_my_projects.filter(status='COMPLETED').count(),
-                    'team_members': User.objects.filter(role='EMPLOYEE').count(),
+                    'team_members': team_members_total,
                 }
             })
-        
-        elif role == "EMPLOYEE":
+
+        if can_view_task(request.user):
             tasks = Task.objects.filter(assigned_to=request.user)
             projects = Projects.objects.filter(assigned_to=request.user)
             
             return JsonResponse({
                 'success': True,
-                'role': 'EMPLOYEE',
+                'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
+                'dashboard_variant': 'contributor',
                 'stats': {
                     'tasks_count': tasks.count(),
                     'ongoing_tasks': tasks.filter(status='ONGOING').count(),
@@ -865,8 +955,21 @@ def dashboard(request):
                     'projects_count': projects.count(),
                 }
             })
-        
-        return JsonResponse({'success': False, 'error': 'Invalid role'}, status=400)
+
+        tasks = Task.objects.none()
+        projects = Projects.objects.none()
+        return JsonResponse({
+            'success': True,
+            'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
+            'dashboard_variant': 'custom',
+            'stats': {
+                'tasks_count': tasks.count(),
+                'ongoing_tasks': tasks.filter(status='ONGOING').count(),
+                'completed_tasks': tasks.filter(status='COMPLETED').count(),
+                'pending_tasks': tasks.filter(status='PENDING').count(),
+                'projects_count': projects.count(),
+            }
+        })
     
     # Regular request - return template
     return render(request, "dashboard.html")
@@ -932,7 +1035,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 ## Admin dashboard 
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN"])
+@permission_required('users.view_user')
 def admin_dashboard(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -995,14 +1098,25 @@ def admin_dashboard(request):
         
         users_data = []
         for user in users_page_obj:
+            role_label = user.role_obj.name if user.role_obj else (user.role or 'UNASSIGNED')
+            if can_manage_users(user):
+                role_tier = 'owner'
+            elif is_manager_like(user):
+                role_tier = 'manager'
+            elif can_view_task(user):
+                role_tier = 'contributor'
+            else:
+                role_tier = 'custom'
+
             users_data.append({
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'role': user.role,
+                'role': role_label,
+                'role_tier': role_tier,
                 'is_active': user.is_active,
-                'edit_url': f"/edit-user/{user.id}/",
-                'delete_url': f"/delete_user/{user.id}/"
+                'edit_url': f"/user/{user.id}/edit/",
+                'delete_url': f"/user/{user.id}/delete/"
             })
         
         return JsonResponse({
@@ -1042,28 +1156,8 @@ def admin_dashboard(request):
 # teamlead dashboard
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["TEAM_LEAD"])
+@permission_required('Tasks.add_task')
 def teamlead_dashboard(request):
-    # Strict role check
-    if request.user.role != 'TEAM_LEAD':
-        # Create response to clear cookies
-        response = None
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            response = JsonResponse({
-                'success': False,
-                'error': 'Access denied. Team Lead dashboard only.'
-            }, status=403)
-        else:
-            messages.error(request, 'Access denied. Team Lead dashboard only.')
-            response = redirect('login_page')
-        
-        # 🔥 Clear the invalid cookies
-        response.delete_cookie('access_token')
-        response.delete_cookie('refresh_token')
-        
-        return response
-    
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         # Get pagination parameters for team members
@@ -1085,9 +1179,10 @@ def teamlead_dashboard(request):
         completed_tasks = tasks_from_my_projects.filter(status='COMPLETED').count()
         pending_tasks_list = tasks_from_my_projects.filter(status='PENDING').order_by('-created_at')[:5]
         
-        # Team members (all employees - team leads manage all employees)
-        team_members_total = User.objects.filter(role='EMPLOYEE').count()
-        active_members = User.objects.filter(role='EMPLOYEE', is_active=True).count()
+        active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
+        all_team_members = [member for member in active_users if not is_manager_like(member)]
+        team_members_total = len(all_team_members)
+        active_members = team_members_total
         
         # Recent projects - only team lead's projects
         recent_projects = my_projects.order_by('-start_date')[:5]
@@ -1116,8 +1211,8 @@ def teamlead_dashboard(request):
             })
         
         # Team members list with pagination
-        all_team_members = User.objects.filter(role='EMPLOYEE').order_by('username')
-        paginator = Paginator(all_team_members, members_page_size)
+        all_team_members_sorted = sorted(all_team_members, key=lambda member: member.username.lower())
+        paginator = Paginator(all_team_members_sorted, members_page_size)
         try:
             members_page_obj = paginator.page(members_page)
         except PageNotAnInteger:
@@ -1165,30 +1260,9 @@ def teamlead_dashboard(request):
 
 ## employee dashboard
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@permission_required('Tasks.view_task')
 @csrf_exempt
 def employee_dashboard(request):
-
-    # STRICT role check - Only EMPLOYEE allowed
-    if request.user.role != 'EMPLOYEE':
-        # Create response to clear cookies
-        response = None
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            response = JsonResponse({
-                'success': False,
-                'error': 'Access denied. Employee dashboard only.'
-            }, status=403)
-        else:
-            messages.error(request, 'Access denied. Employee dashboard only.')
-            response = redirect('login_page')
-        
-        # 🔥 Clear the invalid cookies
-        response.delete_cookie('access_token')
-        response.delete_cookie('refresh_token')
-        
-        return response
-    
     user = request.user
 
     # Handle AJAX request
@@ -1241,7 +1315,7 @@ def employee_dashboard(request):
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE"])
+@permission_required('projects.view_projects')
 @csrf_exempt
 def employee_projects(request):
     # Handle AJAX request
@@ -1294,7 +1368,7 @@ def employee_projects(request):
                 'end_date': project.end_date.strftime('%b %d, %Y') if project.end_date else 'N/A',
                 'assigned_users': assigned_users,
                 'total_assigned': project.assigned_to.count(),
-                'view_url': f"/view_project_detail/{project.id}/"
+                'view_url': f"/project/{project.id}/"
             })
         
         return JsonResponse({
@@ -1319,7 +1393,7 @@ def employee_projects(request):
 
 
 ## Register user form
-from .forms import UserRegisterForm
+from .forms import RoleForm, UserRegisterForm
 def register(request):
     departments = Department.objects.all()
     designations = Designation.objects.all()
@@ -1386,7 +1460,7 @@ If you did not register on our site, please ignore this email.
 
 ## Edit User - Admin only
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.change_user')
 @csrf_exempt
 def edit_user(request, user_id):
     """Edit User - AJAX enabled"""
@@ -1398,6 +1472,7 @@ def edit_user(request, user_id):
     # Get all departments and designations for dropdowns
     departments = Department.objects.all()
     designations = Designation.objects.all()
+    roles = Role.objects.all().order_by('name')
     
     # Check if it's an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -1406,7 +1481,7 @@ def edit_user(request, user_id):
         # Get form data
         email = request.POST.get("email")
         username = request.POST.get("username")
-        role = request.POST.get("role")
+        role_obj_id = request.POST.get("role_obj")
         is_active = request.POST.get("is_active")
         
         # Validate required fields
@@ -1415,8 +1490,15 @@ def edit_user(request, user_id):
             errors['email'] = ['Email is required']
         if not username:
             errors['username'] = ['Username is required']
-        if not role:
-            errors['role'] = ['Role is required']
+        if not role_obj_id:
+            errors['role_obj'] = ['Role is required']
+
+        selected_role = None
+        if role_obj_id:
+            try:
+                selected_role = Role.objects.get(id=role_obj_id)
+            except Role.DoesNotExist:
+                errors['role_obj'] = ['Invalid role selected']
         
         if errors:
             if is_ajax:
@@ -1429,14 +1511,16 @@ def edit_user(request, user_id):
                     "user": user,
                     "profile": profile,
                     "departments": departments,
-                    "designations": designations
+                    "designations": designations,
+                    "roles": roles,
                 }
                 return render(request, "edit_user.html", context)
         
         # Update user
         user.email = email
         user.username = username
-        user.role = role
+        user.role_obj = selected_role
+        user.role = selected_role.name if selected_role else user.role
         user.is_active = (is_active == "True")
         user.save()
 
@@ -1463,9 +1547,113 @@ def edit_user(request, user_id):
         "user": user,
         "profile": profile,
         "departments": departments,
-        "designations": designations
+        "designations": designations,
+        "roles": roles,
     }
     return render(request, "edit_user.html", context)
+
+
+def _get_permission_groups():
+    permission_groups = defaultdict(list)
+    permissions = Permission.objects.select_related('content_type').filter(
+        content_type__app_label__in=['users', 'projects', 'Tasks', 'tasks', 'notifications']
+    ).order_by('content_type__app_label', 'codename')
+
+    for permission in permissions:
+        permission_groups[permission.content_type.app_label].append(permission)
+
+    return dict(permission_groups)
+
+
+@jwt_or_session_required
+@permission_required('users.view_role')
+def role_list(request):
+    roles = Role.objects.prefetch_related('permissions').all().order_by('name')
+    return render(request, 'role_list.html', {'roles': roles})
+
+
+@jwt_or_session_required
+@permission_required('users.add_role')
+@csrf_exempt
+def role_create(request):
+    if request.method == 'POST':
+        form = RoleForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Role created successfully.')
+            return redirect('role_list')
+    else:
+        form = RoleForm()
+
+    selected_permission_ids = set(request.POST.getlist('permissions')) if request.method == 'POST' else set()
+    context = {
+        'form': form,
+        'form_title': 'Create Role',
+        'submit_label': 'Create Role',
+        'permission_groups': _get_permission_groups(),
+        'selected_permission_ids': selected_permission_ids,
+    }
+    return render(request, 'role_form.html', context)
+
+
+@jwt_or_session_required
+@permission_required('users.change_role')
+@csrf_exempt
+def role_edit(request, role_id):
+    role = get_object_or_404(Role, id=role_id)
+
+    if request.method == 'POST':
+        form = RoleForm(request.POST, instance=role)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Role "{role.name}" updated successfully.')
+            return redirect('role_list')
+    else:
+        form = RoleForm(instance=role)
+
+    if request.method == 'POST':
+        selected_permission_ids = set(request.POST.getlist('permissions'))
+    else:
+        selected_permission_ids = set(str(pid) for pid in role.permissions.values_list('id', flat=True))
+
+    context = {
+        'form': form,
+        'role': role,
+        'form_title': f'Edit Role: {role.name}',
+        'submit_label': 'Update Role',
+        'permission_groups': _get_permission_groups(),
+        'selected_permission_ids': selected_permission_ids,
+    }
+    return render(request, 'role_form.html', context)
+
+
+@jwt_or_session_required
+@permission_required('users.delete_role')
+@csrf_exempt
+def role_delete(request, role_id):
+    role = get_object_or_404(Role, id=role_id)
+
+    if role.users.filter(is_superuser=True).exists():
+        messages.error(request, 'This role is assigned to one or more superuser accounts and cannot be deleted.')
+        return redirect('role_list')
+
+    if request.method == 'POST':
+        fallback_role = Role.objects.exclude(id=role.id).order_by('name').first()
+        if not fallback_role:
+            messages.error(request, 'Create at least one other role before deleting this role.')
+            return redirect('role_list')
+
+        affected_users = User.objects.filter(role_obj=role)
+        for user in affected_users:
+            user.role_obj = fallback_role
+            user.role = fallback_role.name
+            user.save(update_fields=['role_obj', 'role'])
+
+        role_name = role.name
+        role.delete()
+        messages.success(request, f'Role "{role_name}" deleted successfully.')
+
+    return redirect('role_list')
 
 
 ## Members dashboard function
@@ -1476,7 +1664,7 @@ from django.db.models import Q
 ## Admin view users
 @csrf_exempt
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.view_user')
 def admin_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1508,12 +1696,14 @@ def admin_view_users(request):
         # Prepare users data
         users_data = []
         for user in users_page:
-            # Role badge class
-            role_class = ''
-            if user.role == 'ADMIN':
+            role_label = user.role_obj.name if user.role_obj else (user.role or 'UNASSIGNED')
+
+            if can_manage_users(user):
                 role_class = 'bg-purple-100 text-purple-700'
-            elif user.role == 'TEAM_LEAD':
+            elif is_manager_like(user):
                 role_class = 'bg-blue-100 text-blue-700'
+            elif can_view_task(user):
+                role_class = 'bg-green-100 text-green-700'
             else:
                 role_class = 'bg-gray-100 text-gray-700'
             
@@ -1521,12 +1711,12 @@ def admin_view_users(request):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'role': user.role,
-                'role_display': user.role,
+                'role': role_label,
+                'role_display': role_label,
                 'role_class': role_class,
                 'is_active': user.is_active,
-                'view_url': f"/view_user_details/{user.id}/",
-                'delete_url': f"/delete_user/{user.id}/"
+                'view_url': f"/user/{user.id}/",
+                'delete_url': f"/user/{user.id}/delete/"
             })
         
         return JsonResponse({
@@ -1549,7 +1739,7 @@ def admin_view_users(request):
 ## Team lead view users
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
-@allowed_roles(['ADMIN', 'TEAM_LEAD'])
+@permission_required('users.view_user')
 def teamlead_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1557,8 +1747,7 @@ def teamlead_view_users(request):
         page = request.GET.get('page', 1)
         page_size = request.GET.get('page_size', 10)
         
-        # Team leads see all employees (they manage all employees)
-        employees = User.objects.filter(role='EMPLOYEE')
+        employees = _contributor_users_queryset()
         
         # Apply search filter
         if search_query:
@@ -1572,9 +1761,9 @@ def teamlead_view_users(request):
         employees = employees.order_by('username')
         
         # Calculate statistics (using full queryset)
-        total_employees = User.objects.filter(role='EMPLOYEE').count()
-        active_count = User.objects.filter(role='EMPLOYEE', is_active=True).count()
-        total_tasks = Task.objects.filter(assigned_to__in=User.objects.filter(role='EMPLOYEE')).count()
+        total_employees = _contributor_users_queryset().count()
+        active_count = total_employees
+        total_tasks = Task.objects.filter(assigned_to__in=_contributor_users_queryset()).count()
         
         # Apply pagination
         paginator = Paginator(employees, page_size)
@@ -1597,8 +1786,8 @@ def teamlead_view_users(request):
                 'role_display': user.role,
                 'is_active': user.is_active,
                 'avatar_initial': user.username[0].upper(),
-                'tasks_url': f"/employee_tasks/?employee_id={user.id}",
-                'assign_task_url': f"/assign_task/?employee={user.id}"
+                'tasks_url': f"/employee/tasks/?employee_id={user.id}",
+                'assign_task_url': f"/task/assign/?employee={user.id}"
             })
         
         return JsonResponse({
@@ -1648,7 +1837,7 @@ User = get_user_model()
 
 @jwt_or_session_required
 @csrf_exempt
-@allowed_roles(allowed_roles=["ADMIN"])
+@permission_required('users.add_user')
 def create_user(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1810,7 +1999,7 @@ def create_user(request):
 ## delete user
 from django.shortcuts import get_object_or_404
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["ADMIN"])
+@permission_required('users.delete_user')
 def delete_user(request, user_id):
     user_to_delete = get_object_or_404(User, id=user_id)
 
@@ -1849,25 +2038,36 @@ from Tasks.models import Task
 from Tasks.forms import TaskForm 
 ## Assign Task
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["TEAM_LEAD","ADMIN"])
+@permission_required('Tasks.add_task')
 @csrf_exempt
 def assign_task(request):
     """Assign Task - AJAX enabled"""
     
     # Check if it's an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    default_redirect = dashboard_url_for(request.user)
     
     # Create form with filtered projects based on role
     class FilteredTaskForm(TaskForm):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            # Filter projects based on user role
-            if request.user.role == 'TEAM_LEAD':
-                # Team Lead sees only projects assigned to them
-                self.fields['project'].queryset = Projects.objects.filter(assigned_to=request.user)
-            else:
-                # Admin sees all projects
+            if can_view_all_projects(request.user):
                 self.fields['project'].queryset = Projects.objects.all()
+            else:
+                self.fields['project'].queryset = Projects.objects.filter(assigned_to=request.user)
+
+                # 🔽 ADDED: Filter out admin users from assignee and observer fields
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['observers'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
+            
+            self.fields['assigned_by'].queryset = User.objects.filter(
+                is_active=True
+            ).exclude(is_staff=True).exclude(is_superuser=True)
     
     if request.method == "POST":
         form = FilteredTaskForm(request.POST)
@@ -1951,15 +2151,13 @@ def assign_task(request):
                     'message': f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s)!',
                     'task_id': task.id,
                     'task_name': task.name,
-                    'time_display': time_display
+                    'time_display': time_display,
+                    'redirect_url': default_redirect,
                 })
             else:
                 # Regular form submission fallback
                 messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s)!')
-                if request.user.role == "ADMIN":
-                    return redirect("admin_dashboard")
-                else:
-                    return redirect("teamlead_dashboard")
+                return redirect(default_redirect)
         else:
             # Form is invalid
             if is_ajax:
@@ -1983,51 +2181,30 @@ from projects.forms import  ProjectResourceFormSet
 from users.forms import ProjectForm
 ## Create Project
 @jwt_or_session_required
-@allowed_roles(["ADMIN", "TEAM_LEAD"])
+@permission_required('projects.add_projects')
 @csrf_exempt
 def create_project(request):
-    # Helper function to get filtered employees for Team Lead
-    def get_filtered_employees(team_lead):
-        """Get employees that are under this Team Lead"""
-        # Get all projects managed by this Team Lead
-        my_projects = Projects.objects.filter(assigned_to=team_lead)
-        my_project_ids = my_projects.values_list('id', flat=True)
-        
-        # Get employees from tasks in these projects
-        tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
-        employee_ids_from_tasks = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
-        
-        # Get employees directly assigned to projects
-        project_employees = User.objects.filter(
-            projects__in=my_projects,
-            role='EMPLOYEE'
-        ).values_list('id', flat=True).distinct()
-        
-        # Combine all employee IDs
-        all_employee_ids = set(employee_ids_from_tasks) | set(project_employees)
-        
-        # Return the employees
-        return User.objects.filter(
-            id__in=all_employee_ids,
-            role='EMPLOYEE',
-            is_active=True
-        ).order_by('username')
+    # Helper function to get users based on capability
+    def get_filtered_users(user):
+        all_active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True).order_by('first_name', 'username')
+        if can_manage_users(user):
+            return all_active_users
+
+        manager_ids = [u.id for u in all_active_users if is_manager_like(u)]
+        return all_active_users.exclude(id__in=manager_ids)
     
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         if request.method == "POST":
-            # Get filtered queryset for Team Lead
-            if request.user.role == 'TEAM_LEAD':
-                filtered_employees = get_filtered_employees(request.user)
-                # Create a dynamic form class with filtered queryset
-                class FilteredProjectForm(ProjectForm):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        self.fields['assigned_to'].queryset = filtered_employees
-                project_form = FilteredProjectForm(request.POST)
-            else:
-                project_form = ProjectForm(request.POST)
+            # Get filtered users based on role
+            filtered_users = get_filtered_users(request.user)
             
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            project_form = FilteredProjectForm(request.POST)
             resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
             
             errors = {}
@@ -2078,7 +2255,7 @@ def create_project(request):
                 # Determine redirect URL based on user role
                 redirect_url = request.POST.get('redirect_url', '')
                 if not redirect_url:
-                    redirect_url = "view_projects" if request.user.role == "ADMIN" else "teamlead_dashboard"
+                    redirect_url = '/projects/' if can_view_all_projects(request.user) else dashboard_url_for(request.user)
                 
                 return JsonResponse({
                     'success': True,
@@ -2110,17 +2287,14 @@ def create_project(request):
         
         # GET request - return form structure if needed
         elif request.method == "GET":
-            # Get filtered queryset for Team Lead
-            if request.user.role == 'TEAM_LEAD':
-                filtered_employees = get_filtered_employees(request.user)
-                class FilteredProjectForm(ProjectForm):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        self.fields['assigned_to'].queryset = filtered_employees
-                project_form = FilteredProjectForm()
-            else:
-                project_form = ProjectForm()
+            filtered_users = get_filtered_users(request.user)
             
+            class FilteredProjectForm(ProjectForm):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['assigned_to'].queryset = filtered_users
+            
+            project_form = FilteredProjectForm()
             resource_formset = ProjectResourceFormSet()
             
             # Get field definitions for dynamic form rendering
@@ -2150,17 +2324,14 @@ def create_project(request):
     
     # Handle regular (non-AJAX) request
     if request.method == "POST":
-        # Get filtered queryset for Team Lead
-        if request.user.role == 'TEAM_LEAD':
-            filtered_employees = get_filtered_employees(request.user)
-            class FilteredProjectForm(ProjectForm):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                    self.fields['assigned_to'].queryset = filtered_employees
-            project_form = FilteredProjectForm(request.POST)
-        else:
-            project_form = ProjectForm(request.POST)
+        filtered_users = get_filtered_users(request.user)
         
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        project_form = FilteredProjectForm(request.POST)
         resource_formset = ProjectResourceFormSet(request.POST, request.FILES)
         
         # Get dates for validation
@@ -2192,7 +2363,9 @@ def create_project(request):
                     resource.save()
 
             messages.success(request, "✅ Project created successfully!")
-            return redirect("view_projects" if request.user.role == "ADMIN" else "teamlead_dashboard")
+            if can_view_all_projects(request.user):
+                return redirect("view_projects")
+            return redirect(dashboard_url_for(request.user))
         
         else:
             # Form is invalid - show errors
@@ -2212,17 +2385,14 @@ def create_project(request):
     
     # GET request - show empty form
     else:
-        # Get filtered queryset for Team Lead
-        if request.user.role == 'TEAM_LEAD':
-            filtered_employees = get_filtered_employees(request.user)
-            class FilteredProjectForm(ProjectForm):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                    self.fields['assigned_to'].queryset = filtered_employees
-            project_form = FilteredProjectForm()
-        else:
-            project_form = ProjectForm()
+        filtered_users = get_filtered_users(request.user)
         
+        class FilteredProjectForm(ProjectForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.fields['assigned_to'].queryset = filtered_users
+        
+        project_form = FilteredProjectForm()
         resource_formset = ProjectResourceFormSet()
 
     context = {
@@ -2235,7 +2405,7 @@ def create_project(request):
 ## task_dashboard
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN", "TEAM_LEAD"])
+@permission_required('Tasks.view_task')
 def task_dashboard(request):
     """Task dashboard showing all tasks in list view"""
     
@@ -2245,15 +2415,14 @@ def task_dashboard(request):
         page = request.GET.get("page", 1)
         page_size = request.GET.get("page_size", 10)
         
-        # Get tasks based on user role
-        if request.user.role == "EMPLOYEE":
-            tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
-        elif request.user.role == "TEAM_LEAD":
+        if can_view_all_tasks(request.user):
+            tasks = Task.objects.all().order_by('-created_at')
+        elif can_add_task(request.user):
             my_projects = Projects.objects.filter(assigned_to=request.user)
             my_project_ids = my_projects.values_list('id', flat=True)
             tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
-        else:  # ADMIN
-            tasks = Task.objects.all().order_by('-created_at')
+        else:
+            tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
         
         # Statistics (using full queryset for stats)
         total_tasks = tasks.count()
@@ -2324,7 +2493,7 @@ def task_dashboard(request):
                 'project_name': task.project.name[:15] if task.project.name else 'N/A',
                 'assignees': assignees_list,
                 'total_assignees': task.assigned_to.count(),
-                'view_url': f"/employee_tasks/?task_id={task.id}"
+                'view_url': f"/employee/tasks/?task_id={task.id}"
             })
         
         return JsonResponse({
@@ -2344,14 +2513,14 @@ def task_dashboard(request):
         })
     
     # Regular request - return full template with data
-    if request.user.role == "EMPLOYEE":
-        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
-    elif request.user.role == "TEAM_LEAD":
+    if can_view_all_tasks(request.user):
+        tasks = Task.objects.all().order_by('-created_at')
+    elif can_add_task(request.user):
         my_projects = Projects.objects.filter(assigned_to=request.user)
         my_project_ids = my_projects.values_list('id', flat=True)
         tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
-    else:  # ADMIN
-        tasks = Task.objects.all().order_by('-created_at')
+    else:
+        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
 
     # Statistics
     total_tasks = tasks.count()
@@ -2471,14 +2640,13 @@ def task_dashboard(request):
 ## TaskSummary 
 from django.http import JsonResponse
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@permission_required('Tasks.change_task')
 @csrf_exempt
 def add_task_summary(request, task_id):
     """Add summary to a task - AJAX enabled"""
     
     try:
-        # Allow admins to access any task
-        if request.user.role == "ADMIN":
+        if can_manage_all_tasks(request.user):
             task = get_object_or_404(Task, id=task_id)
         else:
             task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
@@ -2535,15 +2703,15 @@ def add_task_summary(request, task_id):
 import math
 ## employee task
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "TEAM_LEAD", "ADMIN"])
+@permission_required('Tasks.view_task')
 def employee_tasks(request):
     task_id = request.GET.get('task_id')
     employee_id = request.GET.get('employee_id')
     
     # Handle AJAX request - return JSON
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Case 1: Team lead viewing specific employee's tasks
-        if employee_id and request.user.role in ['TEAM_LEAD', 'ADMIN']:
+        # Case 1: Manager viewing specific employee's tasks
+        if employee_id and is_manager_like(request.user):
             employee = get_object_or_404(User, id=employee_id)
             tasks = Task.objects.filter(assigned_to=employee).order_by('-created_at')
             
@@ -2585,8 +2753,8 @@ def employee_tasks(request):
             return JsonResponse({'success': True, 'tasks': tasks_data, 'total_tasks': len(tasks_data)})
     
     # ========== YOUR ORIGINAL CODE BELOW - COMPLETELY UNCHANGED ==========
-    # Case 1: Team lead viewing specific employee's tasks
-    if employee_id and request.user.role in ['TEAM_LEAD', 'ADMIN']:
+    # Case 1: Manager viewing specific employee's tasks
+    if employee_id and is_manager_like(request.user):
         employee = get_object_or_404(User, id=employee_id)
         tasks = Task.objects.filter(assigned_to=employee).order_by('-created_at')
         
@@ -2630,9 +2798,8 @@ def employee_tasks(request):
     elif task_id:
         task = get_object_or_404(Task, id=task_id)
         
-        # FIXED: Permission check for employees with ManyToManyField
-        if request.user.role == "EMPLOYEE":
-            # Check if current user is in the assigned_to list
+        # Scoped contributors can only open their own tasks.
+        if not can_manage_all_tasks(request.user):
             if not task.assigned_to.filter(id=request.user.id).exists():
                 messages.error(request, "You don't have permission to view this task.")
                 return redirect('task_dashboard')
@@ -2718,13 +2885,12 @@ from django.urls import reverse
 import datetime
 ## START TASK - AJAX VERSION
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@permission_required('Tasks.change_task')
 @csrf_exempt
 def start_task(request, task_id):
     """Start a task - AJAX enabled"""
     
-    # Allow admins to access any task, employees only their own
-    if request.user.role == "ADMIN":
+    if can_manage_all_tasks(request.user):
         task = get_object_or_404(Task, id=task_id)
     else:
         task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
@@ -2760,13 +2926,12 @@ def start_task(request, task_id):
 
 ## PAUSE TASK - AJAX VERSION
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@permission_required('Tasks.change_task')
 @csrf_exempt
 def pause_task(request, task_id):
     """Pause an ongoing task - AJAX enabled"""
     
-    # Allow admins to access any task, employees only their own
-    if request.user.role == "ADMIN":
+    if can_manage_all_tasks(request.user):
         task = get_object_or_404(Task, id=task_id)
     else:
         task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
@@ -2799,13 +2964,12 @@ def pause_task(request, task_id):
 
 ## RESUME TASK - AJAX VERSION
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@permission_required('Tasks.change_task')
 @csrf_exempt
 def resume_task(request, task_id):
     """Resume a paused task - AJAX enabled"""
     
-    # Allow admins to access any task, employees only their own
-    if request.user.role == "ADMIN":
+    if can_manage_all_tasks(request.user):
         task = get_object_or_404(Task, id=task_id)
     else:
         task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
@@ -2839,13 +3003,12 @@ def resume_task(request, task_id):
 
 ## COMPLETE TASK - AJAX VERSION
 @jwt_or_session_required
-@allowed_roles(allowed_roles=["EMPLOYEE", "ADMIN"])
+@permission_required('Tasks.change_task')
 @csrf_exempt
 def complete_task(request, task_id):
     """Complete a task - AJAX enabled with JSON response"""
     
-    # Allow admins to access any task, employees only their own
-    if request.user.role == "ADMIN":
+    if can_manage_all_tasks(request.user):
         task = get_object_or_404(Task, id=task_id)
     else:
         task = get_object_or_404(Task, id=task_id, assigned_to=request.user)
@@ -2899,8 +3062,9 @@ def complete_task(request, task_id):
         seconds = total_seconds % 60
         time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    # Notify all Admins and Team Leads
-    observers = User.objects.filter(role__in=["ADMIN", "TEAM_LEAD"])
+    # Notify users that can manage/oversee tasks.
+    observer_candidates = User.objects.filter(is_active=True)
+    observers = [user for user in observer_candidates if is_manager_like(user)]
     employee_name = request.user.get_full_name() or request.user.username
     message = f"Task '{task.name}' has been completed by {employee_name}. Time spent: {time_display}"
     
@@ -2924,7 +3088,7 @@ from .forms import UserProfileForm
 # ================== Departments ==================
 # List all departments
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.view_department')
 def departments(request):
     departments = Department.objects.all()
 
@@ -2949,7 +3113,7 @@ def departments(request):
 from django.http import JsonResponse
 
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.add_department')
 @csrf_exempt
 def create_department(request):
     if request.method == "POST":
@@ -2976,7 +3140,7 @@ def create_department(request):
 
 # Show all users in a department
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.view_department')
 def department_detail(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
     users_in_dept = User.objects.filter(profile__department=department)
@@ -3008,7 +3172,7 @@ def department_detail(request, dept_id):
 
 ## delete_department
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.delete_department')
 @csrf_exempt
 def delete_department(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
@@ -3033,7 +3197,7 @@ def delete_department(request, dept_id):
 # <!--Designation-->
 # List all designations
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.view_designation')
 def designations(request):
     designations = Designation.objects.all()
     
@@ -3057,7 +3221,7 @@ def designations(request):
 
 
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.add_designation')
 @csrf_exempt
 def create_designation(request):
     if request.method == "POST":
@@ -3085,7 +3249,7 @@ def create_designation(request):
 
 # Show all users in a designation
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.view_designation')
 def designation_detail(request, desig_id):
     designation = get_object_or_404(Designation, id=desig_id)
     users_in_desig = User.objects.filter(profile__designation=designation)
@@ -3120,7 +3284,7 @@ def designation_detail(request, desig_id):
 
 ## delete designation
 @jwt_or_session_required
-@allowed_roles(['ADMIN'])
+@permission_required('users.delete_designation')
 @csrf_exempt
 def delete_designation(request, desig_id):
     desig = get_object_or_404(Designation, id=desig_id)
@@ -3159,98 +3323,38 @@ def delete_designation(request, desig_id):
 #     return render(request,"edit_user.html",{"user":user})
 
 
-# Only logged-in users can access
-# Allow POST requests from our forms
-# users/views.py
-from services.gemini_service import GeminiService
-@jwt_or_session_required
-@csrf_exempt    
-def ai_generate_description(request):
-    """
-    API endpoint for AI-powered task descriptions.
-    
-    Why this structure?
-    - POST only (we're creating something)
-    - Returns JSON (for JavaScript to use)
-    - Has clear success/error format
-    """
-    
-    # Step 1: Check if it's a POST request
-    if request.method != "POST":
-        return JsonResponse({
-            'success': False,
-            'error': 'This endpoint only accepts POST requests'
-        }, status=405)  # 405 = Method Not Allowed
-    
-    # Step 2: Try to parse the JSON data
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON format'
-        }, status=400)  # 400 = Bad Request
-    
-    # Step 3: Extract data from request
-    task_name = data.get('task_name', '').strip()
-    project_name = data.get('project_name', '')
-    current_description = data.get('current_description', '')
-    action = data.get('action', 'generate')
-    
-    # Step 4: Validate required fields
-    if not task_name:
-        return JsonResponse({
-            'success': False,
-            'error': 'Task name is required'
-        }, status=400)
-    
-    # Step 5: Initialize AI service
-    ai_service = GeminiService()
-    
-    # Step 6: Perform the requested action
-    if action == 'enhance' and current_description:
-        result = ai_service.enhance_description(current_description, task_name)
-    else:
-        result = ai_service.gen_task_description(task_name, project_name)
-    
-    # Step 7: Return the result
-    return JsonResponse(result)
-
 ## User Analytics
 @jwt_or_session_required
-@allowed_roles(['ADMIN', 'TEAM_LEAD'])
+@permission_required('Tasks.view_task')
 @csrf_exempt
 def user_analytics(request):
     # Debug print to verify user
     print(f"📊 user_analytics called by: {request.user.username} (ID: {request.user.id})")
+
+    scoped_manager_mode = can_add_task(request.user) and not can_manage_users(request.user)
+    full_scope_mode = can_manage_users(request.user)
     
-    # ========== Get users based on role ==========
-    if request.user.role == 'TEAM_LEAD':
-        # Team Lead sees only employees who have tasks from their projects
+    # ========== Get users based on capability ==========
+    if scoped_manager_mode:
         my_projects = Projects.objects.filter(assigned_to=request.user)
         my_project_ids = my_projects.values_list('id', flat=True)
+        contributor_ids = set(_contributor_user_ids())
         
-        # Get all employees who are assigned to tasks from these projects
         tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
-        employee_ids = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
+        task_assignee_ids = set(tasks_in_my_projects.values_list('assigned_to', flat=True).distinct())
         
-        # Also include employees who are directly assigned to projects
-        # Using 'projects' instead of 'assigned_projects'
-        project_employees = User.objects.filter(
+        project_member_ids = set(User.objects.filter(
             projects__in=my_projects,
-            role='EMPLOYEE'
-        ).values_list('id', flat=True).distinct()
+        ).values_list('id', flat=True).distinct())
         
-        # Combine both sets
-        all_employee_ids = set(employee_ids) | set(project_employees)
-        users = User.objects.filter(id__in=all_employee_ids, role='EMPLOYEE').order_by('username')
+        all_contributor_ids = (task_assignee_ids | project_member_ids) & contributor_ids
+        users = User.objects.filter(id__in=all_contributor_ids).order_by('username')
         
-        # For Team Lead, also include the option to see their own performance
-        team_lead_option = User.objects.filter(id=request.user.id)
-        users = users | team_lead_option
-        
-    else:  # ADMIN
+        users = users | User.objects.filter(id=request.user.id)
+    elif full_scope_mode:
         users = User.objects.all().order_by('username')
+    else:
+        users = User.objects.filter(id=request.user.id)
     
     selected_user_id = request.GET.get('user_id')
     selected_user = None
@@ -3259,33 +3363,30 @@ def user_analytics(request):
     get_top_performers = request.GET.get('get_top_performers') == 'true'
     
     if get_top_performers:
-        # Calculate top performers for users visible to this role
-        if request.user.role == 'TEAM_LEAD':
-            # For Team Lead, get their projects first
+        # Calculate top performers for users visible to this capability scope
+        if scoped_manager_mode:
             my_projects = Projects.objects.filter(assigned_to=request.user)
             my_project_ids = my_projects.values_list('id', flat=True)
+            contributor_ids = set(_contributor_user_ids())
             
-            # Get all employees under this team lead
             tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
-            employee_ids = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
+            task_assignee_ids = set(tasks_in_my_projects.values_list('assigned_to', flat=True).distinct())
             
-            # Using 'projects' instead of 'assigned_projects'
-            project_employees = User.objects.filter(
+            project_member_ids = set(User.objects.filter(
                 projects__in=my_projects,
-                role='EMPLOYEE'
-            ).values_list('id', flat=True).distinct()
+            ).values_list('id', flat=True).distinct())
             
-            all_employee_ids = set(employee_ids) | set(project_employees)
-            all_users = User.objects.filter(id__in=all_employee_ids, role='EMPLOYEE')
-        else:
+            visible_user_ids = (task_assignee_ids | project_member_ids) & contributor_ids
+            all_users = User.objects.filter(id__in=visible_user_ids)
+        elif full_scope_mode:
             all_users = User.objects.filter(is_active=True)
+        else:
+            all_users = User.objects.filter(id=request.user.id)
         
         top_performers = []
         
         for user in all_users:
-            # Get tasks assigned to this user based on role
-            if request.user.role == 'TEAM_LEAD':
-                # Only tasks from team lead's projects
+            if scoped_manager_mode:
                 tasks = Task.objects.filter(
                     assigned_to=user,
                     project_id__in=my_project_ids
@@ -3308,7 +3409,7 @@ def user_analytics(request):
                     'username': user.username,
                     'email': user.email,
                     'role': user.role,
-                    'role_display': user.get_role_display(),
+                    'role_display': user.role,
                     'total_tasks': total_tasks,
                     'completed_tasks': completed_tasks,
                     'performance_score': performance_score
@@ -3326,20 +3427,19 @@ def user_analytics(request):
     if selected_user_id:
         selected_user = get_object_or_404(User, id=selected_user_id)
         
-        # Permission check: Team Lead can only view their own or their team's analytics
-        if request.user.role == 'TEAM_LEAD':
-            if selected_user.id != request.user.id and selected_user.role != 'EMPLOYEE':
+        # Scoped managers can only view self + their contributor users.
+        if scoped_manager_mode:
+            visible_ids = set(users.values_list('id', flat=True))
+            if selected_user.id not in visible_ids:
                 return JsonResponse({
                     'success': False,
                     'error': 'You do not have permission to view this user\'s analytics'
                 }, status=403)
         
-        # Get tasks based on role and selected user
-        if request.user.role == 'TEAM_LEAD':
+        if scoped_manager_mode:
             my_projects = Projects.objects.filter(assigned_to=request.user)
             my_project_ids = my_projects.values_list('id', flat=True)
             
-            # Team Lead viewing tasks (either their own or employee's)
             tasks = Task.objects.filter(
                 assigned_to=selected_user,
                 project_id__in=my_project_ids
@@ -3348,21 +3448,30 @@ def user_analytics(request):
                 assigned_to=selected_user,
                 id__in=my_project_ids
             )
-        else:
+        elif full_scope_mode:
             tasks = Task.objects.filter(assigned_to=selected_user)
             projects = Projects.objects.filter(assigned_to=selected_user)
+        else:
+            if selected_user.id != request.user.id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'You do not have permission to view this user\'s analytics'
+                }, status=403)
+            tasks = Task.objects.filter(assigned_to=request.user)
+            projects = Projects.objects.filter(assigned_to=request.user)
     else:
-        # All users view
-        if request.user.role == 'TEAM_LEAD':
+        if scoped_manager_mode:
             my_projects = Projects.objects.filter(assigned_to=request.user)
             my_project_ids = my_projects.values_list('id', flat=True)
             
-            # For Team Lead, only tasks from their projects
             tasks = Task.objects.filter(project_id__in=my_project_ids)
             projects = Projects.objects.filter(id__in=my_project_ids)
-        else:
+        elif full_scope_mode:
             tasks = Task.objects.all()
             projects = Projects.objects.all()
+        else:
+            tasks = Task.objects.filter(assigned_to=request.user)
+            projects = Projects.objects.filter(assigned_to=request.user)
 
     total_tasks = tasks.count()
     completed = tasks.filter(status='COMPLETED').count()
@@ -3414,7 +3523,6 @@ def user_analytics(request):
 
     # Return JSON if AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # For Team Lead, also return list of users they can view
         users_list = []
         for user in users:
             users_list.append({
@@ -3428,7 +3536,7 @@ def user_analytics(request):
         selected_user_name = None
         if selected_user:
             selected_user_name = selected_user.username
-        elif not selected_user and request.user.role == 'TEAM_LEAD':
+        elif not selected_user and not full_scope_mode:
             selected_user_name = 'My Performance'
         else:
             selected_user_name = 'All Users'
@@ -3489,6 +3597,32 @@ def home(request):
             'is_authenticated': user_data is not None,
             'user': user_data
         })
-    
     # Regular request - return template
     return render(request, "home.html")
+
+
+## Check email exists
+from django.views.decorators.http import require_http_methods
+import json
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def check_email_exists(request):
+    """Check if email is registered in the system - Public endpoint"""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email')
+        
+        if not email:
+            return JsonResponse({'exists': False, 'error': 'Email is required'}, status=400)
+        
+        # Check if user exists with this email
+        user_exists = User.objects.filter(email=email).exists()
+        
+        return JsonResponse({
+            'exists': user_exists,
+            'message': 'Email found' if user_exists else 'No account found with this email'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'exists': False, 'error': str(e)}, status=500)

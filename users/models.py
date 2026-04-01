@@ -1,18 +1,70 @@
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser   ## Abstractuser -- it is a built in class in django which is used to create custom user model
+from django.contrib.auth.models import AbstractUser,Permission   ## Abstractuser -- it is a built in class in django which is used to create custom user model
 
+## Role and Permission management
+class Role(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    permissions = models.ManyToManyField(
+        Permission,
+        blank=True,
+        related_name='roles'
+    )
+
+    def __str__(self):
+        return self.name
+    
 # Create your models here.
 class User(AbstractUser):
-    ROLE_CHOICES = (
-        ('ADMIN','Admin'),
-        ('TEAM_LEAD','Team Lead'),
-        ('EMPLOYEE','Employee'),
-    )
-    role = models.CharField(max_length=20,choices=ROLE_CHOICES)
+    role = models.CharField(max_length=50, null=True, blank=True)
     email = models.EmailField(unique=True)
+    role_obj = models.ForeignKey(
+        Role,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users'
+    )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+
+    def save(self, *args, **kwargs):
+        # Keep role text and role object in sync for backward compatibility.
+        if self.role_obj:
+            self.role = self.role_obj.name
+        elif self.role:
+            try:
+                self.role_obj = Role.objects.get(name=self.role)
+            except Role.DoesNotExist:
+                self.role_obj = None
+        super().save(*args, **kwargs)
+
+    def has_perm(self, perm, obj=None):
+        if self.is_active and self.is_superuser:
+            return True
+        if super().has_perm(perm, obj=obj):
+            return True
+        if self.role_obj:
+            try:
+                app_label, codename = perm.split('.', 1)
+            except ValueError:
+                return False
+            return self.role_obj.permissions.filter(
+                content_type__app_label=app_label,
+                codename=codename
+            ).exists()
+        return False
+    
+    def has_module_perms(self, app_label):
+        if self.is_active and self.is_superuser:
+            return True
+        if super().has_module_perms(app_label):
+            return True
+        if self.role_obj:
+            return self.role_obj.permissions.filter(
+                content_type__app_label=app_label
+            ).exists()
+        return False
     
 
 

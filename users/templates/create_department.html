@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Department{% endblock %}
+{% block page_title %}{{ action }} Department{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-10">
+    <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="name" value="{{ department.name|default:'' }}" 
+               placeholder="Department Name" required
+               class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 mb-4">
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">{{ action }}</button>
+    </form>
+</div>
+{% endblock %}

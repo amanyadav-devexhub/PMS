@@ -7,7 +7,7 @@
     <div class="flex justify-between items-center">
         <div>
             <div class="flex items-center gap-3">
-                {% if request.user.role == 'TEAM_LEAD' %}
+                {% if is_manager_like and not can_manage_users %}
                     <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
                         <span class="text-xl">👥</span>
                     </div>
@@ -29,12 +29,12 @@
             </div>
             <p class="text-sm text-gray-500 mt-2 ml-14" id="userTitle">
                 {% if selected_user %}
-                    {% if request.user.role == 'TEAM_LEAD' and selected_user.id == request.user.id %}
+                    {% if is_manager_like and not can_manage_users and selected_user.id == request.user.id %}
                         📊 Your personal performance
                     {% else %}
                         👤 {{ selected_user.username }} performance overview
                     {% endif %}
-                {% elif request.user.role == 'TEAM_LEAD' %}
+                {% elif is_manager_like and not can_manage_users %}
                     📊 Your team's performance overview
                 {% else %}
                     🌐 Overall system performance
@@ -48,27 +48,23 @@
                 <form id="userSelectForm" class="inline">
                     <select name="user_id" id="userSelect"
                         class="border border-gray-300 px-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 shadow-sm bg-white">
-                        {% if request.user.role == 'TEAM_LEAD' %}
+                        {% if is_manager_like and not can_manage_users %}
                             <option value="" class="font-semibold text-orange-600">📊 My Team Performance</option>
                             <option value="{{ request.user.id }}" {% if selected_user and selected_user.id == request.user.id %}selected{% endif %} class="font-medium">
-                                👤 My Performance (Team Lead)
+                                👤 My Performance
                             </option>
                         {% else %}
                             <option value="" class="font-semibold text-orange-600">🌐 All Users (System-wide)</option>
                         {% endif %}
                         
                         {% for user in users %}
-                            {% if request.user.role == 'TEAM_LEAD' and user.id == request.user.id %}
+                            {% if is_manager_like and not can_manage_users and user.id == request.user.id %}
                                 {# Skip because we already added it above #}
                             {% else %}
                                 <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>
-                                    {% if request.user.role == 'TEAM_LEAD' %}
-                                        👥 
-                                    {% else %}
-                                        {% if user.role == 'ADMIN' %}👑 {% elif user.role == 'TEAM_LEAD' %}👥 {% else %}👤 {% endif %}
-                                    {% endif %}
+                                    {% if is_manager_like and not can_manage_users %}👥 {% else %}👤 {% endif %}
                                     {{ user.get_full_name|default:user.username }}
-                                    {% if user.role == 'ADMIN' %}(Admin){% elif user.role == 'TEAM_LEAD' %}(Team Lead){% else %}(Employee){% endif %}
+                                    {% if user.role %}({{ user.role }}){% endif %}
                                 </option>
                             {% endif %}
                         {% endfor %}
@@ -101,7 +97,7 @@
         <!-- PERFORMANCE CARD (Consistent orange gradient) -->
         <div class="col-span-2 bg-gradient-to-r from-orange-500 to-orange-400 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
             <p class="text-sm opacity-80">
-                {% if request.user.role == 'TEAM_LEAD' %}
+                {% if is_manager_like and not can_manage_users %}
                     Team Performance Score
                 {% else %}
                     System Performance Score
@@ -145,7 +141,7 @@
             <div class="flex items-center gap-2">
                 <span class="text-xl">🏆</span>
                 <h3 class="text-sm font-semibold text-gray-700">
-                    {% if request.user.role == 'TEAM_LEAD' %}
+                    {% if is_manager_like and not can_manage_users %}
                         Top Performers in Your Team
                     {% else %}
                         Top Performers (System-wide)
@@ -163,7 +159,7 @@
         </div>
         
         <!-- Team Lead Info Message -->
-        {% if request.user.role == 'TEAM_LEAD' %}
+        {% if is_manager_like and not can_manage_users %}
         <div class="mt-4 pt-3 border-t border-gray-100">
             <p class="text-xs text-gray-400 flex items-center gap-1">
                 <span>ℹ️</span> 
@@ -179,7 +175,7 @@
         <!-- BAR CHART -->
         <div class="bg-white p-6 rounded-2xl shadow">
             <h4 class="text-sm font-semibold text-gray-600 mb-4">
-                {% if request.user.role == 'TEAM_LEAD' %}
+                {% if is_manager_like and not can_manage_users %}
                     Team Task Distribution
                 {% else %}
                     System Task Distribution
@@ -191,7 +187,7 @@
         <!-- DONUT CHART -->
         <div class="bg-white p-6 rounded-2xl shadow">
             <h4 class="text-sm font-semibold text-gray-600 mb-4">
-                {% if request.user.role == 'TEAM_LEAD' %}
+                {% if is_manager_like and not can_manage_users %}
                     Team Completion Ratio
                 {% else %}
                     System Completion Ratio

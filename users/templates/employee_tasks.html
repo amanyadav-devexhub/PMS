@@ -9,7 +9,7 @@
     
     <!-- Back Button -->
     <div class="mb-4">
-        <button onclick="window.history.back()"
+        <button onclick="goBack()"
                 class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -219,7 +219,7 @@
                             <h2 class="text-gray-800 font-semibold">Task status summary is required</h2>
                             
                             <!-- Only show + icon for employees (task doers) -->
-                            {% if request.user.role == 'EMPLOYEE' and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
+                            {% if can_change_task and not is_manager_like and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
                             <a href="{% url 'add_task_summary' task.id %}" 
                                class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
                                 +
@@ -240,7 +240,7 @@
 
             <!-- Action Buttons - All AJAX now -->
             {% if tasks|length == 1 %}
-                {% if request.user.role == 'EMPLOYEE' or request.user.role == 'ADMIN' %}
+                {% if can_change_task and not is_manager_like %}
                 <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
                     {% if task.status == "PENDING" %}
                         <!-- AJAX START BUTTON -->

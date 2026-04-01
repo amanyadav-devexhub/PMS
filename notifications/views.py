@@ -110,3 +110,4 @@ def mark_all_as_read(request):
 #         'success': True,
 #         'unread_count': unread_count
 #     })
+

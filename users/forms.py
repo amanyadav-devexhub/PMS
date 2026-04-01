@@ -1,15 +1,33 @@
 from django import forms
+from django.contrib.auth.models import Permission
 from django.contrib.auth.forms import UserCreationForm
-from .models import User
+from .models import Role, User, UserProfile, Department, Designation
 from projects.models import Projects
-from Tasks.models import Task
 
 class UserRegisterForm(UserCreationForm):
-    role = forms.ChoiceField(choices=User.ROLE_CHOICES)
+    role_obj = forms.ModelChoiceField(
+        queryset=Role.objects.none(),
+        required=True,
+        empty_label="Select a role",
+        label="Role"
+    )
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'role', 'password1', 'password2']
+        fields = ['username', 'email', 'role_obj', 'password1', 'password2']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['role_obj'].queryset = Role.objects.order_by('name')
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        selected_role = self.cleaned_data.get('role_obj')
+        user.role_obj = selected_role
+        user.role = selected_role.name if selected_role else user.role
+        if commit:
+            user.save()
+        return user
 
     
     # Project creation form
@@ -35,9 +53,6 @@ class ProjectForm(forms.ModelForm):
 
 
 
-from django import forms
-from .models import UserProfile, Department, Designation
-
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
@@ -49,5 +64,23 @@ class UserProfileForm(forms.ModelForm):
             'department': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
             'designation': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
         }
+
+
+class RoleForm(forms.ModelForm):
+    permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.select_related('content_type').none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+
+    class Meta:
+        model = Role
+        fields = ['name', 'permissions']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['permissions'].queryset = Permission.objects.select_related('content_type').filter(
+            content_type__app_label__in=['users', 'projects', 'Tasks', 'notifications', 'tasks']
+        ).order_by('content_type__app_label', 'codename')
 
 

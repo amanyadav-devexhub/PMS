@@ -29,8 +29,7 @@ class Task(models.Model):
     ## new fields
     assigned_by = models.ManyToManyField(
         User, 
-        related_name='created_tasks',
-        limit_choices_to={'role__in': ['ADMIN', 'TEAM_LEAD']}
+        related_name='created_tasks'
     ) ## who created/assigned the task
 
     estimated_time = models.IntegerField(default=3600, help_text="Estimated time in seconds")

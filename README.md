@@ -1,143 +1,205 @@
-Project Management System (PMS)
+# 📋 Project Management System (PMS)
 
-A web-based Project Management System built with Django, Tailwind CSS, and PostgreSQL/SQLite that allows Admins, Team Leads, and Employees to manage projects, tasks, and notifications efficiently.
+<div align="center">
 
-Table of Contents
+![Django](https://img.shields.io/badge/Django-6.0-092E20?style=for-the-badge&logo=django&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
-Features
+**A powerful, role-based Project Management System for teams of all sizes**
 
-Tech Stack
+[Features](#features) • [Tech Stack](#tech-stack) • [Installation](#installation) • [Usage](#usage) • [Screenshots](#screenshots)
 
-Installation
+</div>
 
-Project Structure
+---
 
-Usage
+## ✨ Features
 
-Notifications
+### 👥 User Roles & Permissions
 
-Screenshots
+| Role | Capabilities |
+|------|--------------|
+| **👑 Admin** | Full system control - manage members, projects, departments, and designations |
+| **👔 Team Lead** | Task assignment, progress tracking, team management |
+| **👩‍💻 Employee** | View tasks, update status, receive notifications |
 
-Contributing
+### 📌 Task Management
+- ✅ Create, assign, and track tasks with deadlines
+- ⏱️ Built-in timer for task tracking
+- 📊 Task statuses: `PENDING` → `ONGOING` → `COMPLETED`
+- 📅 Start and end date tracking
 
-License
+### 🔔 Real-time Notifications
+- 🔴 Unread notification badge
+- 📬 Dropdown panel with latest 5 notifications
+- 📄 Dedicated "All Notifications" page
+- ✨ Mark notifications as read
+- 🎯 Automatic triggers:
+  - Task assignment → Employee notified
+  - Task started → Admin & Team Lead notified
+  - Task completed → Admin & Team Lead notified
 
-Features
+### 📊 Role-based Dashboards
+- Personalized views based on user role
+- Quick access to relevant tasks and projects
+- Real-time progress tracking
 
-User Roles:
+### 🔐 Authentication & Security
+- JWT-based authentication
+- Role-based access control (RBAC)
+- Secure API endpoints
 
-Admin: Manage members, projects, departments, and designations.
+---
 
-Team Lead: Assign tasks to employees, track progress.
+## 🛠️ Tech Stack
 
-Employee: View tasks, start/complete tasks, see notifications.
+**Backend**
+- Django 6.0
+- Django REST Framework
+- JWT Authentication
 
-Task Management:
+**Frontend**
+- Tailwind CSS 3.0
+- HTML5
+- JavaScript (ES6+)
 
-Create, assign, and track tasks with start/end dates and timers.
+**Database**
+- SQLite (Development)
+- PostgreSQL 15+ (Production)
 
-Task status: PENDING, ONGOING, COMPLETED.
+**Requirements**
+- Python 3.14+
 
-Notification System:
+---
 
-Real-time notifications for task assignments, start, and completion.
+## 🚀 Installation
 
-Notification bell with unread count and dropdown for latest notifications.
+### Prerequisites
+- Python 3.14 or higher
+- Git
+- Virtual environment (recommended)
 
-View all notifications and mark them as read.
+### Step-by-Step Setup
 
-Dashboard:
-
-Role-based dashboards showing relevant tasks and projects.
-
-Authentication:
-
-JWT-based login for secure API access.
-
-Role-based access control for views.
-
-Tech Stack
-
-Backend: Django 6.0
-
-Frontend: Tailwind CSS, HTML, JavaScript
-
-Database: SQLite (default) / PostgreSQL
-
-Python Version: 3.14+
-
-Installation
-
-Clone the repository
-
+1. **Clone the repository**
+```bash
 git clone https://github.com/yourusername/pms_system.git
 cd pms_system
 
-Create a virtual environment
+2.Create virtual environment
+# Windows
+    python -m venv venv
+    venv\Scripts\activate
 
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+    # Linux/Mac
+    python -m venv venv
+    source venv/bin/activate
 
-Install dependencies
+3.Install dependencies
+    pip install -r requirements.txt
 
-pip install -r requirements.txt
+4.Set up database
+    python manage.py makemigrations
+    python manage.py migrate
 
-Apply migrations
+5.Create superuser (Admin)
+    python manage.py createsuperuser
 
-python manage.py makemigrations
-python manage.py migrate
+6.Run development server
+    python manage.py runserver
 
-Create a superuser
+7.Access the application
+    http://127.0.0.1:8000/
 
-python manage.py createsuperuser
+8.Project Structure
+    pms_system/
+│
+├── 📁 users/                 # User management & authentication
+│   ├── models.py            # User, Role models
+│   ├── views.py             # Login, registration views
+│   └── utils.py             # Role-based permissions
+│
+├── 📁 projects/             # Projects & tasks management
+│   ├── models.py            # Project, Task models
+│   ├── views.py             # CRUD operations
+│   └── forms.py             # Project/Task forms
+│
+├── 📁 notifications/        # Notification system
+│   ├── models.py            # Notification model
+│   ├── views.py             # Notification handlers
+│   └── templates/           # Notification UI
+│
+├── 📁 templates/            # Global HTML templates
+│   ├── base.html            # Base template
+│   ├── dashboard.html       # Role-based dashboard
+│   └── notifications.html   # Notification center
+│
+├── 📁 static/               # Static files
+│   ├── css/                 # Tailwind CSS
+│   ├── js/                  # JavaScript files
+│   └── images/              # Images & icons
+│
+├── 📁 pms_system/           # Project configuration
+│   ├── settings.py          # Django settings
+│   ├── urls.py              # URL configuration
+│   └── wsgi.py              # WSGI config
+│
+└── 📄 manage.py             # Django management script
 
-Run the development server
 
-python manage.py runserver
+💻 Usage Guide
+👑 Admin Dashboard
+    User Management: Add/Edit/Delete users, assign roles
+    
+    Department Setup: Create departments and designations
 
-Open in browser
+    Project Oversight: Monitor all projects and tasks
 
-http://127.0.0.1:8000/
-Project Structure
-pms_system/
-├── users/               # User management (roles, authentication)
-├── projects/            # Projects and related models
-├── notifications/       # Notifications system (model, views, templates)
-├── templates/           # Global templates
-├── static/              # Static files (CSS, JS, images)
-├── pms_system/          # Project settings
-└── manage.py            # Django management script
-Usage
+    System Configuration: Manage global settings
 
-Admin: Manage users, departments, designations, and projects.
+👔 Team Lead Dashboard
+    Task Assignment: Assign tasks to team members
 
-Team Lead: Assign tasks to employees, track task progress.
+    Progress Tracking: Monitor task status and deadlines
 
-Employee: Start and complete tasks, view notifications.
+    Team Management: View team performance metrics
 
-Notifications
+    Notifications: Receive updates on task completions
 
-Notification Bell: Shows unread notifications in the top bar.
+👩‍💻 Employee Dashboard
+    My Tasks: View assigned tasks with deadlines
 
-Dropdown Panel: Latest 5 notifications appear in a dropdown.
+    Task Updates: Start/Complete tasks with timers
 
-All Notifications Page: See all notifications and mark them as read.
+    Notifications: Get real-time task assignments
 
-Notification triggers:
-
-Task assigned → sends notification to the assigned employee.
-
-Task started → sends notification to Admins & Team Leads.
-
-Task completed → sends notification to Admins & Team Leads.
-
-Screenshots
-
-Dashboard
+    Progress View: Track personal productivity
 
 
 Notification Dropdown
 
+┌──────────────────────────────┐
+│ 🔔 Notifications         (3) │
+├──────────────────────────────┤
+│ 📌 New task assigned:        │
+│    "Fix login bug"           │
+│    🕐 5 minutes ago          │
+├──────────────────────────────┤
+│ ✅ Task completed:           │
+│    "Database migration"      │
+│    by John Doe               │
+│    🕐 1 hour ago             │
+├──────────────────────────────┤
+│ ⏯️ Task started:             │
+│    "API development"         │
+│    by Jane Smith             │
+│    🕐 2 hours ago            │
+├──────────────────────────────┤
+│      📄 View all notifications│
+└──────────────────────────────┘
 
-All Notifications Page
+
+
+
