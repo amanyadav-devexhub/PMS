@@ -92,3 +92,16 @@ class UserProfileForm(forms.ModelForm):
         }
 
 
+from django.contrib.contenttypes.models import ContentType
+
+class PermissionForm(forms.ModelForm):
+    class Meta:
+        model = Permission
+        fields = ['name', 'codename', 'content_type']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'w-full border rounded px-4 py-2'}),
+            'codename': forms.TextInput(attrs={'class': 'w-full border rounded px-4 py-2'}),
+            'content_type': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
+        }
+
+

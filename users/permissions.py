@@ -87,6 +87,21 @@ def can_view_all_tasks(user):
     return can_manage_all_tasks(user)
 
 
+def can_start_task(user):
+    """Whether user can start/resume a task"""
+    return has_any(user, ['Tasks.start_task', 'tasks.start_task']) or can_change_task(user) or is_contributor_like(user)
+
+
+def can_resume_task(user):
+    """Whether user can resume a task"""
+    return has_any(user, ['Tasks.resume_task', 'tasks.resume_task']) or can_start_task(user)
+
+
+def can_complete_task(user):
+    """Whether user can complete a task"""
+    return has_any(user, ['Tasks.complete_task', 'tasks.complete_task']) or can_start_task(user)
+
+
 def is_manager_like(user):
     return can_add_task(user) or can_manage_projects(user) or can_manage_users(user)
 
@@ -96,10 +111,4 @@ def is_contributor_like(user):
 
 
 def dashboard_url_for(user):
-    if can_manage_users(user):
-        return '/admin_dashboard/'
-    if can_add_task(user):
-        return '/teamlead_dashboard/'
-    if can_view_task(user):
-        return '/employee_dashboard/'
     return '/dashboard/'

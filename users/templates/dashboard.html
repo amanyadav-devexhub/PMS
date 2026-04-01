@@ -48,222 +48,222 @@ function loadDashboard() {
 
 function renderDashboard(data) {
     const container = document.getElementById('dashboardContent');
+    const userRole = data.role || 'User';
+    
+    // 1. Common Welcome Header
+    let html = `
+        <div class="bg-gradient-to-r from-orange-600 to-blue-700 text-white p-8 rounded-2xl shadow-xl mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👋</h1>
+                    <p class="text-orange-100 text-lg">${userRole} Dashboard • Accessing authorized modules</p>
+                </div>
+                <div class="hidden md:block bg-white/20 p-4 rounded-xl backdrop-blur-sm">
+                    <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
+                    <p class="text-xs opacity-75">{{ request.user.email }}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 2. Statistics Grid
+    html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">`;
     
     if (data.dashboard_variant === 'owner') {
-        container.innerHTML = `
-            <!-- Welcome Header with Gradient -->
-            <div class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👑</h1>
-                        <p class="text-orange-100 text-lg">Workspace management access</p>
-                    </div>
-                    <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                        <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
-                    </div>
-                </div>
-            </div>
+        html += `
+            ${renderStatCard('Total Users', data.stats.total_users, 'orange', 'users')}
+            ${renderStatCard('Active Users', data.stats.active_users, 'green', 'user-check')}
+            ${renderStatCard('Total Projects', data.stats.total_projects, 'blue', 'folder')}
+            ${renderStatCard('Total Tasks', data.stats.total_tasks, 'purple', 'clipboard-list')}
+        `;
+    } else if (data.dashboard_variant === 'manager') {
+        html += `
+            ${renderStatCard('My Projects', data.stats.total_projects, 'blue', 'folder')}
+            ${renderStatCard('Active Tasks', data.stats.active_tasks, 'yellow', 'clock')}
+            ${renderStatCard('Completed', data.stats.completed_tasks, 'green', 'check-circle')}
+            ${renderStatCard('Team Members', data.stats.team_members, 'purple', 'users')}
+        `;
+    } else {
+        html += `
+            ${renderStatCard('Assigned Tasks', data.stats.tasks_count, 'blue', 'clipboard-list')}
+            ${renderStatCard('Ongoing', data.stats.ongoing_tasks, 'yellow', 'clock')}
+            ${renderStatCard('Completed', data.stats.completed_tasks, 'green', 'check-circle')}
+            ${renderStatCard('My Projects', data.stats.projects_count, 'purple', 'folder')}
+        `;
+    }
+    html += `</div>`;
 
-            <!-- Statistics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <!-- Total Users -->
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-500 text-sm">Total Users</p>
-                            <h3 class="text-3xl font-bold text-gray-800">${data.stats.total_users}</h3>
-                        </div>
-                        <div class="bg-orange-100 p-3 rounded-full">
-                            <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
+    // 3. Main Content Sections
+    html += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">`;
 
-                <!-- Total Projects -->
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-500 text-sm">Total Projects</p>
-                            <h3 class="text-3xl font-bold text-gray-800">${data.stats.total_projects}</h3>
-                        </div>
-                        <div class="bg-blue-100 p-3 rounded-full">
-                            <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-                            </svg>
-                        </div>
-                    </div>
+    // Admin: User Management List
+    if (data.dashboard_variant === 'owner' && data.users) {
+        html += `
+            <div class="xl:col-span-3 bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-800">Member Management</h3>
+                    <a href="{% url 'admin_view_users' %}" class="text-orange-600 hover:text-orange-700 text-sm font-medium">View All →</a>
                 </div>
-
-                <!-- Total Tasks -->
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-500 text-sm">Total Tasks</p>
-                            <h3 class="text-3xl font-bold text-gray-800">${data.stats.total_tasks}</h3>
-                        </div>
-                        <div class="bg-green-100 p-3 rounded-full">
-                            <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Users Table -->
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
-                <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
-                    <h3 class="text-xl font-bold text-white">User Management</h3>
-                </div>
-                <div class="p-6">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                <div class="p-6 overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">User</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">Email</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">Role</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            ${data.users.map(user => `
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                ${data.users.map(user => `
-                                <tr class="hover:bg-gray-50 transition">
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="py-4 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            <div class="bg-gradient-to-br from-orange-400 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                                                ${user.username.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</div>
+                                            <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold mr-3">${user.username[0].toUpperCase()}</div>
+                                            <span class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</span>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(user.email)}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 py-1 text-xs rounded-full ${user.role_tier === 'owner' ? 'bg-purple-100 text-purple-800' : user.role_tier === 'manager' ? 'bg-blue-100 text-blue-800' : user.role_tier === 'contributor' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
-                                            ${user.role}
-                                        </span>
+                                    <td class="py-4 text-sm text-gray-500">${escapeHtml(user.email)}</td>
+                                    <td class="py-4 text-sm">
+                                        <span class="px-2 py-1 rounded-md text-xs font-medium ${getRoleBadgeClass(user.role_tier)}">${user.role}</span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 py-1 text-xs rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    <td class="py-4">
+                                        <span class="flex items-center text-xs ${user.is_active ? 'text-green-600' : 'text-red-600'}">
+                                            <span class="w-2 h-2 rounded-full ${user.is_active ? 'bg-green-600' : 'bg-red-600'} mr-2"></span>
                                             ${user.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                 </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        `;
-    } 
-    else if (data.dashboard_variant === 'manager') {
-        container.innerHTML = `
-            <!-- Welcome Header -->
-            <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-8 rounded-2xl shadow-xl mb-8">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👋</h1>
-                        <p class="text-blue-100 text-lg">Manager view • Manage your team and projects</p>
-                    </div>
-                    <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                        <p class="text-sm opacity-90">{{ request.user.email }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Statistics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-                    <p class="text-gray-500 text-sm">Total Projects</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.total_projects}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
-                    <p class="text-gray-500 text-sm">Active Tasks</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.active_tasks}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-                    <p class="text-gray-500 text-sm">Team Members</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.team_members}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-                    <p class="text-gray-500 text-sm">Completed</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.completed_tasks}</h3>
-                </div>
-            </div>
-        `;
-    } 
-    else if (data.dashboard_variant === 'contributor') {
-        container.innerHTML = `
-            <!-- Welcome Header -->
-            <div class="bg-gradient-to-r from-green-500 to-teal-600 text-white p-8 rounded-2xl shadow-xl mb-8">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👋</h1>
-                        <p class="text-green-100 text-lg">Manage your tasks and projects efficiently</p>
-                    </div>
-                    <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                        <p class="text-sm opacity-90">{{ request.user.email }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Statistics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-                    <p class="text-gray-500 text-sm">My Tasks</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.tasks_count}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-                    <p class="text-gray-500 text-sm">Completed</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.completed_tasks}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
-                    <p class="text-gray-500 text-sm">Pending</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.pending_tasks}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-                    <p class="text-gray-500 text-sm">My Projects</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.projects_count}</h3>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         `;
     }
-    else {
-        container.innerHTML = `
-            <div class="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-8 rounded-2xl shadow-xl mb-8">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}!</h1>
-                        <p class="text-slate-100 text-lg">Role-based workspace</p>
-                    </div>
-                    <div class="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                        <p class="text-sm opacity-90">{{ request.user.email }}</p>
-                    </div>
-                </div>
-            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-                    <p class="text-gray-500 text-sm">My Tasks</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.tasks_count}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-indigo-500">
-                    <p class="text-gray-500 text-sm">Ongoing</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.ongoing_tasks}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-                    <p class="text-gray-500 text-sm">Completed</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.completed_tasks}</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-                    <p class="text-gray-500 text-sm">Projects</p>
-                    <h3 class="text-3xl font-bold text-gray-800">${data.stats.projects_count}</h3>
+    // Manager: Recent Projects
+    if (data.dashboard_variant === 'manager' && data.recent_projects) {
+        html += `
+            <div class="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-6">Managed Projects</h3>
+                <div class="space-y-4">
+                    ${data.recent_projects.map(p => `
+                        <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
+                            <div class="flex items-center">
+                                <div class="p-3 bg-blue-100 rounded-lg mr-4">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">${escapeHtml(p.name)}</h4>
+                                    <p class="text-xs text-gray-500">Starts: ${p.start_date || 'N/A'} • Ends: ${p.end_date}</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wider">${p.status}</span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
         `;
+    }
+
+    // Contributor: Recent Tasks
+    if (data.dashboard_variant === 'contributor' && data.recent_tasks) {
+        html += `
+            <div class="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-6">Recent Task Assignments</h3>
+                <div class="space-y-4">
+                    ${data.recent_tasks.map(t => `
+                        <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
+                            <div class="flex items-center">
+                                <div class="p-3 bg-indigo-100 rounded-lg mr-4">
+                                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">${escapeHtml(t.name)}</h4>
+                                    <p class="text-xs text-gray-500">${escapeHtml(t.project_name)} • Due: ${t.end_date}</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider">${t.status_display}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Common Sidebar Section (Quick Actions)
+    html += `
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-6">Quick Actions</h3>
+            <div class="grid grid-cols-1 gap-3">
+                ${data.permissions.can_manage_users ? `
+                    <a href="{% url 'create_user' %}" class="flex items-center p-3 text-sm font-medium text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition">
+                        <span class="mr-3">➕</span> Add New Member
+                    </a>
+                ` : ''}
+                ${data.permissions.can_manage_roles ? `
+                    <a href="{% url 'role_list' %}" class="flex items-center p-3 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                        <span class="mr-3">🛡️</span> Manage Roles
+                    </a>
+                ` : ''}
+                ${data.permissions.can_manage_users ? ` 
+                    <a href="{% url 'permission_list' %}" class="flex items-center p-3 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition">
+                        <span class="mr-3">🔑</span> Manage Permissions
+                    </a>
+                ` : ''}
+                ${data.permissions.can_manage_projects ? `
+                    <a href="{% url 'create_project' %}" class="flex items-center p-3 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
+                        <span class="mr-3">🏗️</span> Create Project
+                    </a>
+                ` : ''}
+                ${data.permissions.can_add_task ? `
+                    <a href="{% url 'assign_task' %}" class="flex items-center p-3 text-sm font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
+                        <span class="mr-3">📝</span> Assign New Task
+                    </a>
+                ` : ''}
+                <a href="{% url 'task_dashboard' %}" class="flex items-center p-3 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <span class="mr-3">📅</span> View My Tasks
+                </a>
+            </div>
+        </div>
+    `;
+
+    html += `</div>`; // End main content grid
+    container.innerHTML = html;
+}
+
+function renderStatCard(title, value, color, icon) {
+    const colors = {
+        orange: 'border-orange-500 bg-orange-50 text-orange-600',
+        blue: 'border-blue-500 bg-blue-50 text-blue-600',
+        green: 'border-green-500 bg-green-50 text-green-600',
+        purple: 'border-purple-500 bg-purple-50 text-purple-600',
+        yellow: 'border-yellow-500 bg-yellow-50 text-yellow-600',
+    };
+    
+    return `
+        <div class="bg-white rounded-xl shadow p-6 border-l-4 ${colors[color].split(' ')[0]}">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">${title}</p>
+                    <h3 class="text-2xl font-black text-gray-800">${value}</h3>
+                </div>
+                <div class="p-3 rounded-xl ${colors[color].split(' ').slice(1).join(' ')}">
+                    <!-- Icon placeholder or SVG logic could go here -->
+                    <span class="text-xl font-bold">#</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getRoleBadgeClass(tier) {
+    switch(tier) {
+        case 'owner': return 'bg-purple-100 text-purple-700 underline decoration-purple-300';
+        case 'manager': return 'bg-blue-100 text-blue-700';
+        case 'contributor': return 'bg-green-100 text-green-700';
+        default: return 'bg-gray-100 text-gray-700';
     }
 }
 

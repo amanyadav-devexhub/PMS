@@ -23,7 +23,8 @@ from django.contrib.sites.shortcuts import get_current_site
 from datetime import timedelta
 from django.db.models import Avg
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth import authenticate
 from django.contrib import messages
 from projects.models import Projects, ProjectResource
@@ -31,6 +32,8 @@ from projects.forms import ProjectResourceForm
 
 ## for notification logic
 from notifications.models import Notification
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from users.models import Role, User
 from users.permissions import (
     can_add_task,
@@ -38,13 +41,20 @@ from users.permissions import (
     can_delete_task,
     can_manage_all_tasks,
     can_manage_projects,
+    can_manage_roles,
     can_manage_users,
     can_view_all_projects,
     can_view_all_tasks,
+    can_view_projects,
     can_view_task,
+    can_start_task,
+    can_resume_task,
+    can_complete_task,
     dashboard_url_for,
     is_manager_like,
 )
+from .forms import RoleForm, PermissionForm
+from Tasks.models import Task
 
 ## Used for Session based login
 def login_view(request):
@@ -882,97 +892,111 @@ def login_page(request):
 ## Dashboard view
 @jwt_or_session_required
 def dashboard(request):
+    user = request.user
+    
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        if can_manage_users(request.user):
-            total_users = User.objects.count()
-            total_projects = Projects.objects.count()
-            total_tasks = Task.objects.count()
-            users = User.objects.all()
+        data = {
+            'success': True,
+            'role': user.role_obj.name if user.role_obj else (user.role or 'USER'),
+            'stats': {},
+            'permissions': {
+                'can_manage_users': can_manage_users(user),
+                'can_add_task': can_add_task(user),
+                'can_view_projects': can_view_projects(user),
+                'can_manage_projects': can_manage_projects(user),
+                'can_manage_roles': can_manage_roles(user),
+                'can_start_task': can_start_task(user),
+                'can_resume_task': can_resume_task(user),
+                'can_complete_task': can_complete_task(user),
+            }
+        }
+
+        # 1. Admin / Manager Data
+        if can_manage_users(user):
+            data['dashboard_variant'] = 'owner'
+            data['stats'] = {
+                'total_users': User.objects.count(),
+                'active_users': User.objects.filter(is_active=True).count(),
+                'inactive_users': User.objects.filter(is_active=False).count(),
+                'total_projects': Projects.objects.count(),
+                'total_tasks': Task.objects.count(),
+                'ongoing_projects': Projects.objects.filter(status='ONGOING').count(),
+                'completed_tasks': Task.objects.filter(status='COMPLETED').count(),
+            }
             
+            # Users list for admin
+            users = User.objects.all().order_by('-date_joined')[:10]
             users_data = []
-            for user in users:
-                role_label = user.role_obj.name if user.role_obj else (user.role or 'UNASSIGNED')
-                if can_manage_users(user):
-                    role_tier = 'owner'
-                elif is_manager_like(user):
-                    role_tier = 'manager'
-                elif can_view_task(user):
-                    role_tier = 'contributor'
-                else:
-                    role_tier = 'custom'
+            for u in users:
+                role_label = u.role_obj.name if u.role_obj else (u.role or 'UNASSIGNED')
+                if can_manage_users(u): role_tier = 'owner'
+                elif is_manager_like(u): role_tier = 'manager'
+                elif can_view_task(u): role_tier = 'contributor'
+                else: role_tier = 'custom'
 
                 users_data.append({
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
+                    'id': u.id,
+                    'username': u.username,
+                    'email': u.email,
                     'role': role_label,
                     'role_tier': role_tier,
-                    'is_active': user.is_active,
+                    'is_active': u.is_active,
                 })
-            
-            return JsonResponse({
-                'success': True,
-                'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
-                'dashboard_variant': 'owner',
-                'stats': {
-                    'total_users': total_users,
-                    'total_projects': total_projects,
-                    'total_tasks': total_tasks,
-                },
-                'users': users_data
-            })
+            data['users'] = users_data
 
-        if can_add_task(request.user):
-            my_projects = Projects.objects.filter(assigned_to=request.user)
+        # 2. Team Lead / Task Manager Data
+        elif can_add_task(user):
+            data['dashboard_variant'] = 'manager'
+            my_projects = Projects.objects.filter(assigned_to=user)
             my_project_ids = my_projects.values_list('id', flat=True)
             tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+            
             active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
-            team_members_total = sum(1 for member in active_users if not is_manager_like(member))
+            team_members = [member for member in active_users if not is_manager_like(member)]
             
-            return JsonResponse({
-                'success': True,
-                'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
-                'dashboard_variant': 'manager',
-                'stats': {
-                    'total_projects': my_projects.count(),
-                    'active_tasks': tasks_from_my_projects.filter(status='ONGOING').count(),
-                    'completed_tasks': tasks_from_my_projects.filter(status='COMPLETED').count(),
-                    'team_members': team_members_total,
-                }
-            })
-
-        if can_view_task(request.user):
-            tasks = Task.objects.filter(assigned_to=request.user)
-            projects = Projects.objects.filter(assigned_to=request.user)
+            data['stats'] = {
+                'total_projects': my_projects.count(),
+                'active_tasks': tasks_from_my_projects.filter(status='ONGOING').count(),
+                'completed_tasks': tasks_from_my_projects.filter(status='COMPLETED').count(),
+                'team_members': len(team_members),
+            }
             
-            return JsonResponse({
-                'success': True,
-                'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
-                'dashboard_variant': 'contributor',
-                'stats': {
-                    'tasks_count': tasks.count(),
-                    'ongoing_tasks': tasks.filter(status='ONGOING').count(),
-                    'completed_tasks': tasks.filter(status='COMPLETED').count(),
-                    'pending_tasks': tasks.filter(status='PENDING').count(),
-                    'projects_count': projects.count(),
-                }
-            })
+            # Recent projects for TL
+            recent_projects = my_projects.order_by('-start_date')[:5]
+            data['recent_projects'] = [{
+                'id': p.id,
+                'name': p.name,
+                'status': p.status,
+                'end_date': p.end_date.strftime('%b %d, %Y') if p.end_date else 'N/A'
+            } for p in recent_projects]
 
-        tasks = Task.objects.none()
-        projects = Projects.objects.none()
-        return JsonResponse({
-            'success': True,
-            'role': request.user.role_obj.name if request.user.role_obj else (request.user.role or 'USER'),
-            'dashboard_variant': 'custom',
-            'stats': {
+        # 3. Employee / Contributor Data
+        else:
+            data['dashboard_variant'] = 'contributor'
+            tasks = Task.objects.filter(assigned_to=user)
+            projects = Projects.objects.filter(assigned_to=user)
+            
+            data['stats'] = {
                 'tasks_count': tasks.count(),
                 'ongoing_tasks': tasks.filter(status='ONGOING').count(),
                 'completed_tasks': tasks.filter(status='COMPLETED').count(),
                 'pending_tasks': tasks.filter(status='PENDING').count(),
                 'projects_count': projects.count(),
             }
-        })
+
+            # Recent tasks for Employee
+            recent_tasks = tasks.order_by('-created_at')[:5]
+            data['recent_tasks'] = [{
+                'id': t.id,
+                'name': t.name,
+                'status': t.status,
+                'status_display': t.get_status_display(),
+                'project_name': t.project.name if t.project else "General",
+                'end_date': t.end_date.strftime('%b %d') if t.end_date else "No deadline"
+            } for t in recent_tasks]
+
+        return JsonResponse(data)
     
     # Regular request - return template
     return render(request, "dashboard.html")
@@ -2166,7 +2190,6 @@ def delete_user(request, user_id):
 
 # Import Project and Task from their apps
 from projects.models import Projects
-from Tasks.models import Task
 from Tasks.forms import TaskForm 
 ## Assign Task
 @jwt_or_session_required
@@ -3758,3 +3781,91 @@ def check_email_exists(request):
         
     except Exception as e:
         return JsonResponse({'exists': False, 'error': str(e)}, status=500)
+
+
+## Role Management Views
+@jwt_or_session_required
+def role_list(request):
+    if not can_manage_roles(request.user):
+        return HttpResponseForbidden("You don't have permission to manage roles.")
+    roles = Role.objects.prefetch_related('permissions').all()
+    return render(request, 'role_list.html', {'roles': roles})
+
+
+@jwt_or_session_required
+def role_create(request):
+    if not can_manage_roles(request.user):
+        return HttpResponseForbidden("You don't have permission to manage roles.")
+    if request.method == 'POST':
+        form = RoleForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Role created successfully.')
+            return redirect('role_list')
+    else:
+        form = RoleForm()
+    return render(request, 'role_form.html', {'form': form, 'title': 'Create Role'})
+
+
+@jwt_or_session_required
+def role_edit(request, role_id):
+    if not can_manage_roles(request.user):
+        return HttpResponseForbidden("You don't have permission to manage roles.")
+    role = get_object_or_404(Role, id=role_id)
+    if request.method == 'POST':
+        form = RoleForm(request.POST, instance=role)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Role updated successfully.')
+            return redirect('role_list')
+    else:
+        form = RoleForm(instance=role)
+    return render(request, 'role_form.html', {'form': form, 'title': 'Edit Role', 'role': role})
+
+
+@jwt_or_session_required
+def role_delete(request, role_id):
+    if not can_manage_roles(request.user):
+        return HttpResponseForbidden("You don't have permission to manage roles.")
+    role = get_object_or_404(Role, id=role_id)
+    if request.method == 'POST':
+        role.delete()
+        messages.success(request, 'Role deleted successfully.')
+        return redirect('role_list')
+    return render(request, 'role_confirm_delete.html', {'role': role})
+
+
+## Permission Management Views
+@jwt_or_session_required
+def permission_list(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Only superusers can manage permissions.")
+    permissions = Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'codename')
+    return render(request, 'permission_list.html', {'permissions': permissions})
+
+
+@jwt_or_session_required
+def permission_create(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Only superusers can manage permissions.")
+    if request.method == 'POST':
+        form = PermissionForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Permission created successfully.')
+            return redirect('permission_list')
+    else:
+        form = PermissionForm()
+    return render(request, 'permission_form.html', {'form': form})
+
+
+@jwt_or_session_required
+def permission_delete(request, perm_id):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Only superusers can manage permissions.")
+    perm = get_object_or_404(Permission, id=perm_id)
+    if request.method == 'POST':
+        perm.delete()
+        messages.success(request, 'Permission deleted successfully.')
+        return redirect('permission_list')
+    return render(request, 'permission_confirm_delete.html', {'permission': perm})
