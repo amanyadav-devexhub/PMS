@@ -43,7 +43,7 @@
         <!-- Notification Container -->
         <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
 
-        <form method="POST" class="space-y-6" id="createUserForm" data-redirect-url="{% url 'admin_dashboard' %}">
+        <form method="POST" class="space-y-6" id="createUserForm" data-redirect-url="{% url 'dashboard' %}">
             {% csrf_token %}
 
             <!-- User Info Section -->
@@ -110,7 +110,7 @@
 
             <!-- Form Actions -->
             <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-                <a href="{% url 'admin_dashboard' %}"
+                <a href="{% url 'dashboard' %}"
                    class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2.5 rounded-lg shadow transition font-medium">
                     Cancel
                 </a>

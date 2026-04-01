@@ -10,9 +10,9 @@ from rest_framework_simplejwt.views import (
 )
 from .views import (
     login_view,
-    admin_dashboard,
-    teamlead_dashboard,
-    employee_dashboard,
+#    admin_dashboard,
+#    teamlead_dashboard,
+#    employee_dashboard,
     login_page,
 )
 
@@ -30,6 +30,11 @@ urlpatterns = [
     path("roles/create/", views.role_create, name="role_create"),
     path("roles/<int:role_id>/edit/", views.role_edit, name="role_edit"),
     path("roles/<int:role_id>/delete/", views.role_delete, name="role_delete"),
+
+    # Permission management
+    path("permissions/", views.permission_list, name="permission_list"),
+    path("permissions/create/", views.permission_create, name="permission_create"),
+    path("permissions/<int:perm_id>/delete/", views.permission_delete, name="permission_delete"),
 
     # User listing endpoints (role-based)
     path("users/admin/", views.admin_view_users, name='admin_view_users'),
@@ -102,9 +107,9 @@ urlpatterns = [
     #path("login/", login_view, name="login"),
     # path('', views.home, name='home'),
    
-    path("admin_dashboard/", admin_dashboard, name="admin_dashboard"),
-    path("teamlead_dashboard/", teamlead_dashboard, name="teamlead_dashboard"),
-    path("employee_dashboard/", employee_dashboard, name="employee_dashboard"),
+#    path("admin_dashboard/", admin_dashboard, name="admin_dashboard"),
+#    path("teamlead_dashboard/", teamlead_dashboard, name="teamlead_dashboard"),
+#    path("employee_dashboard/", employee_dashboard, name="employee_dashboard"),
     path("register/", views.register, name="register"),
     # path("user/create/", views.create_user, name="create_user"),
     # path("user/<int:user_id>/delete/", views.delete_user, name="delete_user"),

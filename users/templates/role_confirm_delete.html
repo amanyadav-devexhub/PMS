@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Delete Role{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto mt-10">
+    <div class="bg-white p-8 rounded-lg shadow-lg border border-red-200">
+        <h2 class="text-xl font-bold text-red-600 mb-4">Confirm Deletion</h2>
+        <p class="text-gray-700 mb-6 font-medium">Are you sure you want to delete the role <span class="font-bold underline">"{{ role.name }}"</span>?</p>
+        <p class="text-sm text-gray-500 mb-6 italic">Warning: Users assigned to this role may lose access to critical features. This action cannot be undone.</p>
+        <form method="POST" class="flex justify-end gap-3">
+            {% csrf_token %}
+            <a href="{% url 'role_list' %}" class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">Cancel</a>
+            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg shadow transition">
+                CONFIRM DELETE
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
