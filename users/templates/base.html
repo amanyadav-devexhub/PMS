@@ -71,38 +71,46 @@
 
                 {% if request.user.is_authenticated %}
                 <!-- Dashboard - Role Based (Simpler) -->
-            <a href="
-                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-                    {% url 'admin_dashboard' %}
-                {% elif request.user.role == 'TEAM_LEAD' %}
-                    {% url 'teamlead_dashboard' %}
-                {% elif request.user.role == 'EMPLOYEE' %}
-                    {% url 'employee_dashboard' %}
-                {% else %}
-                    {% url 'dashboard' %}
-                {% endif %}"
-            class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-            Dashboard
-            </a>
+                <a href="{{ dashboard_url }}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Dashboard
+                </a>
 
-                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-                     <!-- <a href="{% url 'create_user' %}" 
-                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                       Create User
-                    </a> -->
-
-                    <a href="{% url 'admin_view_users' %}" 
-                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                       Members
-                    </a>
-
-                    <a href="{% url 'view_projects' %}"
+                {% if can_manage_users %}
+                <a href="{% url 'admin_view_users' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Projects
-                    </a>
+                    Members
+                </a>
+                {% elif can_add_task %}
+                <a href="{% url 'teamlead_view_users' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Members
+                </a>
+                {% endif %}
 
-                    <!-- Departments -->
-                    <a href="{% url 'departments' %}"
+                {% if can_view_projects %}
+                <a href="{% url 'view_projects' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    {% if can_view_all_projects %}Projects{% else %}My Projects{% endif %}
+                </a>
+                {% endif %}
+
+                {% if can_view_task %}
+                <a href="{% url 'task_dashboard' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    {% if can_view_all_tasks %}Tasks{% else %}My Tasks{% endif %}
+                </a>
+                {% endif %}
+
+                {% if can_add_task %}
+                <a href="{% url 'assign_task' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Create Task
+                </a>
+                {% endif %}
+
+                {% if can_manage_org %}
+                <!-- Departments -->
+                <a href="{% url 'departments' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Departments
                 </a>
@@ -111,40 +119,22 @@
                 <a href="{% url 'designations' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Designations
-                    </a>
-                    <!--Analytics-->
-                    <a href="{% url 'user_analytics' %}" 
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Analytics
-                    </a>
-                    
+                </a>
                 {% endif %}
 
-                <!-- TEAM LEAD MENU -->
-                {% if request.user.role == 'TEAM_LEAD' %}
-                    <a href="{% url 'teamlead_view_users' %}" 
+                {% if can_manage_roles %}
+                <a href="{% url 'role_list' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Members
-                    </a>
-
-                    <a href="{% url 'view_projects' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Projects
-                    </a>
-
-                    <!-- Analytics for Team Lead -->
-                    <a href="{% url 'user_analytics' %}" 
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Analytics
-                    </a>
+                    Roles & Permissions
+                </a>
                 {% endif %}
 
-                <!-- Employee Menu -->
-                {% if request.user.role == 'EMPLOYEE' %}
-                    <!-- <a href="{% url 'employee_tasks' %}" 
-                       class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                       My Tasks
-                    </a> -->
+                {% if can_manage_users or can_add_task %}
+                <!-- Analytics -->
+                <a href="{% url 'user_analytics' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    {% if can_manage_users %}Analytics{% else %}Team Analytics{% endif %}
+                </a>
                 {% endif %}
 
                 <!--Logout!-->
@@ -293,31 +283,422 @@
         }
     </script>
 
-<script>
-function logout() {
-    // Clear all cookies
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-        document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-    }
-    
-    // Call server logout endpoint
-    fetch('/logout/', {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    <script>
+        function logout() {
+            // Clear session storage (for back button navigation)
+            sessionStorage.clear();
+
+            // Clear all cookies
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const eqPos = cookie.indexOf('=');
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+            }
+
+            // Clear local storage (JWT tokens)
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('username');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_email');
+
+            // Call server logout endpoint
+            fetch('/logout/', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(() => {
+                    window.location.href = "{% url 'login_page' %}";
+                })
+                .catch(() => {
+                    window.location.href = "{% url 'login_page' %}";
+                });
         }
-    })
-    .then(() => {
-        window.location.href = '/render_login/';
-    })
-    .catch(() => {
-        window.location.href = '/render_login/';
-    });
-}
-</script>
+    </script>
+
+    <!-- Navigation Helper - Prevents Back Button Loops -->
+    <script>
+        // ========== GLOBAL NAVIGATION HELPER ==========
+
+        // Store the previous page before any navigation
+        (function () {
+            sessionStorage.setItem('currentPage', window.location.pathname);
+            if (!sessionStorage.getItem('initialPage')) {
+                sessionStorage.setItem('initialPage', window.location.pathname);
+            }
+        })();
+
+        // Smart back button function - Fixed for loop issue
+        function goBack() {
+            const previousPage = sessionStorage.getItem('previousPage');
+            const currentPage = window.location.pathname;
+
+            // If we have a stored previous page and it's different from current
+            if (previousPage && previousPage !== currentPage) {
+                sessionStorage.removeItem('previousPage');
+                window.location.href = previousPage;
+                return;
+            }
+
+            // Check if it's a project detail page
+            if (currentPage.includes('view_project_detail')) {
+                {% if can_view_all_projects %}
+                window.location.href = "{% url 'view_projects' %}";
+                {% else %}
+                window.location.href = "{% url 'employee_projects' %}";
+                {% endif %}
+                return;
+            }
+
+            // If it's the projects page, go to dashboard
+            if (currentPage.includes('employee_projects') || currentPage.includes('projects/')) {
+                window.location.href = "{{ dashboard_url }}";
+                return;
+            }
+
+            // Check if there's browser history
+            if (document.referrer && document.referrer !== window.location.href) {
+                window.history.back();
+                return;
+            }
+
+            // Final fallback to dashboard
+            {% if request.user.is_authenticated %}
+            window.location.href = "{{ dashboard_url }}";
+            {% else %}
+            window.location.href = "{% url 'login_page' %}";
+            {% endif %}
+        }
+
+        // Automatically capture clicks on ALL links to track navigation
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('a');
+            if (link && link.href && !link.href.includes('#') && link.target !== '_blank') {
+                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes('goBack')) {
+                    return;
+                }
+                if (link.classList.contains('no-history')) {
+                    return;
+                }
+                if (link.href.includes('javascript:')) {
+                    return;
+                }
+
+                const currentPath = window.location.pathname;
+                try {
+                    const linkPath = new URL(link.href).pathname;
+                    if (currentPath !== linkPath) {
+                        sessionStorage.setItem('previousPage', currentPath);
+                    }
+                } catch (e) {
+                    // Invalid URL, ignore
+                }
+            }
+        });
+
+        // Convert all existing back buttons to use goBack function
+        document.addEventListener('DOMContentLoaded', function () {
+            const backButtons = document.querySelectorAll('[onclick*="history.back"], [onclick*="window.history.back"]');
+            backButtons.forEach(btn => {
+                btn.setAttribute('onclick', 'goBack()');
+            });
+
+            const backButtonsByClass = document.querySelectorAll('.back-btn, [data-back-button]');
+            backButtonsByClass.forEach(btn => {
+                if (!btn.getAttribute('onclick')) {
+                    btn.setAttribute('onclick', 'goBack()');
+                }
+            });
+        });
+    </script>
+
+    <!-- Notification System JavaScript -->
+    <script>
+        // Notification Manager - Handles real-time updates
+        const NotificationManager = {
+            unreadCount: parseInt("{{ unread_notifications_count|default:'0' }}") || 0,
+            pollInterval: null,
+            isLoading: false,
+
+            init() {
+                this.loadLatestNotification();
+                this.startPolling();
+                this.attachEventListeners();
+            },
+
+            attachEventListeners() {
+                const bellBtn = document.getElementById('notificationBellBtn');
+                const dropdown = document.getElementById('notificationDropdown');
+
+                if (bellBtn && dropdown) {
+                    bellBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        dropdown.classList.toggle('hidden');
+                        if (!dropdown.classList.contains('hidden')) {
+                            this.loadLatestNotification();
+                        }
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!bellBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                            dropdown.classList.add('hidden');
+                        }
+                    });
+                }
+
+                const markAllBtn = document.getElementById('markAllReadBtn');
+                if (markAllBtn) {
+                    markAllBtn.addEventListener('click', () => this.markAllAsRead());
+                }
+            },
+
+            loadLatestNotification() {
+                if (this.isLoading) return;
+                this.isLoading = true;
+
+                fetch('/notifications/all/?page=1&page_size=1', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.renderSingleNotification(data.notifications);
+                            this.unreadCount = data.unread_count;
+                            this.updateBadge();
+                        }
+                        this.isLoading = false;
+                    })
+                    .catch(error => {
+                        console.error('Error loading notification:', error);
+                        this.isLoading = false;
+                    });
+            },
+
+            renderSingleNotification(notifications) {
+                const container = document.getElementById('notificationList');
+                if (!container) return;
+
+                const latestNotif = notifications && notifications.length > 0 ? notifications[0] : null;
+
+                if (!latestNotif) {
+                    container.innerHTML = `
+                        <div class="p-8 text-center">
+                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <p class="text-gray-500">No notifications yet</p>
+                            <p class="text-xs text-gray-400 mt-1">New notifications will appear here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const isUnread = !latestNotif.is_read;
+                const bgColor = isUnread ? 'bg-blue-50' : 'bg-white';
+
+                container.innerHTML = `
+                    <div class="p-4 border-b border-gray-100 ${bgColor}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-800 leading-relaxed">${this.escapeHtml(latestNotif.message)}</p>
+                                <p class="text-xs text-gray-400 mt-2">${this.formatDate(latestNotif.created_at)}</p>
+                            </div>
+                            ${isUnread ? `
+                            <button onclick="NotificationManager.markAsRead(${latestNotif.id})" 
+                                    class="text-xs text-blue-600 hover:text-blue-800 ml-2 px-2 py-1 rounded hover:bg-blue-100 whitespace-nowrap">
+                                Mark read
+                            </button>
+                            ` : `
+                            <span class="text-xs text-green-600 ml-2 whitespace-nowrap">
+                                ✓ Read
+                            </span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            },
+
+            markAsRead(notificationId) {
+                fetch(`/notifications/mark-read/${notificationId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.unreadCount = Math.max(0, this.unreadCount - 1);
+                            this.updateBadge();
+                            this.loadLatestNotification();
+
+                            if (window.location.pathname.includes('/notifications/all/')) {
+                                if (typeof loadNotifications === 'function') {
+                                    loadNotifications(1, 20);
+                                } else {
+                                    location.reload();
+                                }
+                            }
+
+                            this.showToast('Notification marked as read', 'success');
+                        }
+                    })
+                    .catch(error => console.error('Error marking as read:', error));
+            },
+
+            markAllAsRead() {
+                fetch('/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.unreadCount = 0;
+                            this.updateBadge();
+                            this.loadLatestNotification();
+                            this.showToast(data.message, 'success');
+                        }
+                    })
+                    .catch(error => console.error('Error marking all as read:', error));
+            },
+
+            updateBadge() {
+                const badge = document.getElementById('notificationBadge');
+                if (badge) {
+                    if (this.unreadCount > 0) {
+                        badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+
+                const title = document.title;
+                if (this.unreadCount > 0) {
+                    if (!title.startsWith('(')) {
+                        document.title = `(${this.unreadCount}) ${title}`;
+                    }
+                } else {
+                    document.title = title.replace(/^\(\d+\)\s/, '');
+                }
+            },
+
+            startPolling() {
+                this.pollInterval = setInterval(() => {
+                    if (!document.hidden) {
+                        this.checkForNewNotifications();
+                    }
+                }, 30000);
+            },
+
+            checkForNewNotifications() {
+                fetch('/notifications/all/?page=1&page_size=1', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.unread_count > this.unreadCount) {
+                            const newCount = data.unread_count - this.unreadCount;
+                            this.unreadCount = data.unread_count;
+                            this.updateBadge();
+                            this.showToast(`📬 ${newCount} new notification${newCount > 1 ? 's' : ''}`, 'info');
+
+                            const dropdown = document.getElementById('notificationDropdown');
+                            if (dropdown && !dropdown.classList.contains('hidden')) {
+                                this.loadLatestNotification();
+                            }
+                        } else if (data.success) {
+                            this.unreadCount = data.unread_count;
+                            this.updateBadge();
+                        }
+                    })
+                    .catch(error => console.error('Error checking notifications:', error));
+            },
+
+            getCsrfToken() {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                            cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            },
+
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            },
+
+            escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+
+            showToast(message, type = 'success') {
+                const existingToast = document.querySelector('.toast-notification');
+                if (existingToast) existingToast.remove();
+
+                const toast = document.createElement('div');
+                const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+                toast.className = `toast-notification fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
+                toast.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span>${message}</span>
+                        <button onclick="this.parentElement.parentElement.remove()" class="hover:text-gray-200 text-xl">&times;</button>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+
+                setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+                setTimeout(() => {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            NotificationManager.init();
+        });
+
+        window.NotificationManager = NotificationManager;
+    </script>
 
 </body>
 
