@@ -6,8 +6,7 @@
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-7xl">
 
-    <!-- Back Navigation (role-based) -->
-    <!-- Back Navigation (role-based) -->
+    <!-- Back Navigation -->
     <div class="mb-6">
         <button onclick="goBack()" class="inline-flex items-center text-gray-600 hover:text-orange-600 transition">
             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,8 +101,8 @@
                 </div>
             </div>
 
-            <!-- Action Buttons - Only Edit Project -->
-            {% if request.user.role == 'ADMIN' %}
+            <!-- Action Buttons - Edit Project -->
+            {% if can_manage_projects and can_manage_users %}
             <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200">
                 <a href="{% url 'edit_projects' project.id %}"
                     class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition">
@@ -115,8 +114,7 @@
                     Edit Project
                 </a>
             </div>
-
-            {% elif request.user.role == 'TEAM_LEAD' and project.created_by == request.user %}
+            {% elif can_manage_projects and project.created_by == request.user %}
             <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200">
                 <a href="{% url 'edit_projects' project.id %}"
                     class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition">
@@ -128,8 +126,7 @@
                     Edit Project
                 </a>
             </div>
-
-            {% elif request.user.role == 'TEAM_LEAD' and request.user in project.assigned_to.all %}
+            {% elif can_manage_projects and request.user in project.assigned_to.all %}
             <div class="mt-8 pt-6 border-t border-gray-200">
                 <p class="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg">
                     <svg class="w-4 h-4 inline-block mr-1 text-gray-400" fill="none" stroke="currentColor"
@@ -150,7 +147,7 @@
     </div>
 
     <!-- Tasks Section - Only for Admin and Team Lead -->
-    {% if request.user.role != 'EMPLOYEE' %}
+    {% if is_manager_like %}
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mt-8">
         <div class="p-6">
             <!-- Section Header with Create Task Button -->
@@ -160,6 +157,7 @@
                     <p class="text-gray-500 text-sm mt-1">Manage all tasks under this project</p>
                 </div>
                 <div>
+                    {% if can_add_task %}
                     <a href="{% url 'assign_task' %}?project={{ project.id }}"
                         class="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 font-medium">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,43 +166,34 @@
                         </svg>
                         Create Task
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
             <!-- Task Stats Cards -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div
-                    class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
-                    <span id="statTotalTasks" class="text-3xl font-bold text-blue-600">{{ total_tasks|default:0
-                        }}</span>
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
+                    <span id="statTotalTasks" class="text-3xl font-bold text-blue-600">{{ total_tasks|default:0 }}</span>
                     <p class="text-sm font-medium text-blue-700 mt-1">Total Tasks</p>
                 </div>
-                <div
-                    class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
-                    <span id="statPendingTasks" class="text-3xl font-bold text-yellow-600">{{ pending_tasks|default:0
-                        }}</span>
+                <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
+                    <span id="statPendingTasks" class="text-3xl font-bold text-yellow-600">{{ pending_tasks|default:0 }}</span>
                     <p class="text-sm font-medium text-yellow-700 mt-1">Pending</p>
                 </div>
-                <div
-                    class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
-                    <span id="statOngoingTasks" class="text-3xl font-bold text-indigo-600">{{ ongoing_tasks|default:0
-                        }}</span>
+                <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
+                    <span id="statOngoingTasks" class="text-3xl font-bold text-indigo-600">{{ ongoing_tasks|default:0 }}</span>
                     <p class="text-sm font-medium text-indigo-700 mt-1">In Progress</p>
                 </div>
-                <div
-                    class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
-                    <span id="statCompletedTasks" class="text-3xl font-bold text-green-600">{{ completed_tasks|default:0
-                        }}</span>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-5 text-center shadow-sm hover:shadow-md transition">
+                    <span id="statCompletedTasks" class="text-3xl font-bold text-green-600">{{ completed_tasks|default:0 }}</span>
                     <p class="text-sm font-medium text-green-700 mt-1">Completed</p>
                 </div>
             </div>
 
             <!-- Loading Overlay for Tasks -->
-            <div id="tasksLoadingOverlay"
-                class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
+            <div id="tasksLoadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
                 <div class="bg-white rounded-xl p-4 shadow-xl flex items-center gap-3">
-                    <div class="animate-spin rounded-full h-6 w-6 border-2 border-orange-500 border-t-transparent">
-                    </div>
+                    <div class="animate-spin rounded-full h-6 w-6 border-2 border-orange-500 border-t-transparent"></div>
                     <span class="text-gray-700">Loading tasks...</span>
                 </div>
             </div>
@@ -214,29 +203,17 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Task</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Assigned To</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Status</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Deadline</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Time</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Actions</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Task</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned To</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Deadline</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for task in tasks %}
-                        <tr class="hover:bg-gray-50 transition-all duration-150">
+                        <tr class="hover:bg-gray-50 transition-all duration-150" id="task-row-{{ task.id }}">
                             <td class="px-6 py-4">
                                 <div class="font-medium text-gray-900">{{ task.name }}</div>
                                 <div class="text-xs text-gray-400 mt-0.5">ID: {{ task.id }}</div>
@@ -271,8 +248,7 @@
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4">
-                                <span class="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">{{
-                                    task.time_display|default:"00:00" }}</span>
+                                <span class="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">{{ task.time_display|default:"00:00" }}</span>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-2">
@@ -313,8 +289,7 @@
                         <tr>
                             <td colspan="6" class="px-6 py-12 text-center">
                                 <div class="flex flex-col items-center justify-center">
-                                    <svg class="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
+                                    <svg class="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
                                         </path>
@@ -328,47 +303,27 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Controls -->
+            <div class="mt-6 flex justify-between items-center">
+                <div class="text-sm text-gray-600" id="tasksShowingInfo">
+                    Showing <span id="tasksStartCount">0</span> - <span id="tasksEndCount">0</span> of <span id="tasksTotalCount">0</span> tasks
+                </div>
+                <div class="flex gap-2 items-center">
+                    <select id="tasksPageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                        <option value="10">10 per page</option>
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                    <button id="tasksPrevPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>← Prev</button>
+                    <span id="tasksPageIndicator" class="text-sm text-gray-600 mx-2">Page 1 of 1</span>
+                    <button id="tasksNextPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>Next →</button>
+                </div>
+            </div>
         </div>
     </div>
-    
-
-    <!-- Pagination Controls -->
-    <div class="mt-6 flex justify-between items-center">
-        <div class="text-sm text-gray-600" id="tasksShowingInfo">
-            Showing <span id="tasksStartCount">0</span> - <span id="tasksEndCount">0</span> of <span
-                id="tasksTotalCount">0</span> tasks
-        </div>
-
-        <div class="flex gap-2 items-center">
-            <!-- Page Size Selector -->
-            <select id="tasksPageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
-                <option value="10">10 per page</option>
-                <option value="25">25 per page</option>
-                <option value="50">50 per page</option>
-                <option value="100">100 per page</option>
-            </select>
-
-            <!-- Pagination Buttons -->
-            <button id="tasksPrevPageBtn"
-                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                disabled>
-                ← Prev
-            </button>
-
-            <span id="tasksPageIndicator" class="text-sm text-gray-600 mx-2">
-                Page 1 of 1
-            </span>
-
-            <button id="tasksNextPageBtn"
-                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                disabled>
-                Next →
-            </button>
-        </div>
-    </div>
-</div>
-</div>
-{% endif %}
+    {% endif %}
 </div>
 
 <!-- AJAX Delete Task JavaScript -->
@@ -376,41 +331,35 @@
     function deleteTask(taskId, taskName, projectId) {
         if (!confirm(`Are you sure you want to delete task "${taskName}"?`)) return;
 
-        const btn = document.getElementById(`delete-task-${taskId}`);
-        if (!btn) return;
-
-        const originalText = btn.textContent;
-
-        btn.textContent = 'Deleting...';
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        const row = document.getElementById(`task-row-${taskId}`);
+        const loadingOverlay = document.getElementById('tasksLoadingOverlay');
+        
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
         fetch(`/task/${taskId}/delete/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
             }
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('✅ ' + data.message);
-                    location.reload();
-                } else {
-                    alert('❌ ' + (data.error || 'Something went wrong'));
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            })
-            .catch(error => {
-                alert('Network error. Please try again.');
-                console.error('Error:', error);
-                btn.textContent = originalText;
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            });
+        .then(response => response.json())
+        .then(data => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            
+            if (data.success) {
+                alert('✅ ' + data.message);
+                location.reload();
+            } else {
+                alert('❌ ' + (data.message || 'Something went wrong'));
+            }
+        })
+        .catch(error => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            alert('Network error. Please try again.');
+            console.error('Error:', error);
+        });
     }
 </script>
 
@@ -420,11 +369,9 @@
             transform: rotate(360deg);
         }
     }
-
     .animate-spin {
         animation: spin 1s linear infinite;
     }
-
     #tasksLoadingOverlay {
         transition: all 0.3s ease;
     }

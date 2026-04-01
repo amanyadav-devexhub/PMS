@@ -354,6 +354,32 @@
             }
         });
     });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hide password fields since they're not needed
+        const passwordFields = document.querySelectorAll('[name="password1"], [name="password2"]');
+        passwordFields.forEach(field => {
+            const parent = field.closest('.field-group');
+            if (parent) {
+                parent.style.display = 'none';
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Remove password fields completely from the form
+        const passwordFields = document.querySelectorAll('[name="password1"], [name="password2"]');
+        passwordFields.forEach(field => {
+            const parent = field.closest('.field-group');
+            if (parent) {
+                parent.remove(); // Remove the entire field group instead of hiding
+            }
+        });
+        
+        // Also remove the password fields from the form data by removing them from DOM
+        const passwordInputs = document.querySelectorAll('input[name="password1"], input[name="password2"]');
+        passwordInputs.forEach(input => input.remove());
+    });
 </script>
 
 <style>

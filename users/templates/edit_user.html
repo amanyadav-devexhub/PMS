@@ -86,12 +86,16 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Role <span class="text-red-500">*</span>
                         </label>
-                        <select name="role" required
+                        <select name="role_obj" required
                                 class="w-full border border-gray-300 rounded-lg px-4 py-2.5
                                        focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
-                            <option value="ADMIN" {% if user.role == "ADMIN" %}selected{% endif %}>Admin</option>
-                            <option value="TEAM_LEAD" {% if user.role == "TEAM_LEAD" %}selected{% endif %}>Team Lead</option>
-                            <option value="EMPLOYEE" {% if user.role == "EMPLOYEE" %}selected{% endif %}>Employee</option>
+                            <option value="">Select Role</option>
+                            {% for role in roles %}
+                                <option value="{{ role.id }}"
+                                    {% if user.role_obj_id == role.id or user.role == role.name %}selected{% endif %}>
+                                    {{ role.name }}
+                                </option>
+                            {% endfor %}
                         </select>
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>

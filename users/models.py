@@ -16,12 +16,13 @@ class Role(models.Model):
     
 # Create your models here.
 class User(AbstractUser):
+    # ✅ Add ROLE_CHOICES here
     ROLE_CHOICES = (
-        ('ADMIN','Admin'),
-        ('TEAM_LEAD','Team Lead'),
-        ('EMPLOYEE','Employee'),
+        ('ADMIN', 'Admin'),
+        ('TEAM_LEAD', 'Team Lead'),
+        ('EMPLOYEE', 'Employee'),
     )
-    role = models.CharField(max_length=20,choices=ROLE_CHOICES)
+    role = models.CharField(max_length=50, null=True, blank=True)
     email = models.EmailField(unique=True)
     role_obj = models.ForeignKey(
         Role,
@@ -33,21 +34,27 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
-    # ── ADD THIS save() METHOD ──
     def save(self, *args, **kwargs):
-        if self.role:
+        # Keep role text and role object in sync for backward compatibility.
+        if self.role_obj:
+            self.role = self.role_obj.name
+        elif self.role:
             try:
                 self.role_obj = Role.objects.get(name=self.role)
             except Role.DoesNotExist:
-                pass
+                self.role_obj = None
         super().save(*args, **kwargs)
 
-    # ── ADD THESE 2 PERMISSION METHODS ──
     def has_perm(self, perm, obj=None):
         if self.is_active and self.is_superuser:
             return True
+        if super().has_perm(perm, obj=obj):
+            return True
         if self.role_obj:
-            app_label, codename = perm.split('.')
+            try:
+                app_label, codename = perm.split('.', 1)
+            except ValueError:
+                return False
             return self.role_obj.permissions.filter(
                 content_type__app_label=app_label,
                 codename=codename
@@ -56,6 +63,8 @@ class User(AbstractUser):
     
     def has_module_perms(self, app_label):
         if self.is_active and self.is_superuser:
+            return True
+        if super().has_module_perms(app_label):
             return True
         if self.role_obj:
             return self.role_obj.permissions.filter(

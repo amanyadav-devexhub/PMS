@@ -36,7 +36,7 @@
         <!-- Notification Container -->
         <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
 
-        <form method="POST" enctype="multipart/form-data" id="projectForm" data-redirect-url="{% if request.user.role == 'ADMIN' %}{% url 'view_projects' %}{% else %}{% url 'teamlead_dashboard' %}{% endif %}">
+        <form method="POST" enctype="multipart/form-data" id="projectForm" data-redirect-url="{% if can_view_all_projects %}{% url 'view_projects' %}{% else %}{{ dashboard_url }}{% endif %}">
             {% csrf_token %}
 
             {{ form.non_field_errors }}
@@ -75,7 +75,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-2">
                         Assign Employees to Project
-                        {% if request.user.role == 'TEAM_LEAD' %}
+                        {% if is_manager_like and not can_manage_users %}
                         <span class="text-xs text-orange-500 ml-2">(Only employees in your team)</span>
                         {% endif %}
                     </label>
@@ -129,7 +129,7 @@
                                     {% endfor %}
                                 {% else %}
                                     <div class="text-center py-4 text-gray-500">
-                                        {% if request.user.role == 'TEAM_LEAD' %}
+                                        {% if is_manager_like and not can_manage_users %}
                                             <p>No employees found in your team yet.</p>
                                             <p class="text-xs mt-1">Employees will appear here once they are assigned to tasks in your projects.</p>
                                         {% else %}

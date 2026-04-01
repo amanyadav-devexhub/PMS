@@ -66,6 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.messages.context_processors.messages',
                 'users.context_processors.notification_count',
+                'users.context_processors.permission_flags',
             ],
         },
     },

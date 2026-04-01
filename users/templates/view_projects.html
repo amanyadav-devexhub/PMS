@@ -13,7 +13,7 @@
             All Projects
         </h2>
 
-        <!-- Add Project Button - Visible to ADMIN and TEAM_LEAD -->
+        <!-- Add Project Button -->
         <div id="addProjectButtonContainer" style="display: none;">
             <a href="{% url 'create_project' %}"
                class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
@@ -109,7 +109,7 @@
                                 View
                             </a>
                         
-                            <!-- Delete button - Only visible to ADMIN -->
+                                <!-- Delete button -->
                             <button type="button" 
                                     onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
                                     class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition delete-project-btn"
@@ -169,32 +169,18 @@
 
 <!-- AJAX JavaScript with Pagination -->
 <script>
+    const canAddProjects = {{ can_add_projects|yesno:"true,false" }};
+    const canDeleteProjects = {{ can_delete_projects|yesno:"true,false" }};
+
     // Get JWT token from localStorage
     function getAccessToken() {
         return localStorage.getItem('access_token');
     }
     
-    // Get user role from localStorage
-    function getUserRole() {
-        return localStorage.getItem('user_role');
-    }
-    
-    // Check if user is ADMIN or TEAM_LEAD (can add projects)
-    function canAddProject() {
-        const role = getUserRole();
-        return role === 'ADMIN' || role === 'TEAM_LEAD';
-    }
-    
-    // Check if user is ADMIN (can delete projects)
-    function isAdmin() {
-        const role = getUserRole();
-        return role === 'ADMIN';
-    }
-    
-    // Show/hide buttons based on user role
+    // Show/hide buttons based on permission flags
     function updateButtonVisibility() {
-        const canAdd = canAddProject();
-        const admin = isAdmin();
+        const canAdd = canAddProjects;
+        const canDelete = canDeleteProjects;
         
         // Show/hide Add Project button (visible for ADMIN and TEAM_LEAD)
         const addButtonContainer = document.getElementById('addProjectButtonContainer');
@@ -202,10 +188,10 @@
             addButtonContainer.style.display = canAdd ? 'block' : 'none';
         }
         
-        // Show/hide delete buttons (only for ADMIN)
+        // Show/hide delete buttons
         const deleteButtons = document.querySelectorAll('.delete-project-btn');
         deleteButtons.forEach(btn => {
-            btn.style.display = admin ? 'inline-block' : 'none';
+            btn.style.display = canDelete ? 'inline-block' : 'none';
         });
     }
     
@@ -214,7 +200,7 @@
         const token = getAccessToken();
         
         if (!token) {
-            window.location.href = '/render_login/';
+            window.location.href = "{% url 'login_page' %}";
             return Promise.reject('No token');
         }
         
@@ -227,7 +213,7 @@
         return fetch(url, options).then(response => {
             if (response.status === 401) {
                 localStorage.clear();
-                window.location.href = '/render_login/';
+                window.location.href = "{% url 'login_page' %}";
                 throw new Error('Unauthorized');
             }
             return response;
@@ -349,7 +335,7 @@
             return;
         }
         
-        const admin = isAdmin();
+        const canDelete = canDeleteProjects;
         
         let html = '';
         projects.forEach((project, index) => {
@@ -377,7 +363,7 @@
                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
                             View
                         </a>
-                        ${admin ? `
+                        ${canDelete ? `
                         <button type="button" 
                                 onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
                                 class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"

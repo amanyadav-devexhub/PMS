@@ -71,30 +71,44 @@
 
                 {% if request.user.is_authenticated %}
                 <!-- Dashboard - Role Based (Simpler) -->
-                <a href="
-                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-                    {% url 'admin_dashboard' %}
-                {% elif request.user.role == 'TEAM_LEAD' %}
-                    {% url 'teamlead_dashboard' %}
-                {% elif request.user.role == 'EMPLOYEE' %}
-                    {% url 'employee_dashboard' %}
-                {% else %}
-                    {% url 'dashboard' %}
-                {% endif %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{{ dashboard_url }}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Dashboard
                 </a>
 
-                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+                {% if can_manage_users %}
                 <a href="{% url 'admin_view_users' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Members
                 </a>
+                {% elif can_add_task %}
+                <a href="{% url 'teamlead_view_users' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Members
+                </a>
+                {% endif %}
 
+                {% if can_view_projects %}
                 <a href="{% url 'view_projects' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Projects
+                    {% if can_view_all_projects %}Projects{% else %}My Projects{% endif %}
                 </a>
+                {% endif %}
 
+                {% if can_view_task %}
+                <a href="{% url 'task_dashboard' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    {% if can_view_all_tasks %}Tasks{% else %}My Tasks{% endif %}
+                </a>
+                {% endif %}
+
+                {% if can_add_task %}
+                <a href="{% url 'assign_task' %}"
+                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                    Create Task
+                </a>
+                {% endif %}
+
+                {% if can_manage_org %}
                 <!-- Departments -->
                 <a href="{% url 'departments' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
@@ -106,43 +120,20 @@
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Designations
                 </a>
-                <!--Analytics-->
-                <a href="{% url 'user_analytics' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Analytics
-                </a>
-
                 {% endif %}
 
-                <!-- TEAM LEAD MENU -->
-                {% if request.user.role == 'TEAM_LEAD' %}
-                <a href="{% url 'teamlead_view_users' %}"
+                {% if can_manage_roles %}
+                <a href="{% url 'role_list' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Members
-                </a>
-
-                <a href="{% url 'view_projects' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Projects
-                </a>
-
-                <!-- Analytics for Team Lead -->
-                <a href="{% url 'user_analytics' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Team Analytics
+                    Roles & Permissions
                 </a>
                 {% endif %}
 
-                <!-- Employee Menu -->
-                {% if request.user.role == 'EMPLOYEE' %}
-                <a href="{% url 'employee_projects' %}"
+                {% if can_manage_users or can_add_task %}
+                <!-- Analytics -->
+                <a href="{% url 'user_analytics' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    My Projects
-                </a>
-
-                <a href="{% url 'task_dashboard' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    My Tasks
+                    {% if can_manage_users %}Analytics{% else %}Team Analytics{% endif %}
                 </a>
                 {% endif %}
 
@@ -321,10 +312,10 @@
                 }
             })
                 .then(() => {
-                    window.location.href = '/render_login/';
+                    window.location.href = "{% url 'login_page' %}";
                 })
                 .catch(() => {
-                    window.location.href = '/render_login/';
+                    window.location.href = "{% url 'login_page' %}";
                 });
         }
     </script>
@@ -355,21 +346,17 @@
 
             // Check if it's a project detail page
             if (currentPage.includes('view_project_detail')) {
-                {% if request.user.role == 'EMPLOYEE' %}
-                window.location.href = "{% url 'employee_projects' %}";
-                {% else %}
+                {% if can_view_all_projects %}
                 window.location.href = "{% url 'view_projects' %}";
+                {% else %}
+                window.location.href = "{% url 'employee_projects' %}";
                 {% endif %}
                 return;
             }
 
             // If it's the projects page, go to dashboard
             if (currentPage.includes('employee_projects') || currentPage.includes('projects/')) {
-                {% if request.user.role == 'EMPLOYEE' %}
-                window.location.href = "{% url 'employee_dashboard' %}";
-                {% else %}
-                window.location.href = "{% url 'admin_dashboard' %}";
-                {% endif %}
+                window.location.href = "{{ dashboard_url }}";
                 return;
             }
 
@@ -381,15 +368,7 @@
 
             // Final fallback to dashboard
             {% if request.user.is_authenticated %}
-            {% if request.user.role == 'ADMIN' %}
-            window.location.href = "{% url 'admin_dashboard' %}";
-            {% elif request.user.role == 'TEAM_LEAD' %}
-            window.location.href = "{% url 'teamlead_dashboard' %}";
-            {% elif request.user.role == 'EMPLOYEE' %}
-            window.location.href = "{% url 'employee_dashboard' %}";
-            {% else %}
-            window.location.href = "{% url 'dashboard' %}";
-            {% endif %}
+            window.location.href = "{{ dashboard_url }}";
             {% else %}
             window.location.href = "{% url 'login_page' %}";
             {% endif %}

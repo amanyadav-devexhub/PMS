@@ -13,6 +13,15 @@ from .serializers import (
 )
 from projects.models import Projects
 from Tasks.models import Task
+from users.permissions import (
+    can_add_task,
+    can_manage_projects,
+    can_manage_users,
+    can_view_all_projects,
+    can_view_all_tasks,
+    can_view_task,
+    is_manager_like,
+)
 
 User = get_user_model()
 
@@ -56,14 +65,14 @@ class LoginAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # Fix superuser role if empty
-        if user.is_superuser and not user.role:
-            user.role = 'ADMIN'
-            user.save()
+        # Keep legacy role text synced when a Role object exists.
+        if user.role_obj and user.role != user.role_obj.name:
+            user.role = user.role_obj.name
+            user.save(update_fields=['role'])
 
         # Generate tokens
         refresh = RefreshToken.for_user(user)
-        role = user.role if user.role else 'EMPLOYEE'
+        role = user.role_obj.name if user.role_obj else (user.role or 'USER')
 
         return Response({
             'access': str(refresh.access_token),
@@ -134,13 +143,13 @@ class MeAPIView(APIView):
 # ──────────────────────────────────────────────
 
 class ProjectListAPIView(APIView):
-    """GET /api/projects/  —  role-filtered project list"""
+    """GET /api/projects/  —  permission-filtered project list"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
 
-        if user.role == 'ADMIN' or user.is_superuser:
+        if can_view_all_projects(user):
             projects = Projects.objects.all()
         else:
             projects = Projects.objects.filter(assigned_to=user)
@@ -154,13 +163,13 @@ class ProjectListAPIView(APIView):
 
 
 class UserListAPIView(APIView):
-    """GET /api/users/  —  admin-only user list"""
+    """GET /api/users/  —  permission-gated user list"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != 'ADMIN' and not request.user.is_superuser:
+        if not can_manage_users(request.user):
             return Response(
-                {'error': 'Admin access required'},
+                {'error': 'Insufficient permission to view users'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -173,15 +182,15 @@ class UserListAPIView(APIView):
 
 
 class TaskListAPIView(APIView):
-    """GET /api/tasks/  —  role-filtered task list"""
+    """GET /api/tasks/  —  permission-filtered task list"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
 
-        if user.role == 'ADMIN' or user.is_superuser:
+        if can_view_all_tasks(user):
             tasks = Task.objects.all()
-        elif user.role == 'TEAM_LEAD':
+        elif can_add_task(user) or can_manage_projects(user):
             my_project_ids = Projects.objects.filter(
                 assigned_to=user
             ).values_list('id', flat=True)
@@ -198,16 +207,17 @@ class TaskListAPIView(APIView):
 
 
 class DashboardAPIView(APIView):
-    """GET /api/dashboard/  —  role-based dashboard stats"""
+    """GET /api/dashboard/  —  capability-based dashboard stats"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        role = user.role.upper() if user.role else 'EMPLOYEE'
+        role = user.role_obj.name if user.role_obj else (user.role or 'USER')
 
-        if role == 'ADMIN' or user.is_superuser:
+        if can_manage_users(user):
             return Response({
-                'role': 'ADMIN',
+                'role': role,
+                'dashboard_variant': 'owner',
                 'stats': {
                     'total_users': User.objects.count(),
                     'active_users': User.objects.filter(is_active=True).count(),
@@ -221,26 +231,31 @@ class DashboardAPIView(APIView):
                 },
             })
 
-        elif role == 'TEAM_LEAD':
+        if can_add_task(user) or can_manage_projects(user):
             my_projects = Projects.objects.filter(assigned_to=user)
             project_ids = my_projects.values_list('id', flat=True)
             my_tasks = Task.objects.filter(project_id__in=project_ids)
+            active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
+            team_members_total = sum(1 for member in active_users if not is_manager_like(member))
+
             return Response({
-                'role': 'TEAM_LEAD',
+                'role': role,
+                'dashboard_variant': 'manager',
                 'stats': {
                     'total_projects': my_projects.count(),
                     'active_tasks': my_tasks.filter(status='ONGOING').count(),
                     'completed_tasks': my_tasks.filter(status='COMPLETED').count(),
                     'pending_tasks': my_tasks.filter(status='PENDING').count(),
-                    'team_members': User.objects.filter(role='EMPLOYEE').count(),
+                    'team_members': team_members_total,
                 },
             })
 
-        else:  # EMPLOYEE
+        if can_view_task(user):
             tasks = Task.objects.filter(assigned_to=user)
             projects = Projects.objects.filter(assigned_to=user)
             return Response({
-                'role': 'EMPLOYEE',
+                'role': role,
+                'dashboard_variant': 'contributor',
                 'stats': {
                     'tasks_count': tasks.count(),
                     'ongoing_tasks': tasks.filter(status='ONGOING').count(),
@@ -249,3 +264,15 @@ class DashboardAPIView(APIView):
                     'projects_count': projects.count(),
                 },
             })
+
+        return Response({
+            'role': role,
+            'dashboard_variant': 'custom',
+            'stats': {
+                'tasks_count': 0,
+                'ongoing_tasks': 0,
+                'completed_tasks': 0,
+                'pending_tasks': 0,
+                'projects_count': 0,
+            },
+        })

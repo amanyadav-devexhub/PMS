@@ -652,11 +652,7 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
     .then(data => {
         if (data.success) {
             alert('✅ ' + data.message);
-            {% if request.user.role == "ADMIN" %}
-                window.location.href = "{% url 'admin_dashboard' %}";
-            {% else %}
-                window.location.href = "{% url 'teamlead_dashboard' %}";
-            {% endif %}
+            window.location.href = data.redirect_url || "{% url 'dashboard' %}";
         } else {
             if (data.errors) {
                 Object.keys(data.errors).forEach(field => {

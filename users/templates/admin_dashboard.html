@@ -15,7 +15,7 @@
 <div class="space-y-6">
 
     <!-- ================= ADMIN DASHBOARD ================= -->
-    {% if request.user.role|upper == "ADMIN" %}
+    {% if can_manage_users %}
     <!-- Welcome Header with Gradient -->
     <div class="bg-gradient-to-r from-orange-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl mb-8">
         <div class="flex justify-between items-center">
@@ -406,9 +406,10 @@
     let html = '';
     users.forEach((user, index) => {
         const counter = (pagination.current_page - 1) * pagination.page_size + index + 1;
-        const roleClass = user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 
-                         user.role === 'TEAM_LEAD' ? 'bg-blue-100 text-blue-800' : 
-                         'bg-green-100 text-green-800';
+        const roleClass = user.role_tier === 'owner' ? 'bg-purple-100 text-purple-800' : 
+                 user.role_tier === 'manager' ? 'bg-blue-100 text-blue-800' : 
+                 user.role_tier === 'contributor' ? 'bg-green-100 text-green-800' :
+                 'bg-gray-100 text-gray-800';
         const statusClass = user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
         const statusText = user.is_active ? 'Active' : 'Inactive';
         

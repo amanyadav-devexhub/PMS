@@ -66,6 +66,7 @@ class TaskForm(forms.ModelForm):
         
         # Import User here to avoid circular imports
         from users.models import User
+        from users.permissions import can_view_task, is_manager_like
         
         # Show all projects in dropdown
         if 'project' in self.fields:
@@ -73,16 +74,20 @@ class TaskForm(forms.ModelForm):
             self.fields['project'].queryset = Projects.objects.all()
             self.fields['project'].widget.attrs.update({'class': 'form-control'})
         
-        # Only show employees for assignment
+        # Only show contributor-like users for assignment.
         if 'assigned_to' in self.fields:
-            self.fields['assigned_to'].queryset = User.objects.filter(role='EMPLOYEE')
+            candidate_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
+            contributor_ids = [candidate.id for candidate in candidate_users if can_view_task(candidate) and not is_manager_like(candidate)]
+            self.fields['assigned_to'].queryset = User.objects.filter(id__in=contributor_ids)
             self.fields['assigned_to'].widget.attrs.update({'class': 'form-control'})
             # Custom display: Show full name and username
             self.fields['assigned_to'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.username})"
         
-        # Show admins and team leads for assigned_by (task owner)
+        # Show manager-like users for assigned_by (task owner).
         if 'assigned_by' in self.fields:
-            self.fields['assigned_by'].queryset = User.objects.filter(role__in=['ADMIN', 'TEAM_LEAD'])
+            candidate_users = User.objects.filter(is_active=True)
+            manager_ids = [candidate.id for candidate in candidate_users if is_manager_like(candidate)]
+            self.fields['assigned_by'].queryset = User.objects.filter(id__in=manager_ids)
             self.fields['assigned_by'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.username})"
         
         # Show all users for observers

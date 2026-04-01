@@ -224,6 +224,8 @@
 
 <script>
 // ========== JWT AUTHENTICATION ==========
+const managerDashboardAllowed = {{ is_manager_like|yesno:"true,false" }} && !{{ can_manage_users|yesno:"true,false" }};
+
 function getAccessToken() {
     return localStorage.getItem('access_token');
 }
@@ -236,22 +238,12 @@ function getUserEmail() {
     return localStorage.getItem('user_email');
 }
 
-function getUserRole() {
-    return localStorage.getItem('user_role');
-}
-
-// Check if user is TEAM_LEAD
-function isTeamLead() {
-    const role = getUserRole();
-    return role === 'TEAM_LEAD';
-}
-
 // Authenticated fetch wrapper
 function authFetch(url, options = {}) {
     const token = getAccessToken();
     
     if (!token) {
-        window.location.href = '/render_login/';
+        window.location.href = "{% url 'login_page' %}";
         return Promise.reject('No token');
     }
     
@@ -264,7 +256,7 @@ function authFetch(url, options = {}) {
     return fetch(url, options).then(response => {
         if (response.status === 401) {
             localStorage.clear();
-            window.location.href = '/render_login/';
+            window.location.href = "{% url 'login_page' %}";
             throw new Error('Unauthorized');
         }
         return response;
@@ -274,12 +266,14 @@ function authFetch(url, options = {}) {
 // Check authentication on page load
 (function() {
     const token = getAccessToken();
-    const role = getUserRole();
-    
-    console.log('🔍 Auth check:', { hasToken: !!token, role: role });
-    
-    if (!token || role !== 'TEAM_LEAD') {
-        window.location.href = '/render_login/';
+
+    if (!token) {
+        window.location.href = "{% url 'login_page' %}";
+        return;
+    }
+
+    if (!managerDashboardAllowed) {
+        window.location.href = "{{ dashboard_url }}";
         return;
     }
     
@@ -483,8 +477,12 @@ function loadDashboardData() {
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
     const token = getAccessToken();
-    if (!token || getUserRole() !== 'TEAM_LEAD') {
-        window.location.href = '/render_login/';
+    if (!token) {
+        window.location.href = "{% url 'login_page' %}";
+        return;
+    }
+    if (!managerDashboardAllowed) {
+        window.location.href = "{{ dashboard_url }}";
         return;
     }
     
