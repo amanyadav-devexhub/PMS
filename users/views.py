@@ -278,20 +278,8 @@ from django.core.exceptions import ValidationError
 def edit_projects(request, project_id):
     project = get_object_or_404(Projects, id=project_id)
     
-    # Helper function to get users based on capability
-    def get_filtered_users(user):
-        all_active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True).order_by('first_name', 'username')
-
-        # Organization managers can assign any active user.
-        if can_manage_users(user):
-            return all_active_users
-
-        # Project managers can assign contributors (users without manager-like capabilities).
-        manager_ids = [u.id for u in all_active_users if is_manager_like(u)]
-        return all_active_users.exclude(id__in=manager_ids)
-
-    # Scoped managers can edit only projects they own.
-    if not can_view_all_projects(request.user) and project.created_by != request.user:
+    # Check if team lead can edit (only projects they created)
+    if request.user.role == "TEAM_LEAD" and project.created_by != request.user:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': False,
@@ -2184,14 +2172,32 @@ from users.forms import ProjectForm
 @permission_required('projects.add_projects')
 @csrf_exempt
 def create_project(request):
-    # Helper function to get users based on capability
-    def get_filtered_users(user):
-        all_active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True).order_by('first_name', 'username')
-        if can_manage_users(user):
-            return all_active_users
-
-        manager_ids = [u.id for u in all_active_users if is_manager_like(u)]
-        return all_active_users.exclude(id__in=manager_ids)
+    # Helper function to get filtered employees for Team Lead
+    def get_filtered_employees(team_lead):
+        """Get employees that are under this Team Lead"""
+        # Get all projects managed by this Team Lead
+        my_projects = Projects.objects.filter(assigned_to=team_lead)
+        my_project_ids = my_projects.values_list('id', flat=True)
+        
+        # Get employees from tasks in these projects
+        tasks_in_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+        employee_ids_from_tasks = tasks_in_my_projects.values_list('assigned_to', flat=True).distinct()
+        
+        # Get employees directly assigned to projects
+        project_employees = User.objects.filter(
+            projects__in=my_projects,
+            role='EMPLOYEE'
+        ).values_list('id', flat=True).distinct()
+        
+        # Combine all employee IDs
+        all_employee_ids = set(employee_ids_from_tasks) | set(project_employees)
+        
+        # Return the employees
+        return User.objects.filter(
+            id__in=all_employee_ids,
+            role='EMPLOYEE',
+            is_active=True
+        ).order_by('username')
     
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
