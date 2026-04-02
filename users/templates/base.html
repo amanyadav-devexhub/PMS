@@ -129,12 +129,12 @@
                 </a>
                 {% endif %}
 
-                {% if can_manage_users or can_add_task %}
-                <!-- Analytics -->
-                <a href="{% url 'user_analytics' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    {% if can_manage_users %}Analytics{% else %}Team Analytics{% endif %}
-                </a>
+                {% if can_manage_users or can_add_task or can_view_user %}
+                    <!-- Analytics -->
+                    <a href="{% url 'user_analytics' %}"
+                        class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                        {% if can_manage_users %}Analytics{% elif can_add_task %}Team Analytics{% else %}User Analytics{% endif %}
+                    </a>
                 {% endif %}
 
                 <!--Logout!-->

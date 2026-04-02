@@ -13,7 +13,7 @@ from .views import (
 #    admin_dashboard,
 #    teamlead_dashboard,
 #    employee_dashboard,
-    login_page,
+     login_page,
 )
 
 urlpatterns = [
@@ -126,7 +126,7 @@ urlpatterns = [
     # path('password_reset_done/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
     # path('reset/<uidb64>/<token>/',auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),
     # path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'),
-    path('check-email-exists/', views.check_email_exists, name='check_email_exists'),
+    # path('check-email-exists/', views.check_email_exists, name='check_email_exists'),
     # path("activate/<uidb64>/<token>/", views.activate_user, name="activate"),
 
     path('dashboard/', views.dashboard, name='dashboard'),

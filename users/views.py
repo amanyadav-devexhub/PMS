@@ -3480,17 +3480,25 @@ def delete_designation(request, desig_id):
 
 ## User Analytics
 @jwt_or_session_required
-@permission_required('Tasks.view_task')
 @csrf_exempt
 def user_analytics(request):
-    # Debug print to verify user
-    print(f"📊 user_analytics called by: {request.user.username} (ID: {request.user.id})")
+
+     # Check if user has either view_task or view_user permission
+    if not (request.user.has_perm('Tasks.view_task') or request.user.has_perm('users.view_user')):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False, 
+                'error': 'You do not have permission to view analytics'
+            }, status=403)
+        return redirect('dashboard')
 
     scoped_manager_mode = can_add_task(request.user) and not can_manage_users(request.user)
     full_scope_mode = can_manage_users(request.user)
     
     # ========== Get users based on capability ==========
+        # ========== Get users based on capability ==========
     if scoped_manager_mode:
+        # TEAM_LEAD sees only employees in their projects
         my_projects = Projects.objects.filter(assigned_to=request.user)
         my_project_ids = my_projects.values_list('id', flat=True)
         contributor_ids = set(_contributor_user_ids())
@@ -3507,8 +3515,21 @@ def user_analytics(request):
         
         users = users | User.objects.filter(id=request.user.id)
     elif full_scope_mode:
+        # ADMIN sees all users
         users = User.objects.all().order_by('username')
+    elif can_view_user(request.user) and not can_add_task(request.user) and not can_manage_users(request.user):
+        # Project Coordinator (has view_user only) - sees EMPLOYEES and TEAM_LEADS only (not ADMIN)
+        users = User.objects.filter(
+            is_active=True
+        ).exclude(
+            is_staff=True
+        ).exclude(
+            is_superuser=True
+        ).exclude(
+            role='ADMIN'
+        ).order_by('username')
     else:
+        # Regular employee sees only themselves
         users = User.objects.filter(id=request.user.id)
     
     selected_user_id = request.GET.get('user_id')

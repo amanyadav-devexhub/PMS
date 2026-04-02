@@ -3,66 +3,86 @@
 {% block content %}
 <div class="p-6 space-y-6">
 
-    <!-- ROLE-SPECIFIC HEADER (Same colors, different icons/text) -->
+    <!-- ROLE-SPECIFIC HEADER -->
     <div class="flex justify-between items-center">
         <div>
             <div class="flex items-center gap-3">
-                {% if is_manager_like and not can_manage_users %}
-                    <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                        <span class="text-xl">👥</span>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-semibold text-gray-800">Team Analytics</h1>
-                        <p class="text-sm text-orange-600 mt-1">
-                            <span class="font-medium">{{ request.user.get_full_name|default:request.user.username }}</span> • Team Lead View
-                        </p>
-                    </div>
-                {% else %}
-                    <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                        <span class="text-xl">👑</span>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-semibold text-gray-800">Admin Analytics</h1>
-                        <p class="text-sm text-orange-600 mt-1">System-wide Performance Overview</p>
-                    </div>
+                {% if can_manage_users %}
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span class="text-xl">👑</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-800">Admin Analytics</h1>
+                    <p class="text-sm text-orange-600 mt-1">System-wide Performance Overview</p>
+                </div>
+                {% elif can_add_task %}
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span class="text-xl">👥</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-800">Team Analytics</h1>
+                    <p class="text-sm text-orange-600 mt-1">
+                        <span class="font-medium">{{ request.user.get_full_name|default:request.user.username }}</span>
+                        • Team Lead View
+                    </p>
+                </div>
+                {% elif can_view_user %}
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span class="text-xl">📊</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-800">User Analytics</h1>
+                    <p class="text-sm text-orange-600 mt-1">View team members and performance</p>
+                </div>
                 {% endif %}
             </div>
             <p class="text-sm text-gray-500 mt-2 ml-14" id="userTitle">
                 {% if selected_user %}
-                    {% if is_manager_like and not can_manage_users and selected_user.id == request.user.id %}
+                    {% if can_add_task and not can_manage_users and selected_user.id == request.user.id %}
                         📊 Your personal performance
                     {% else %}
                         👤 {{ selected_user.username }} performance overview
                     {% endif %}
-                {% elif is_manager_like and not can_manage_users %}
+                {% elif can_add_task and not can_manage_users %}
                     📊 Your team's performance overview
+                {% elif can_view_user and not can_add_task and not can_manage_users %}
+                    👥 Team members overview
                 {% else %}
                     🌐 Overall system performance
                 {% endif %}
             </p>
         </div>
 
-        <!-- ROLE-SPECIFIC USER SELECTOR (Same orange theme) -->
+        <!-- USER SELECTOR DROPDOWN -->
         <div class="flex items-center gap-3">
             <div class="relative">
                 <form id="userSelectForm" class="inline">
                     <select name="user_id" id="userSelect"
                         class="border border-gray-300 px-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 shadow-sm bg-white">
-                        {% if is_manager_like and not can_manage_users %}
+                        
+                        {% if can_manage_users %}
+                            <option value="" class="font-semibold text-orange-600">🌐 All Users (System-wide)</option>
+                        {% elif can_add_task %}
                             <option value="" class="font-semibold text-orange-600">📊 My Team Performance</option>
                             <option value="{{ request.user.id }}" {% if selected_user and selected_user.id == request.user.id %}selected{% endif %} class="font-medium">
                                 👤 My Performance
                             </option>
-                        {% else %}
-                            <option value="" class="font-semibold text-orange-600">🌐 All Users (System-wide)</option>
+                        {% elif can_view_user %}
+                            <option value="" class="font-semibold text-orange-600">👥 Team Members</option>
                         {% endif %}
-                        
+
                         {% for user in users %}
-                            {% if is_manager_like and not can_manage_users and user.id == request.user.id %}
-                                {# Skip because we already added it above #}
+                            {% if can_add_task and user.id == request.user.id %}
+                                {# Skip - already added above #}
                             {% else %}
                                 <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>
-                                    {% if is_manager_like and not can_manage_users %}👥 {% else %}👤 {% endif %}
+                                    {% if can_manage_users %}
+                                        {% if user.role == 'ADMIN' %}👑 {% elif user.role == 'TEAM_LEAD' %}👥 {% else %}👤 {% endif %}
+                                    {% elif can_add_task %}
+                                        👥 
+                                    {% else %}
+                                        👤 
+                                    {% endif %}
                                     {{ user.get_full_name|default:user.username }}
                                     {% if user.role %}({{ user.role }}){% endif %}
                                 </option>
@@ -71,19 +91,22 @@
                     </select>
                 </form>
             </div>
-            
-            <button id="refreshBtn" 
-                    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition flex items-center gap-2 text-sm">
+
+            <button id="refreshBtn"
+                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition flex items-center gap-2 text-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
                 </svg>
                 Refresh
             </button>
-            
-            <button id="topPerformersBtn" 
-                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition flex items-center gap-2 text-sm">
+
+            <button id="topPerformersBtn"
+                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition flex items-center gap-2 text-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                 </svg>
                 Top Performers
             </button>
@@ -94,13 +117,15 @@
     <!-- HERO SECTION -->
     <div class="grid md:grid-cols-3 gap-6">
 
-        <!-- PERFORMANCE CARD (Consistent orange gradient) -->
+        <!-- PERFORMANCE CARD -->
         <div class="col-span-2 bg-gradient-to-r from-orange-500 to-orange-400 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
             <p class="text-sm opacity-80">
-                {% if is_manager_like and not can_manage_users %}
+                {% if can_manage_users %}
+                    System Performance Score
+                {% elif can_add_task %}
                     Team Performance Score
                 {% else %}
-                    System Performance Score
+                    Team Performance Overview
                 {% endif %}
             </p>
             <h1 id="performanceCount" class="text-5xl font-bold mt-2">0</h1>
@@ -122,7 +147,6 @@
                 <h3 id="recentCompleted" class="text-lg font-semibold text-green-600 mt-1">{{ analytics.recent_completed }}</h3>
             </div>
         </div>
-
     </div>
 
     <!-- KPI ROW -->
@@ -130,7 +154,8 @@
         {% for card in analytics.cards %}
         <div class="bg-white p-4 rounded-xl shadow hover:-translate-y-1 transition">
             <p class="text-xs text-gray-500">{{ card.label }}</p>
-            <h3 class="text-xl font-bold {% if card.color != 'gray' %}text-{{ card.color }}-600{% endif %} counter" data-value="{{ card.value }}">0</h3>
+            <h3 class="text-xl font-bold {% if card.color != 'gray' %}text-{{ card.color }}-600{% endif %} counter"
+                data-value="{{ card.value }}">0</h3>
         </div>
         {% endfor %}
     </div>
@@ -141,28 +166,28 @@
             <div class="flex items-center gap-2">
                 <span class="text-xl">🏆</span>
                 <h3 class="text-sm font-semibold text-gray-700">
-                    {% if is_manager_like and not can_manage_users %}
+                    {% if can_manage_users %}
+                        Top Performers (System-wide)
+                    {% elif can_add_task %}
                         Top Performers in Your Team
                     {% else %}
-                        Top Performers (System-wide)
+                        Team Members Performance
                     {% endif %}
                 </h3>
             </div>
             <span class="text-xs text-gray-400">Based on completion rate</span>
         </div>
         <div id="topPerformersContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            <!-- Loading state -->
             <div class="col-span-full text-center text-gray-400 text-sm py-4">
                 <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500 mr-2"></div>
                 Loading performers...
             </div>
         </div>
-        
-        <!-- Team Lead Info Message -->
-        {% if is_manager_like and not can_manage_users %}
+
+        {% if can_add_task and not can_manage_users %}
         <div class="mt-4 pt-3 border-t border-gray-100">
             <p class="text-xs text-gray-400 flex items-center gap-1">
-                <span>ℹ️</span> 
+                <span>ℹ️</span>
                 Showing top performers from your team only. Tasks counted are from projects assigned to you.
             </p>
         </div>
@@ -171,14 +196,15 @@
 
     <!-- CHARTS -->
     <div class="grid md:grid-cols-2 gap-6">
-
         <!-- BAR CHART -->
         <div class="bg-white p-6 rounded-2xl shadow">
             <h4 class="text-sm font-semibold text-gray-600 mb-4">
-                {% if is_manager_like and not can_manage_users %}
+                {% if can_manage_users %}
+                    System Task Distribution
+                {% elif can_add_task %}
                     Team Task Distribution
                 {% else %}
-                    System Task Distribution
+                    Task Distribution
                 {% endif %}
             </h4>
             <canvas id="barChart"></canvas>
@@ -187,15 +213,16 @@
         <!-- DONUT CHART -->
         <div class="bg-white p-6 rounded-2xl shadow">
             <h4 class="text-sm font-semibold text-gray-600 mb-4">
-                {% if is_manager_like and not can_manage_users %}
+                {% if can_manage_users %}
+                    System Completion Ratio
+                {% elif can_add_task %}
                     Team Completion Ratio
                 {% else %}
-                    System Completion Ratio
+                    Completion Ratio
                 {% endif %}
             </h4>
             <canvas id="pieChart"></canvas>
         </div>
-
     </div>
     {% endif %}
 </div>
@@ -209,10 +236,10 @@
 const barChart = new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
-        labels: ['Completed','Ongoing','Pending','Overdue'],
+        labels: ['Completed', 'Ongoing', 'Pending', 'Overdue'],
         datasets: [{
             data: [{{ analytics.completed }}, {{ analytics.ongoing }}, {{ analytics.pending }}, {{ analytics.overdue }}],
-            backgroundColor: ['#22c55e','#3b82f6','#facc15','#ef4444'],
+            backgroundColor: ['#22c55e', '#3b82f6', '#facc15', '#ef4444'],
             borderRadius: 8
         }]
     },
@@ -222,8 +249,12 @@ const barChart = new Chart(document.getElementById('barChart'), {
 const pieChart = new Chart(document.getElementById('pieChart'), {
     type: 'doughnut',
     data: {
-        labels: ['Completed','Remaining'],
-        datasets: [{ data: [{{ analytics.completed }}, {{ analytics.remaining }}], backgroundColor: ['#22c55e','#e5e7eb'], borderWidth: 0 }]
+        labels: ['Completed', 'Remaining'],
+        datasets: [{
+            data: [{{ analytics.completed }}, {{ analytics.remaining }}],
+            backgroundColor: ['#22c55e', '#e5e7eb'],
+            borderWidth: 0
+        }]
     },
     options: { cutout: '70%', plugins: { legend: { position: 'bottom' } }, responsive: true }
 });
@@ -234,10 +265,12 @@ function animateCounter(el, target) {
     const step = target / 25;
     function run() {
         count += step;
-        if(count < target){
+        if (count < target) {
             el.innerText = Math.floor(count);
             requestAnimationFrame(run);
-        } else el.innerText = target;
+        } else {
+            el.innerText = target;
+        }
     }
     run();
 }
@@ -245,13 +278,12 @@ function animateCounter(el, target) {
 // Function to load top performers
 function loadTopPerformers() {
     const container = document.getElementById('topPerformersContainer');
-    
     fetch(`{% url 'user_analytics' %}?get_top_performers=true`, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success && data.top_performers) {
+        if (data.success && data.top_performers) {
             renderTopPerformers(data.top_performers.slice(0, 5));
         } else {
             container.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">No performers data available</div>';
@@ -265,17 +297,14 @@ function loadTopPerformers() {
 
 function renderTopPerformers(performers) {
     const container = document.getElementById('topPerformersContainer');
-    
     if (!performers || performers.length === 0) {
         container.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">No performers data available</div>';
         return;
     }
-    
     let html = '';
     performers.forEach((performer, index) => {
         const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊';
         const medalBg = index === 0 ? 'bg-yellow-50' : index === 1 ? 'bg-gray-50' : index === 2 ? 'bg-amber-50' : 'bg-gray-50';
-        
         html += `
             <div class="${medalBg} rounded-xl p-3 text-center hover:shadow-md transition-all cursor-pointer group">
                 <div class="text-2xl mb-1">${medal}</div>
@@ -294,7 +323,6 @@ function renderTopPerformers(performers) {
             </div>
         `;
     });
-    
     container.innerHTML = html;
 }
 
@@ -318,7 +346,7 @@ document.getElementById('refreshBtn').addEventListener('click', function() {
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success){
+        if (data.success) {
             updateDashboard(data);
             loadTopPerformers();
         }
@@ -340,7 +368,7 @@ document.getElementById('userSelect').addEventListener('change', function() {
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success){
+        if (data.success) {
             updateDashboard(data);
             loadTopPerformers();
         }
@@ -350,33 +378,26 @@ document.getElementById('userSelect').addEventListener('change', function() {
 
 function updateDashboard(data) {
     const analytics = data.analytics;
-    
     // Update counters
     const counters = document.querySelectorAll('.counter');
     counters.forEach((el, i) => {
-        if(analytics.cards[i]) {
+        if (analytics.cards[i]) {
             animateCounter(el, analytics.cards[i].value);
         }
     });
-    
     // Update performance
     animateCounter(document.getElementById('performanceCount'), analytics.performance);
-    
     // Update mini stats
     document.getElementById('avgTime').innerText = analytics.avg_time;
     document.getElementById('recentCompleted').innerText = analytics.recent_completed;
-    
     // Update completed/total text
     document.getElementById('completedText').innerText = analytics.completed;
     document.getElementById('totalText').innerText = analytics.total;
-    
     // Update user title
     document.getElementById('userTitle').innerText = data.selected_user + ' performance overview';
-    
     // Update charts
     barChart.data.datasets[0].data = [analytics.completed, analytics.ongoing, analytics.pending, analytics.overdue];
     barChart.update();
-    
     pieChart.data.datasets[0].data = [analytics.completed, analytics.remaining];
     pieChart.update();
 }
@@ -394,23 +415,18 @@ function updateDashboard(data) {
             transform: translateY(0);
         }
     }
-    
     #topPerformersContainer > div {
         animation: slideIn 0.3s ease-out;
     }
-    
     button {
         transition: all 0.2s ease;
     }
-    
     button:active {
         transform: scale(0.98);
     }
-    
     select option {
         padding: 8px;
     }
-    
     select:focus {
         outline: none;
         ring: 2px solid #f97316;
