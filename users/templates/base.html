@@ -80,11 +80,6 @@
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Members
                 </a>
-                {% elif can_add_task %}
-                <a href="{% url 'teamlead_view_users' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Members
-                </a>
                 {% endif %}
 
                 {% if can_view_projects %}
@@ -108,13 +103,15 @@
                 </a>
                 {% endif %}
 
-                {% if can_manage_org %}
+                {% if can_manage_departments %}
                 <!-- Departments -->
                 <a href="{% url 'departments' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Departments
                 </a>
+                {% endif %}
 
+                {% if can_manage_designations %}
                 <!-- Designations -->
                 <a href="{% url 'designations' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
@@ -129,11 +126,11 @@
                 </a>
                 {% endif %}
 
-                {% if can_manage_users or can_add_task %}
+                {% if request.user.is_superuser or request.user.role == 'ADMIN' %}
                 <!-- Analytics -->
                 <a href="{% url 'user_analytics' %}"
                     class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    {% if can_manage_users %}Analytics{% else %}Team Analytics{% endif %}
+                    Analytics
                 </a>
                 {% endif %}
 

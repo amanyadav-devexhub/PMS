@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - {{ other_user_name }}{% endblock %}
+{% block page_title %}Chat{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto flex flex-col" style="height: calc(100vh - 180px);">
+
+    <!-- Chat Header -->
+    <div class="bg-white rounded-t-xl shadow-md px-6 py-4 border-b border-gray-200 flex items-center gap-4">
+        <a href="{% url 'chat_rooms' %}" class="text-gray-500 hover:text-indigo-600 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+        </a>
+        <div class="bg-gradient-to-br from-indigo-400 to-purple-500 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            {{ other_user_initial }}
+        </div>
+        <div>
+            <h3 class="font-semibold text-gray-800">{{ other_user_name }}</h3>
+            <p class="text-xs text-gray-500" id="connectionStatus">Connecting...</p>
+        </div>
+    </div>
+
+    <!-- Messages Area -->
+    <div id="messagesContainer" class="flex-1 bg-gray-50 overflow-y-auto px-6 py-4 space-y-3">
+        <div id="loadingMessages" class="flex justify-center items-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+        </div>
+    </div>
+
+    <!-- Message Input -->
+    <div class="bg-white rounded-b-xl shadow-md px-4 py-3 border-t border-gray-200">
+        <div class="flex gap-3">
+            <input type="text" id="messageInput" placeholder="Type a message..."
+                   class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none text-sm"
+                   autocomplete="off">
+            <button id="sendBtn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const currentUserId = {{ request.user.id }};
+const roomId = {{ room.id }};
+let chatSocket = null;
+let usePolling = false;
+let pollInterval = null;
+let lastMessageId = 0;
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+           date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function appendMessage(msg) {
+    const container = document.getElementById('messagesContainer');
+    const isMe = msg.sender_id === currentUserId;
+
+    // Track last message ID for polling
+    if (msg.message_id && msg.message_id > lastMessageId) {
+        lastMessageId = msg.message_id;
+    }
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+    msgDiv.innerHTML = `
+        <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${
+            isMe
+                ? 'bg-indigo-600 text-white rounded-br-sm'
+                : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+        }">
+            ${!isMe ? `<p class="text-xs font-semibold ${isMe ? 'text-indigo-200' : 'text-indigo-600'} mb-1">${escapeHtml(msg.sender_name)}</p>` : ''}
+            <p class="text-sm break-words">${escapeHtml(msg.message)}</p>
+            <p class="text-xs mt-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'} text-right">${formatTime(msg.timestamp)}</p>
+        </div>
+    `;
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Load initial messages via AJAX
+function loadMessages() {
+    fetch(`/chat/api/messages/${roomId}/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('loadingMessages').remove();
+        if (data.messages) {
+            data.messages.forEach(msg => appendMessage(msg));
+        }
+    })
+    .catch(err => {
+        console.error('Error loading messages:', err);
+        document.getElementById('loadingMessages').innerHTML =
+            '<p class="text-gray-500 text-sm">Could not load messages</p>';
+    });
+}
+
+// Try WebSocket, fall back to polling
+function connectWebSocket() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/chat/${roomId}/`;
+
+    try {
+        chatSocket = new WebSocket(wsUrl);
+
+        chatSocket.onopen = function() {
+            document.getElementById('connectionStatus').textContent = 'Online';
+            document.getElementById('connectionStatus').classList.add('text-green-500');
+            document.getElementById('connectionStatus').classList.remove('text-gray-500', 'text-red-500');
+        };
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.type === 'chat_message') {
+                appendMessage(data);
+            }
+        };
+
+        chatSocket.onclose = function() {
+            document.getElementById('connectionStatus').textContent = 'Using polling mode';
+            document.getElementById('connectionStatus').classList.add('text-gray-500');
+            document.getElementById('connectionStatus').classList.remove('text-green-500');
+            // Fall back to polling
+            startPolling();
+        };
+
+        chatSocket.onerror = function() {
+            chatSocket.close();
+        };
+    } catch(e) {
+        startPolling();
+    }
+}
+
+// Polling fallback
+function startPolling() {
+    usePolling = true;
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(() => {
+        fetch(`/chat/api/messages/${roomId}/?after=${lastMessageId}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.messages) {
+                data.messages.forEach(msg => appendMessage(msg));
+            }
+        })
+        .catch(() => {});
+    }, 3000);
+}
+
+// Send message
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({ message: message }));
+        input.value = '';
+    } else {
+        // AJAX fallback
+        fetch(`/chat/api/send/${roomId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                appendMessage(data.message_data);
+                input.value = '';
+            }
+        })
+        .catch(err => console.error('Send error:', err));
+    }
+}
+
+// Event listeners
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('messageInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Initialize
+loadMessages();
+connectWebSocket();
+</script>
+
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    #messagesContainer::-webkit-scrollbar {
+        width: 6px;
+    }
+    #messagesContainer::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
