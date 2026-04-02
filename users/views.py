@@ -1593,7 +1593,7 @@ def _get_permission_groups():
 
 
 @jwt_or_session_required
-@permission_required('users.view_role')
+@permission_required(['users.view_role', 'users.add_role', 'users.change_role'])
 def role_list(request):
     roles = Role.objects.prefetch_related('permissions').all().order_by('name')
     return render(request, 'role_list.html', {'roles': roles})
@@ -1691,7 +1691,7 @@ from django.db.models import Q
 ## Admin view users
 @csrf_exempt
 @jwt_or_session_required
-@permission_required('users.view_user')
+@permission_required(['users.view_user', 'users.add_user', 'users.change_user', 'users.delete_user'])
 def admin_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1766,7 +1766,7 @@ def admin_view_users(request):
 ## Team lead view users
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @jwt_or_session_required
-@permission_required('users.view_user')
+@permission_required(['users.view_user', 'users.add_user', 'users.change_user', 'users.delete_user', 'Tasks.add_task'])
 def teamlead_view_users(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -3243,7 +3243,7 @@ from .forms import UserProfileForm
 # ================== Departments ==================
 # List all departments
 @jwt_or_session_required
-@permission_required('users.view_department')
+@permission_required(['users.view_department', 'users.add_department', 'users.change_department', 'users.delete_department'])
 def departments(request):
     departments = Department.objects.all()
 
@@ -3295,7 +3295,7 @@ def create_department(request):
 
 # Show all users in a department
 @jwt_or_session_required
-@permission_required('users.view_department')
+@permission_required(['users.view_department', 'users.add_department', 'users.change_department', 'users.delete_department'])
 def department_detail(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
     users_in_dept = User.objects.filter(profile__department=department)
@@ -3352,7 +3352,7 @@ def delete_department(request, dept_id):
 # <!--Designation-->
 # List all designations
 @jwt_or_session_required
-@permission_required('users.view_designation')
+@permission_required(['users.view_designation', 'users.add_designation', 'users.change_designation', 'users.delete_designation'])
 def designations(request):
     designations = Designation.objects.all()
     
@@ -3404,7 +3404,7 @@ def create_designation(request):
 
 # Show all users in a designation
 @jwt_or_session_required
-@permission_required('users.view_designation')
+@permission_required(['users.view_designation', 'users.add_designation', 'users.change_designation', 'users.delete_designation'])
 def designation_detail(request, desig_id):
     designation = get_object_or_404(Designation, id=desig_id)
     users_in_desig = User.objects.filter(profile__designation=designation)
@@ -3416,9 +3416,9 @@ def designation_detail(request, desig_id):
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "role": user.role,
-                "role_display": user.get_role_display(),
-                "department": user.profile.department.name if user.profile.department else "N/A",
+                "role": user.role or "N/A",
+                "role_display": user.role or "N/A",
+                "department": user.profile.department.name if hasattr(user, 'profile') and user.profile.department else "N/A",
                 "full_name": user.get_full_name() or user.username
             }
             for user in users_in_desig
@@ -3480,6 +3480,7 @@ def delete_designation(request, desig_id):
 
 ## User Analytics
 @jwt_or_session_required
+@permission_required(['Tasks.view_task', 'users.view_user', 'users.add_user', 'users.change_user', 'users.delete_user', 'Tasks.add_task'])
 @csrf_exempt
 def user_analytics(request):
 
@@ -3803,72 +3804,17 @@ def check_email_exists(request):
     except Exception as e:
         return JsonResponse({'exists': False, 'error': str(e)}, status=500)
 
-
-## Role Management Views
-@jwt_or_session_required
-def role_list(request):
-    if not can_manage_roles(request.user):
-        return HttpResponseForbidden("You don't have permission to manage roles.")
-    roles = Role.objects.prefetch_related('permissions').all()
-    return render(request, 'role_list.html', {'roles': roles})
-
-
-@jwt_or_session_required
-def role_create(request):
-    if not can_manage_roles(request.user):
-        return HttpResponseForbidden("You don't have permission to manage roles.")
-    if request.method == 'POST':
-        form = RoleForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Role created successfully.')
-            return redirect('role_list')
-    else:
-        form = RoleForm()
-    return render(request, 'role_form.html', {'form': form, 'title': 'Create Role'})
-
-
-@jwt_or_session_required
-def role_edit(request, role_id):
-    if not can_manage_roles(request.user):
-        return HttpResponseForbidden("You don't have permission to manage roles.")
-    role = get_object_or_404(Role, id=role_id)
-    if request.method == 'POST':
-        form = RoleForm(request.POST, instance=role)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Role updated successfully.')
-            return redirect('role_list')
-    else:
-        form = RoleForm(instance=role)
-    return render(request, 'role_form.html', {'form': form, 'title': 'Edit Role', 'role': role})
-
-
-@jwt_or_session_required
-def role_delete(request, role_id):
-    if not can_manage_roles(request.user):
-        return HttpResponseForbidden("You don't have permission to manage roles.")
-    role = get_object_or_404(Role, id=role_id)
-    if request.method == 'POST':
-        role.delete()
-        messages.success(request, 'Role deleted successfully.')
-        return redirect('role_list')
-    return render(request, 'role_confirm_delete.html', {'role': role})
-
-
 ## Permission Management Views
 @jwt_or_session_required
+@permission_required(['auth.view_permission', 'auth.add_permission'])
 def permission_list(request):
-    if not request.user.is_superuser:
-        return HttpResponseForbidden("Only superusers can manage permissions.")
     permissions = Permission.objects.select_related('content_type').all().order_by('content_type__app_label', 'codename')
     return render(request, 'permission_list.html', {'permissions': permissions})
 
 
 @jwt_or_session_required
+@permission_required('auth.add_permission')
 def permission_create(request):
-    if not request.user.is_superuser:
-        return HttpResponseForbidden("Only superusers can manage permissions.")
     if request.method == 'POST':
         form = PermissionForm(request.POST)
         if form.is_valid():
@@ -3881,9 +3827,8 @@ def permission_create(request):
 
 
 @jwt_or_session_required
+@permission_required('auth.delete_permission')
 def permission_delete(request, perm_id):
-    if not request.user.is_superuser:
-        return HttpResponseForbidden("Only superusers can manage permissions.")
     perm = get_object_or_404(Permission, id=perm_id)
     if request.method == 'POST':
         perm.delete()

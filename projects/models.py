@@ -54,6 +54,11 @@ class Projects(models.Model):
     def __str__(self):
         return self.name
     
+    class Meta:
+        permissions = [
+            ("view_all_projects", "Can view all projects"),
+        ]
+
     
 ## ProjectResource Model
 class ProjectResource(models.Model):

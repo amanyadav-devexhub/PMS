@@ -91,11 +91,12 @@ def allowed_roles(allowed_roles=[]):
 
 
 ## Role and Permission-based access control decorator
-def permission_required(perm):
+def permission_required(perm_or_perms):
     """
     Permission-based access control decorator.
     Checks if user's Role has the specific permission.
     Usage: @permission_required('projects.delete_projects')
+           or @permission_required(['users.add_department', 'users.view_department'])
     """
     def decorator(view_func):
         @wraps(view_func)
@@ -113,14 +114,18 @@ def permission_required(perm):
                 return view_func(request, *args, **kwargs)
 
             # Check permission via Role object
-            if request.user.has_perm(perm):
-                return view_func(request, *args, **kwargs)
+            if isinstance(perm_or_perms, (list, tuple)):
+                if any(request.user.has_perm(p) for p in perm_or_perms):
+                    return view_func(request, *args, **kwargs)
+            else:
+                if request.user.has_perm(perm_or_perms):
+                    return view_func(request, *args, **kwargs)
 
             # Access denied
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
-                    'error': f'Access denied. Required permission: {perm}'
+                    'error': f'Access denied. Required permission(s): {perm_or_perms}'
                 }, status=403)
 
             return redirect(reverse('dashboard'))

@@ -9,7 +9,7 @@
     <!-- Header with Create button -->
     <div class="flex justify-between items-center mb-4">
         <h2 class="text-2xl font-bold text-gray-700">Departments</h2>
-        {% if can_manage_org %}
+        {% if can_manage_departments %}
         <button id="toggleCreateForm"
             class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow transition">
             + Create Department
@@ -43,7 +43,7 @@
                 id="dept-{{ dept.id }}">
 
                 <!-- Delete button for Admin -->
-                {% if can_manage_org %}
+                {% if can_manage_departments %}
                 <button type="button" onclick="deleteDepartment({{ dept.id }}, '{{ dept.name|escapejs }}')"
                     class="absolute top-2 right-2 text-red-500 hover:text-red-700 text-lg">
                     &#128465;

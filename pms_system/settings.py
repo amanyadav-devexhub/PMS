@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'projects',
     'Tasks',
+    'chat',
     'notifications',
     'widget_tweaks',
     'rest_framework',
@@ -73,7 +74,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'pms_system.wsgi.application'
-
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],   # or Redis URL in production
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

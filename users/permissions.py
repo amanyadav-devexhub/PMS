@@ -32,14 +32,20 @@ def can_view_user(user):
     return has_any(user, ['users.view_user'])
 
 
-def can_manage_org(user):
+def can_manage_departments(user):
     return has_any(user, [
         'users.add_department',
         'users.change_department',
         'users.delete_department',
+        'users.view_department',
+    ])
+
+def can_manage_designations(user):
+    return has_any(user, [
         'users.add_designation',
         'users.change_designation',
         'users.delete_designation',
+        'users.view_designation',
     ])
 
 
@@ -64,7 +70,7 @@ def can_manage_projects(user):
 
 
 def can_view_all_projects(user):
-    return can_manage_projects(user) or can_manage_users(user)
+    return has_any(user, ['projects.view_all_projects']) or can_manage_users(user)
 
 
 def can_add_task(user):
@@ -88,7 +94,7 @@ def can_manage_all_tasks(user):
 
 
 def can_view_all_tasks(user):
-    return can_manage_all_tasks(user)
+    return has_any(user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']) or can_manage_users(user)
 
 
 def can_start_task(user):
