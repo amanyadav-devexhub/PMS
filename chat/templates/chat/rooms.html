@@ -1,100 +1,158 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Chat{% endblock %}
-{% block page_title %}Chat{% endblock %}
+{% block title %}Chats - WhatsApp Clone{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Messages</h2>
-        <button id="newChatBtn"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition duration-200 shadow-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            New Chat
-        </button>
-    </div>
-
-    <!-- New Chat Modal -->
-    <div id="newChatModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-bold text-white">Start New Chat</h3>
-                    <button id="closeModal" class="text-white hover:text-gray-200">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="p-4">
-                <input type="text" id="userSearchInput" placeholder="Search users..."
-                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
-                <div id="userSearchResults" class="max-h-64 overflow-y-auto space-y-1">
-                    <p class="text-gray-400 text-sm text-center py-4">Type to search for users</p>
-                </div>
+<div class="flex h-screen bg-gray-100">
+    <!-- Sidebar - Chat List -->
+    <div class="w-96 bg-white border-r border-gray-200 flex flex-col">
+        <!-- Header -->
+        <div class="bg-indigo-600 px-6 py-4">
+            <div class="flex justify-between items-center">
+                <h1 class="text-xl font-bold text-white">Chats</h1>
+                <button id="newChatBtn" class="text-white hover:bg-indigo-500 p-2 rounded-full transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </button>
             </div>
         </div>
-    </div>
 
-    <!-- Chat Rooms List -->
-    <div id="chatRoomsList" class="space-y-3">
-        {% if rooms %}
+        <!-- Search Bar -->
+        <div class="p-3 border-b border-gray-200">
+            <div class="relative">
+                <input type="text" id="searchChats" placeholder="Search or start new chat"
+                       class="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Chat List -->
+        <div id="chatList" class="flex-1 overflow-y-auto">
             {% for room in rooms %}
-            <a href="{% url 'chat_room' room.id %}"
-               class="block bg-white rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 p-4 border border-gray-100">
-                <div class="flex items-center gap-4">
+            <a href="{% url 'chat_room' room.id %}" 
+               class="chat-item block hover:bg-gray-50 transition {% if forloop.first %}bg-gray-50{% endif %}"
+               data-room-id="{{ room.id }}"
+               data-last-message-time="{{ room.last_message_time|date:'U' }}">
+                <div class="flex items-center px-4 py-3 border-b border-gray-100">
                     <!-- Avatar -->
-                    <div class="bg-gradient-to-br from-indigo-400 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                        {% if room.is_group %}
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                        {% else %}
-                            {{ room.get_other_participant_initial }}
+                    <div class="relative">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                            {{ room.avatar_initial }}
+                        </div>
+                        {% if not room.is_group %}
+                        <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                         {% endif %}
                     </div>
-                    <!-- Info -->
-                    <div class="flex-1 min-w-0">
-                        <h3 class="text-base font-semibold text-gray-800 truncate">
-                            {{ room.display_name }}
-                        </h3>
-                        <p class="text-sm text-gray-500 truncate">
-                            {% if room.last_message %}
-                                {{ room.last_message.content|truncatechars:50 }}
-                            {% else %}
-                                No messages yet
+                    
+                    <!-- Chat Info -->
+                    <div class="flex-1 ml-3">
+                        <div class="flex justify-between items-baseline">
+                            <h3 class="font-semibold text-gray-800">{{ room.display_name }}</h3>
+                            <span class="text-xs text-gray-400">
+                                {% if room.last_message_time %}
+                                    {{ room.last_message_time|timesince }} ago
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <p class="text-sm text-gray-500 truncate flex-1">
+                                {% if room.last_message %}
+                                    {% if room.last_message_sender and room.is_group %}
+                                        <span class="font-medium">{{ room.last_message_sender }}: </span>
+                                    {% endif %}
+                                    {{ room.last_message|truncatechars:30 }}
+                                {% else %}
+                                    No messages yet
+                                {% endif %}
+                            </p>
+                            {% if room.unread_count > 0 %}
+                            <span class="bg-indigo-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-2">
+                                {{ room.unread_count }}
+                            </span>
                             {% endif %}
-                        </p>
-                    </div>
-                    <!-- Timestamp -->
-                    <div class="text-xs text-gray-400 flex-shrink-0">
-                        {% if room.last_message %}
-                            {{ room.last_message.timestamp|timesince }} ago
-                        {% endif %}
+                        </div>
                     </div>
                 </div>
             </a>
-            {% endfor %}
-        {% else %}
-            <div class="text-center py-16">
+            {% empty %}
+            <div class="text-center py-12">
                 <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
-                    </path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                 </svg>
-                <h3 class="text-lg font-semibold text-gray-500 mb-1">No conversations yet</h3>
-                <p class="text-gray-400 text-sm">Click "New Chat" to start messaging a team member.</p>
+                <p class="text-gray-500">No conversations yet</p>
+                <p class="text-sm text-gray-400 mt-1">Start a new chat to message someone</p>
             </div>
-        {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Main Content Area - Empty State or Selected Chat -->
+    <div class="flex-1 flex items-center justify-center bg-gray-50">
+        <div class="text-center">
+            <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-500">Select a chat</h3>
+            <p class="text-gray-400 mt-2">Choose a conversation to start messaging</p>
+        </div>
+    </div>
+</div>
+
+<!-- New Chat Modal -->
+<div id="newChatModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div class="bg-indigo-600 px-6 py-4 rounded-t-xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">New Chat</h3>
+                <button id="closeModal" class="text-white hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-4">
+            <div class="flex gap-2 mb-4">
+                <button id="newChatTab" class="flex-1 py-2 text-center font-medium text-indigo-600 border-b-2 border-indigo-600">New Chat</button>
+                <button id="newGroupTab" class="flex-1 py-2 text-center font-medium text-gray-500 hover:text-gray-700">New Group</button>
+            </div>
+            
+            <!-- New Chat Tab -->
+            <div id="newChatPanel">
+                <input type="text" id="userSearchInput" placeholder="Search users..."
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                <div id="userSearchResults" class="max-h-96 overflow-y-auto space-y-1">
+                    <p class="text-gray-400 text-sm text-center py-4">Type to search for users</p>
+                </div>
+            </div>
+            
+            <!-- New Group Tab -->
+            <div id="newGroupPanel" class="hidden">
+                <input type="text" id="groupNameInput" placeholder="Group name"
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                <textarea id="groupDescription" placeholder="Group description (optional)" rows="2"
+                          class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"></textarea>
+                <input type="text" id="groupSearchInput" placeholder="Search users to add..."
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                <div id="selectedParticipants" class="flex flex-wrap gap-2 mb-3"></div>
+                <div id="groupSearchResults" class="max-h-64 overflow-y-auto space-y-1"></div>
+                <button id="createGroupBtn" 
+                        class="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium transition">
+                    Create Group
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+let selectedParticipants = [];
+
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -109,7 +167,247 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
 const csrftoken = getCookie('csrftoken');
+
+// Modal handling
+const modal = document.getElementById('newChatModal');
+const newChatBtn = document.getElementById('newChatBtn');
+const closeModal = document.getElementById('closeModal');
+
+if (newChatBtn) {
+    newChatBtn.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        document.getElementById('userSearchInput').focus();
+    });
+}
+
+if (closeModal) {
+    closeModal.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        resetModals();
+    });
+}
+
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+        modal.classList.add('hidden');
+        resetModals();
+    }
+});
+
+function resetModals() {
+    selectedParticipants = [];
+    updateSelectedParticipants();
+    document.getElementById('userSearchInput').value = '';
+    document.getElementById('groupNameInput').value = '';
+    document.getElementById('groupDescription').value = '';
+    document.getElementById('groupSearchInput').value = '';
+    document.getElementById('userSearchResults').innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Type to search for users</p>';
+    document.getElementById('groupSearchResults').innerHTML = '';
+}
+
+// Tab switching
+const newChatTab = document.getElementById('newChatTab');
+const newGroupTab = document.getElementById('newGroupTab');
+const newChatPanel = document.getElementById('newChatPanel');
+const newGroupPanel = document.getElementById('newGroupPanel');
+
+newChatTab.addEventListener('click', () => {
+    newChatTab.classList.add('text-indigo-600', 'border-indigo-600');
+    newChatTab.classList.remove('text-gray-500');
+    newGroupTab.classList.remove('text-indigo-600', 'border-indigo-600');
+    newGroupTab.classList.add('text-gray-500');
+    newChatPanel.classList.remove('hidden');
+    newGroupPanel.classList.add('hidden');
+});
+
+newGroupTab.addEventListener('click', () => {
+    newGroupTab.classList.add('text-indigo-600', 'border-indigo-600');
+    newGroupTab.classList.remove('text-gray-500');
+    newChatTab.classList.remove('text-indigo-600', 'border-indigo-600');
+    newChatTab.classList.add('text-gray-500');
+    newGroupPanel.classList.remove('hidden');
+    newChatPanel.classList.add('hidden');
+    loadAllUsers();
+});
+
+// User search
+let searchTimeout;
+const userSearchInput = document.getElementById('userSearchInput');
+if (userSearchInput) {
+    userSearchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        if (query.length < 2) {
+            document.getElementById('userSearchResults').innerHTML = 
+                '<p class="text-gray-400 text-sm text-center py-4">Type at least 2 characters to search</p>';
+            return;
+        }
+        searchTimeout = setTimeout(() => searchUsers(query), 300);
+    });
+}
+
+function searchUsers(query) {
+    fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('userSearchResults');
+            if (data.users && data.users.length > 0) {
+                container.innerHTML = data.users.map(user => `
+                    <button onclick="startChat(${user.id})"
+                            class="w-full text-left px-4 py-3 rounded-lg hover:bg-indigo-50 transition flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                            ${escapeHtml(user.avatar_initial)}
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">${escapeHtml(user.full_name)}</div>
+                            <div class="text-xs text-gray-500">${escapeHtml(user.role)}</div>
+                        </div>
+                    </button>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No users found</p>';
+            }
+        });
+}
+
+function startChat(userId) {
+    fetch(`/chat/api/create-direct/${userId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.room_id) {
+            window.location.href = `/chat/room/${data.room_id}/`;
+        }
+    });
+}
+
+// Group creation
+function loadAllUsers() {
+    fetch('/chat/api/users/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.users) {
+                displayGroupSearchResults(data.users);
+            }
+        });
+}
+
+const groupSearchInput = document.getElementById('groupSearchInput');
+if (groupSearchInput) {
+    groupSearchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length < 2) {
+            loadAllUsers();
+        } else {
+            fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}&exclude=${selectedParticipants.join(',')}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.users) {
+                        displayGroupSearchResults(data.users);
+                    }
+                });
+        }
+    });
+}
+
+function displayGroupSearchResults(users) {
+    const container = document.getElementById('groupSearchResults');
+    const filteredUsers = users.filter(user => !selectedParticipants.some(p => p.id === user.id));
+    
+    if (filteredUsers.length > 0) {
+        container.innerHTML = filteredUsers.map(user => `
+            <button onclick="addParticipant(${user.id}, '${escapeHtml(user.full_name)}', '${escapeHtml(user.avatar_initial)}')"
+                    class="w-full text-left px-4 py-3 rounded-lg hover:bg-indigo-50 transition flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                    ${escapeHtml(user.avatar_initial)}
+                </div>
+                <div>
+                    <div class="font-medium text-gray-800">${escapeHtml(user.full_name)}</div>
+                    <div class="text-xs text-gray-500">${escapeHtml(user.role)}</div>
+                </div>
+            </button>
+        `).join('');
+    } else {
+        container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No users to add</p>';
+    }
+}
+
+function addParticipant(id, name, initial) {
+    if (!selectedParticipants.some(p => p.id === id)) {
+        selectedParticipants.push({ id, name, initial });
+        updateSelectedParticipants();
+        displayGroupSearchResults([]);
+        if (groupSearchInput) groupSearchInput.value = '';
+        loadAllUsers();
+    }
+}
+
+function removeParticipant(id) {
+    selectedParticipants = selectedParticipants.filter(p => p.id !== id);
+    updateSelectedParticipants();
+    loadAllUsers();
+}
+
+function updateSelectedParticipants() {
+    const container = document.getElementById('selectedParticipants');
+    if (selectedParticipants.length > 0) {
+        container.innerHTML = selectedParticipants.map(p => `
+            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                ${escapeHtml(p.name)}
+                <button onclick="removeParticipant(${p.id})" class="hover:text-indigo-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </span>
+        `).join('');
+    } else {
+        container.innerHTML = '<p class="text-gray-400 text-sm">No participants selected</p>';
+    }
+}
+
+const createGroupBtn = document.getElementById('createGroupBtn');
+if (createGroupBtn) {
+    createGroupBtn.addEventListener('click', () => {
+        const groupName = document.getElementById('groupNameInput').value.trim();
+        const description = document.getElementById('groupDescription').value.trim();
+        
+        if (!groupName) {
+            alert('Please enter a group name');
+            return;
+        }
+        
+        if (selectedParticipants.length < 2) {
+            alert('Please select at least 2 participants');
+            return;
+        }
+        
+        fetch('/chat/api/create-group/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: groupName,
+                participants: selectedParticipants.map(p => p.id),
+                description: description
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.room_id) {
+                window.location.href = `/chat/room/${data.room_id}/`;
+            } else {
+                alert(data.error || 'Failed to create group');
+            }
+        });
+    });
+}
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -118,80 +416,72 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Modal
-const modal = document.getElementById('newChatModal');
-document.getElementById('newChatBtn').addEventListener('click', () => {
-    modal.classList.remove('hidden');
-    document.getElementById('userSearchInput').focus();
-});
-document.getElementById('closeModal').addEventListener('click', () => {
-    modal.classList.add('hidden');
-});
-modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.add('hidden');
-});
+// Real-time unread count updates
+let previousUnreadCounts = {};
 
-// User search with debounce
-let searchTimeout;
-document.getElementById('userSearchInput').addEventListener('input', function() {
-    clearTimeout(searchTimeout);
-    const query = this.value.trim();
-    if (query.length < 2) {
-        document.getElementById('userSearchResults').innerHTML =
-            '<p class="text-gray-400 text-sm text-center py-4">Type at least 2 characters to search</p>';
-        return;
-    }
-    searchTimeout = setTimeout(() => searchUsers(query), 300);
-});
-
-function searchUsers(query) {
-    fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}`, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(res => res.json())
-    .then(data => {
-        const container = document.getElementById('userSearchResults');
-        if (data.users && data.users.length > 0) {
-            container.innerHTML = data.users.map(user => `
-                <button onclick="startChat(${user.id})"
-                        class="w-full text-left px-4 py-3 rounded-lg hover:bg-indigo-50 transition flex items-center gap-3">
-                    <div class="bg-gradient-to-br from-indigo-400 to-purple-500 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        ${escapeHtml(user.username.charAt(0).toUpperCase())}
-                    </div>
-                    <div>
-                        <div class="font-medium text-gray-800">${escapeHtml(user.full_name || user.username)}</div>
-                        <div class="text-xs text-gray-500">${escapeHtml(user.role || 'Member')}</div>
-                    </div>
-                </button>
-            `).join('');
-        } else {
-            container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No users found</p>';
-        }
-    })
-    .catch(err => {
-        console.error('Search error:', err);
-    });
+function updateUnreadCounts() {
+    fetch('/chat/api/unread-count/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                for (const [roomId, newCount] of Object.entries(data.unread_counts)) {
+                    const chatItem = document.querySelector(`.chat-item[data-room-id="${roomId}"]`);
+                    if (chatItem) {
+                        let badge = chatItem.querySelector('.unread-badge');
+                        const infoDiv = chatItem.querySelector('.flex.justify-between.items-center.mt-1');
+                        
+                        if (newCount > 0) {
+                            if (badge) {
+                                badge.textContent = newCount > 99 ? '99+' : newCount;
+                            } else if (infoDiv) {
+                                badge = document.createElement('span');
+                                badge.className = 'bg-indigo-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-2 unread-badge';
+                                badge.textContent = newCount > 99 ? '99+' : newCount;
+                                infoDiv.appendChild(badge);
+                            }
+                        } else if (badge) {
+                            badge.remove();
+                        }
+                    }
+                }
+            }
+        });
 }
 
-function startChat(userId) {
-    fetch(`/chat/api/create-direct/${userId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.room_id) {
-            window.location.href = `/chat/room/${data.room_id}/`;
-        } else {
-            alert(data.error || 'Could not create chat');
-        }
-    })
-    .catch(err => {
-        console.error('Error:', err);
-        alert('Network error. Please try again.');
+// Sort chats by last message time
+function sortChats() {
+    const chatList = document.getElementById('chatList');
+    const items = Array.from(chatList.querySelectorAll('.chat-item'));
+    
+    items.sort((a, b) => {
+        const timeA = parseInt(a.dataset.lastMessageTime) || 0;
+        const timeB = parseInt(b.dataset.lastMessageTime) || 0;
+        return timeB - timeA;
+    });
+    
+    items.forEach(item => chatList.appendChild(item));
+}
+
+// Initialize
+sortChats();
+setInterval(updateUnreadCounts, 5000);
+updateUnreadCounts();
+
+// Search chats
+const searchChats = document.getElementById('searchChats');
+if (searchChats) {
+    searchChats.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        const items = document.querySelectorAll('.chat-item');
+        
+        items.forEach(item => {
+            const name = item.querySelector('h3').textContent.toLowerCase();
+            if (name.includes(query)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
     });
 }
 </script>
