@@ -51,6 +51,37 @@
         .toast-notification {
             animation: slideIn 0.3s ease-out;
         }
+        
+        /* Chat button pulse animation for new messages */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(236, 72, 153, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(236, 72, 153, 0);
+            }
+        }
+        
+        .chat-badge-pulse {
+            animation: pulse-ring 1.5s cubic-bezier(0.66, 0, 0, 1) infinite;
+        }
+        
+        /* Sidebar chat button active state */
+        .sidebar-chat-active {
+            background-color: #fdf2f8;
+            color: #db2777;
+        }
+        
+        /* Badge styles */
+        .chat-badge {
+            transition: all 0.2s ease;
+        }
     </style>
 </head>
 
@@ -73,6 +104,22 @@
                 <!-- Dashboard - Role Based (Simpler) -->
                 <a href="{{ dashboard_url }}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Dashboard
+                </a>
+
+                <!-- ========== CHAT BUTTON IN SIDEBAR (WITH UNREAD COUNT) ========== -->
+                <a href="{% url 'chat_rooms' %}" id="sidebarChatBtn"
+                    class="block px-4 py-2 rounded hover:bg-pink-100 hover:text-pink-600 transition flex items-center justify-between group">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        Chat
+                    </span>
+                    <!-- Unread count badge for sidebar -->
+                    <span id="sidebarChatBadge" 
+                        class="hidden bg-pink-500 text-white text-xs font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center chat-badge">
+                        0
+                    </span>
                 </a>
 
                 {% if can_manage_users %}
@@ -201,6 +248,21 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- ========== TOPBAR CHAT BUTTON WITH UNREAD COUNT BADGE ========== -->
+                    <div class="relative">
+                        <a href="{% url 'chat_rooms' %}" id="topbarChatBtn" class="relative focus:outline-none block">
+                            <svg class="w-6 h-6 text-gray-600 hover:text-pink-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                            <!-- Chat Unread Count Badge (shows total unread messages) -->
+                            <span id="topbarChatBadge" 
+                                class="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center hidden chat-badge">
+                                0
+                            </span>
+                        </a>
+                    </div>
+
                     <!-- User Info -->
                     <div class="flex items-center space-x-2">
                         <img src="https://i.pravatar.cc/40" class="rounded-full w-10 h-10" alt="User">
@@ -413,6 +475,181 @@
         });
     </script>
 
+    <!-- Chat Unread Count Manager - Shows TOTAL unread message count -->
+    <script>
+        // ChatBadgeManager handles fetching TOTAL unread message count and updating all chat badges
+        const ChatBadgeManager = {
+            totalUnread: 0,
+            pollInterval: null,
+            previousUnread: 0,
+            
+            init() {
+                this.fetchUnreadCount();
+                this.startPolling();
+                this.highlightActiveChatPage();
+            },
+            
+            fetchUnreadCount() {
+                fetch('/chat/api/unread-count/', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.previousUnread = this.totalUnread;
+                        this.totalUnread = data.total_unread || 0;
+                        this.updateAllBadges();
+                        
+                        // Show toast notification for new messages
+                        if (this.totalUnread > this.previousUnread && this.previousUnread > 0) {
+                            const newMessages = this.totalUnread - this.previousUnread;
+                            if (newMessages > 0 && !window.location.pathname.includes('/chat/')) {
+                                this.showMessageToast(`${newMessages} new message${newMessages > 1 ? 's' : ''}`);
+                            }
+                        } else if (this.totalUnread > 0 && this.previousUnread === 0 && !window.location.pathname.includes('/chat/')) {
+                            this.showMessageToast(`${this.totalUnread} new message${this.totalUnread > 1 ? 's' : ''}`);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching chat unread count:', error);
+                });
+            },
+            
+            updateAllBadges() {
+                const displayCount = this.totalUnread > 99 ? '99+' : (this.totalUnread || '');
+                const hasUnread = this.totalUnread > 0;
+                
+                // Update topbar chat badge
+                const topbarBadge = document.getElementById('topbarChatBadge');
+                if (topbarBadge) {
+                    if (hasUnread) {
+                        topbarBadge.textContent = displayCount;
+                        topbarBadge.classList.remove('hidden');
+                        // Add pulse animation for attention if there are unread messages
+                        if (this.totalUnread > 0) {
+                            topbarBadge.classList.add('chat-badge-pulse');
+                        } else {
+                            topbarBadge.classList.remove('chat-badge-pulse');
+                        }
+                    } else {
+                        topbarBadge.classList.add('hidden');
+                        topbarBadge.classList.remove('chat-badge-pulse');
+                    }
+                }
+                
+                // Update sidebar chat badge
+                const sidebarBadge = document.getElementById('sidebarChatBadge');
+                if (sidebarBadge) {
+                    if (hasUnread) {
+                        sidebarBadge.textContent = displayCount;
+                        sidebarBadge.classList.remove('hidden');
+                    } else {
+                        sidebarBadge.classList.add('hidden');
+                    }
+                }
+                
+                // Update sidebar button styling based on unread count
+                const sidebarBtn = document.getElementById('sidebarChatBtn');
+                if (sidebarBtn) {
+                    if (hasUnread) {
+                        sidebarBtn.classList.add('bg-pink-50', 'text-pink-600');
+                    } else {
+                        sidebarBtn.classList.remove('bg-pink-50', 'text-pink-600');
+                    }
+                }
+                
+                // Update any dashboard stat card if present
+                const statUnreadElement = document.getElementById('statUnreadCount');
+                if (statUnreadElement) {
+                    statUnreadElement.innerText = this.totalUnread;
+                }
+                
+                // Update document title with unread count (like WhatsApp)
+                this.updateDocumentTitle();
+            },
+            
+            updateDocumentTitle() {
+                const originalTitle = document.title.replace(/^\(\d+\)\s/, '');
+                if (this.totalUnread > 0) {
+                    document.title = `(${this.totalUnread}) ${originalTitle}`;
+                } else {
+                    document.title = originalTitle;
+                }
+            },
+            
+            startPolling() {
+                // Poll every 5 seconds for real-time updates (faster for chat)
+                this.pollInterval = setInterval(() => {
+                    if (!document.hidden) {
+                        this.fetchUnreadCount();
+                    }
+                }, 5000);
+            },
+            
+            highlightActiveChatPage() {
+                // Check if current page is chat rooms page and highlight sidebar button
+                const currentPath = window.location.pathname;
+                const isChatPage = currentPath.includes('/chat/') || currentPath.includes('chat_rooms');
+                const sidebarBtn = document.getElementById('sidebarChatBtn');
+                const topbarBtn = document.getElementById('topbarChatBtn');
+                
+                if (isChatPage) {
+                    if (sidebarBtn) {
+                        sidebarBtn.classList.add('sidebar-chat-active');
+                        sidebarBtn.classList.add('bg-pink-100');
+                    }
+                    if (topbarBtn) {
+                        const svg = topbarBtn.querySelector('svg');
+                        if (svg) {
+                            svg.classList.add('text-pink-600');
+                        }
+                    }
+                }
+            },
+            
+            showMessageToast(message) {
+                // Create and show a toast notification for new messages
+                const existingToast = document.querySelector('.chat-toast-notification');
+                if (existingToast) existingToast.remove();
+                
+                const toast = document.createElement('div');
+                toast.className = 'chat-toast-notification fixed bottom-20 right-4 bg-pink-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full cursor-pointer';
+                toast.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span class="text-sm font-medium">${message}</span>
+                    </div>
+                `;
+                
+                toast.addEventListener('click', () => {
+                    window.location.href = "{% url 'chat_rooms' %}";
+                });
+                
+                document.body.appendChild(toast);
+                
+                setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+                setTimeout(() => {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => toast.remove(), 300);
+                }, 4000);
+            }
+        };
+        
+        // Initialize chat badge manager when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            ChatBadgeManager.init();
+        });
+        
+        // Expose globally for possible manual refresh from other scripts
+        window.ChatBadgeManager = ChatBadgeManager;
+    </script>
+
     <!-- Notification System JavaScript -->
     <script>
         // Notification Manager - Handles real-time updates
@@ -585,11 +822,10 @@
                 }
 
                 const title = document.title;
-                if (this.unreadCount > 0) {
-                    if (!title.startsWith('(')) {
-                        document.title = `(${this.unreadCount}) ${title}`;
-                    }
-                } else {
+                // Don't override chat unread count in title - combine them
+                if (this.unreadCount > 0 && !title.startsWith('(')) {
+                    document.title = `(${this.unreadCount}) ${title.replace(/^\(\d+\)\s/, '')}`;
+                } else if (this.unreadCount === 0 && title.match(/^\(\d+\)\s/)) {
                     document.title = title.replace(/^\(\d+\)\s/, '');
                 }
             },

@@ -66,8 +66,8 @@ function renderDashboard(data) {
         </div>
     `;
 
-    // 2. Statistics Grid
-    html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">`;
+    // 2. Statistics Grid (5 cards now - including Chat)
+    html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">`;
     
     if (data.dashboard_variant === 'owner') {
         html += `
@@ -75,6 +75,7 @@ function renderDashboard(data) {
             ${renderStatCard('Active Users', data.stats.active_users, 'green', 'user-check')}
             ${renderStatCard('Total Projects', data.stats.total_projects, 'blue', 'folder')}
             ${renderStatCard('Total Tasks', data.stats.total_tasks, 'purple', 'clipboard-list')}
+            ${renderChatCard()}
         `;
     } else if (data.dashboard_variant === 'manager') {
         html += `
@@ -82,6 +83,7 @@ function renderDashboard(data) {
             ${renderStatCard('Active Tasks', data.stats.active_tasks, 'yellow', 'clock')}
             ${renderStatCard('Completed', data.stats.completed_tasks, 'green', 'check-circle')}
             ${renderStatCard('Team Members', data.stats.team_members, 'purple', 'users')}
+            ${renderChatCard()}
         `;
     } else {
         html += `
@@ -89,6 +91,7 @@ function renderDashboard(data) {
             ${renderStatCard('Ongoing', data.stats.ongoing_tasks, 'yellow', 'clock')}
             ${renderStatCard('Completed', data.stats.completed_tasks, 'green', 'check-circle')}
             ${renderStatCard('My Projects', data.stats.projects_count, 'purple', 'folder')}
+            ${renderChatCard()}
         `;
     }
     html += `</div>`;
@@ -192,6 +195,22 @@ function renderDashboard(data) {
         `;
     }
 
+    // Recent Chats Widget (visible to all users)
+    html += `
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">💬 Recent Chats</h3>
+                <a href="{% url 'chat_rooms' %}" class="text-pink-600 hover:text-pink-700 text-sm font-medium">View All →</a>
+            </div>
+            <div id="recentChatsContainer">
+                <div class="flex justify-center py-4">
+                    <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-pink-600"></div>
+                    <span class="ml-2 text-gray-500 text-sm">Loading chats...</span>
+                </div>
+            </div>
+        </div>
+    `;
+
     // Common Sidebar Section (Quick Actions)
     html += `
         <div class="bg-white rounded-xl shadow-lg p-6">
@@ -225,12 +244,18 @@ function renderDashboard(data) {
                 <a href="{% url 'task_dashboard' %}" class="flex items-center p-3 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                     <span class="mr-3">📅</span> View My Tasks
                 </a>
+                <a href="{% url 'chat_rooms' %}" class="flex items-center p-3 text-sm font-medium text-pink-700 bg-pink-50 rounded-lg hover:bg-pink-100 transition">
+                    <span class="mr-3">💬</span> Open Chat
+                </a>
             </div>
         </div>
     `;
 
     html += `</div>`; // End main content grid
     container.innerHTML = html;
+    
+    // Load recent chats after rendering
+    loadRecentChats();
 }
 
 function renderStatCard(title, value, color, icon) {
@@ -250,12 +275,94 @@ function renderStatCard(title, value, color, icon) {
                     <h3 class="text-2xl font-black text-gray-800">${value}</h3>
                 </div>
                 <div class="p-3 rounded-xl ${colors[color].split(' ').slice(1).join(' ')}">
-                    <!-- Icon placeholder or SVG logic could go here -->
                     <span class="text-xl font-bold">#</span>
                 </div>
             </div>
         </div>
     `;
+}
+
+function renderChatCard() {
+    return `
+        <div class="bg-white rounded-xl shadow p-6 border-l-4 border-pink-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Messages</p>
+                    <h3 class="text-2xl font-black text-gray-800" id="statUnreadCount">0</h3>
+                    <p class="text-xs text-gray-400 mt-1">unread messages</p>
+                </div>
+                <div class="p-3 rounded-xl bg-pink-50 text-pink-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
+            </div>
+            <a href="{% url 'chat_rooms' %}" class="mt-3 text-sm text-pink-600 hover:text-pink-700 font-medium flex items-center">
+                Open Chat →
+            </a>
+        </div>
+    `;
+}
+
+function loadRecentChats() {
+    fetch('/chat/api/unread-count/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const totalUnread = data.total_unread || 0;
+            
+            // Update stat card
+            const statUnreadElement = document.getElementById('statUnreadCount');
+            if (statUnreadElement) {
+                statUnreadElement.innerText = totalUnread;
+            }
+            
+            // Update recent chats container
+            const recentChatsContainer = document.getElementById('recentChatsContainer');
+            if (recentChatsContainer) {
+                if (totalUnread > 0) {
+                    recentChatsContainer.innerHTML = `
+                        <div class="bg-pink-50 border border-pink-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-pink-800 font-medium">📬 New Messages</p>
+                                    <p class="text-2xl font-bold text-pink-600 mt-1">${totalUnread}</p>
+                                    <p class="text-xs text-pink-500">unread conversation${totalUnread > 1 ? 's' : ''}</p>
+                                </div>
+                                <a href="{% url 'chat_rooms' %}" class="px-3 py-1 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition">
+                                    Read
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    recentChatsContainer.innerHTML = `
+                        <div class="text-center py-6">
+                            <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                            <p class="text-gray-500">No new messages</p>
+                            <a href="{% url 'chat_rooms' %}" class="text-sm text-pink-600 hover:text-pink-700 mt-2 inline-block">Start a conversation →</a>
+                        </div>
+                    `;
+                }
+            }
+        }
+    })
+    .catch(err => {
+        console.error('Error loading chats:', err);
+        const recentChatsContainer = document.getElementById('recentChatsContainer');
+        if (recentChatsContainer) {
+            recentChatsContainer.innerHTML = `
+                <div class="text-center py-6">
+                    <p class="text-gray-400 text-sm">Unable to load messages</p>
+                    <a href="{% url 'chat_rooms' %}" class="text-sm text-pink-600 hover:text-pink-700 mt-2 inline-block">Open Chat →</a>
+                </div>
+            `;
+        }
+    });
 }
 
 function getRoleBadgeClass(tier) {
