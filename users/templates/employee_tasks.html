@@ -219,7 +219,7 @@
                             <h2 class="text-gray-800 font-semibold">Task status summary is required</h2>
                             
                             <!-- Only show + icon for employees (task doers) -->
-                            {% if can_change_task and not is_manager_like and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
+                            {% if can_change_task  and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
                             <a href="{% url 'add_task_summary' task.id %}" 
                                class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
                                 +
@@ -240,7 +240,7 @@
 
             <!-- Action Buttons - All AJAX now -->
             {% if tasks|length == 1 %}
-                {% if can_change_task and not is_manager_like %}
+                {% if can_change_task %}
                 <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
                     {% if task.status == "PENDING" %}
                         <!-- AJAX START BUTTON -->

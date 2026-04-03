@@ -2,8 +2,11 @@ from notifications.models import Notification
 from .permissions import (
     can_add_projects,
     can_add_task,
+    can_add_user,
     can_change_task,
+    can_change_user,
     can_delete_task,
+    can_delete_user,
     can_delete_projects,
     can_manage_departments,
     can_manage_designations,
@@ -45,6 +48,9 @@ def permission_flags(request):
     if not user or not user.is_authenticated:
         return {
             'can_manage_users': False,
+            'can_add_user': False,
+            'can_change_user': False,
+            'can_delete_user': False,
             'can_manage_roles': False,
             'can_manage_departments': False,
             'can_manage_designations': False,
@@ -64,6 +70,9 @@ def permission_flags(request):
 
     return {
         'can_manage_users': can_manage_users(user),
+        'can_add_user': can_add_user(user),
+        'can_change_user': can_change_user(user),
+        'can_delete_user': can_delete_user(user),
         'can_manage_roles': can_manage_roles(user),
         'can_manage_departments': can_manage_departments(user),
         'can_manage_designations': can_manage_designations(user),

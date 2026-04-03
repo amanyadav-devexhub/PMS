@@ -19,6 +19,18 @@ def can_manage_users(user):
     ])
 
 
+def can_add_user(user):
+    return _has(user, 'users.add_user')
+
+
+def can_change_user(user):
+    return _has(user, 'users.change_user')
+
+
+def can_delete_user(user):
+    return _has(user, 'users.delete_user')
+
+
 def can_manage_roles(user):
     return has_any(user, [
         'users.view_role',

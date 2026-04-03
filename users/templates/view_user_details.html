@@ -54,10 +54,10 @@ function createUserTemplate(data) {
         </div>
 
         <!-- Edit Button -->
-        <a href="/user/${data.user.id}/edit/">
-           class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow edit-link">
-            Edit
-        </a>
+    <a href="/user/${data.user.id}/edit/"
+   class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow edit-link">
+    Edit
+</a>
     </div>
 
     <!-- ================= BASIC DETAILS ================= -->
@@ -203,12 +203,12 @@ function loadUserDetails() {
 
 function loadPage(url) {
     // Show loading
-    document.body.innerHTML = `
+    /*document.body.innerHTML = `
         <div class="flex justify-center items-center h-screen">
             <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
             <span class="ml-3 text-gray-600">Loading...</span>
         </div>
-    `;
+    `;*/
     
     fetch(url, {
         headers: {
@@ -253,16 +253,5 @@ function loadPage(url) {
 loadUserDetails();
 </script>
 
-<style>
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-    
-    .animate-spin {
-        animation: spin 1s linear infinite;
-    }
-</style>
 
 {% endblock %}
