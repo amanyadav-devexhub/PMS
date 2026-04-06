@@ -46,7 +46,7 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def has_perm(self, perm, obj=None):
-        if self.is_active and self.is_superuser:
+        if self.is_active and (self.is_superuser or self.role == 'ADMIN'):
             return True
         if super().has_perm(perm, obj=obj):
             return True
@@ -62,7 +62,7 @@ class User(AbstractUser):
         return False
     
     def has_module_perms(self, app_label):
-        if self.is_active and self.is_superuser:
+        if self.is_active and (self.is_superuser or self.role == 'ADMIN'):
             return True
         if super().has_module_perms(app_label):
             return True

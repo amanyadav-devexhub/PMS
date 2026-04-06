@@ -280,7 +280,7 @@
             </header>
 
             <!-- Content Area -->
-            <main class="p-6 overflow-y-auto flex-1">
+            <main class="{% block main_class %}p-6 overflow-y-auto{% endblock %} flex-1">
                 {% block content %}
                 <!-- Page Content Goes Here -->
                 {% endblock %}
@@ -311,6 +311,11 @@
                 }
                 xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
                 xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                if (jqXHR.status === 403) {
+                    // Logic is now handled by the global ajaxError handler in NotificationManager
+                }
             }
         });
 
@@ -662,6 +667,10 @@
                 this.loadLatestNotification();
                 this.startPolling();
                 this.attachEventListeners();
+                
+                // Add Access Denied checks
+                this.checkDjangoMessages();
+                this.setupGlobalAjaxHandler();
             },
 
             attachEventListeners() {
@@ -923,6 +932,65 @@
                     toast.classList.add('translate-x-full');
                     setTimeout(() => toast.remove(), 300);
                 }, 3000);
+            },
+
+            checkDjangoMessages() {
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if "Access Denied" in message.message or "access_denied" in message.tags or message.tags == "error" %}
+                            this.showAccessDeniedModal("{{ message|escapejs }}");
+                        {% else %}
+                            this.showToast("{{ message|escapejs }}", "{{ message.tags }}");
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            },
+
+            setupGlobalAjaxHandler() {
+                // Intercept jQuery AJAX
+                $(document).ajaxError((event, jqXHR, ajaxSettings, thrownError) => {
+                    if (jqXHR.status === 403) {
+                        const response = jqXHR.responseJSON;
+                        const message = (response && response.message) || (response && response.error) || "Access denied. You do not have permission for this action.";
+                        this.showAccessDeniedModal(message);
+                    }
+                });
+
+                // Intercept native fetch
+                const originalFetch = window.fetch;
+                window.fetch = async (...args) => {
+                    const response = await originalFetch(...args);
+                    if (response.status === 403) {
+                        try {
+                            const clone = response.clone();
+                            const data = await clone.json();
+                            if (data.access_denied || data.error || data.message) {
+                                this.showAccessDeniedModal(data.message || data.error);
+                            } else {
+                                this.showAccessDeniedModal("Access denied. You do not have permission for this action.");
+                            }
+                        } catch (e) {
+                            this.showAccessDeniedModal("Access denied. You do not have permission for this action.");
+                        }
+                    }
+                    return response;
+                };
+            },
+
+            showAccessDeniedModal(message) {
+                const modal = document.getElementById('accessDeniedModal');
+                const messageEl = document.getElementById('accessDeniedMessage');
+                if (modal && messageEl) {
+                    messageEl.textContent = message;
+                    modal.classList.remove('hidden');
+                }
+            },
+
+            closeAccessDeniedModal() {
+                const modal = document.getElementById('accessDeniedModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
             }
         };
 
@@ -932,6 +1000,36 @@
 
         window.NotificationManager = NotificationManager;
     </script>
+
+    <!-- Access Denied Modal -->
+    <div id="accessDeniedModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="window.NotificationManager.closeAccessDeniedModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-red-100">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">Access Denied</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500" id="accessDeniedMessage">You do not have the required permissions to perform this action. Please contact your administrator if you believe this is an error.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="window.NotificationManager.closeAccessDeniedModal()" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </body>
 

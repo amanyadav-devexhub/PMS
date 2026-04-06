@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -80,10 +81,15 @@ def allowed_roles(allowed_roles=[]):
             allowed_by_role_name = current_role_name in allowed_roles
 
             if not (allowed_by_role_name or request.user.is_superuser):
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Access denied. Required role: {", ".join(allowed_roles)}. Your role: {current_role_name}'
-                }, status=403)
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'access_denied': True,
+                        'message': f'Access denied. Required role: {", ".join(allowed_roles)}. Your role: {current_role_name}'
+                    }, status=403)
+                
+                messages.error(request, f"Access Denied: You do not have the required role ({', '.join(allowed_roles)}) to perform this action.")
+                return redirect(reverse('dashboard'))
             
             return view_func(request, *args, **kwargs)
         return wrapped_view
@@ -125,9 +131,11 @@ def permission_required(perm_or_perms):
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
-                    'error': f'Access denied. Required permission(s): {perm_or_perms}'
+                    'access_denied': True,
+                    'message': f'Access denied. Required permission(s): {perm_or_perms}'
                 }, status=403)
 
+            messages.error(request, f"Access Denied: You do not have the required permissions ({perm_or_perms}) to perform this action.")
             return redirect(reverse('dashboard'))
 
         return wrapped_view
