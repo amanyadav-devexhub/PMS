@@ -1,6 +1,9 @@
+# models.py - Add these new models and update Message model
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+import os
 
 class ChatRoom(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True)
@@ -56,8 +59,9 @@ class ChatRoom(models.Model):
             return name[0].upper() if name else '?'
         return '?'
 
+    
     def get_unread_count(self, user):
-        return self.messages.filter(is_read=False).exclude(sender=user).count()
+        return self.messages.exclude(sender=user).exclude(read_by=user).count()
 
     def get_participant_count(self):
         return self.participants.count()
@@ -70,7 +74,7 @@ class Message(models.Model):
         on_delete=models.CASCADE,
         related_name='sent_messages'
     )
-    content = models.TextField()
+    content = models.TextField(blank=True)  # Allow empty content for file-only messages
     timestamp = models.DateTimeField(default=timezone.now)
     is_read = models.BooleanField(default=False)
     read_by = models.ManyToManyField(
@@ -83,7 +87,7 @@ class Message(models.Model):
         ordering = ['timestamp']
     
     def __str__(self):
-        return f"{self.sender} in {self.room}: {self.content[:50]}"
+        return f"{self.sender} in {self.room}: {self.content[:50] if self.content else '[File]'}"
 
     def mark_as_read(self, user):
         """Mark message as read by a specific user"""
@@ -96,3 +100,61 @@ class Message(models.Model):
             ):
                 self.is_read = True
                 self.save()
+
+
+class MessageAttachment(models.Model):
+    """Model for file attachments in messages"""
+    FILE_TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('pdf', 'PDF Document'),
+        ('document', 'Document'),
+        ('spreadsheet', 'Spreadsheet'),
+        ('archive', 'Archive'),
+        ('video', 'Video'),
+        ('audio', 'Audio'),
+        ('other', 'Other'),
+    ]
+    
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='chat_attachments/%Y/%m/%d/')
+    filename = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(help_text="File size in bytes")
+    file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES, default='other')
+    mime_type = models.CharField(max_length=100, blank=True)
+    thumbnail = models.ImageField(upload_to='chat_thumbnails/%Y/%m/%d/', blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Attachment for message {self.message.id}: {self.filename}"
+    
+    @property
+    def formatted_size(self):
+        """Return human-readable file size"""
+        if self.file_size < 1024:
+            return f"{self.file_size} B"
+        elif self.file_size < 1024 * 1024:
+            return f"{self.file_size / 1024:.1f} KB"
+        elif self.file_size < 1024 * 1024 * 1024:
+            return f"{self.file_size / (1024 * 1024):.1f} MB"
+        else:
+            return f"{self.file_size / (1024 * 1024 * 1024):.1f} GB"
+    
+    @property
+    def file_icon(self):
+        """Return appropriate icon for file type"""
+        icons = {
+            'image': '🖼️',
+            'pdf': '📄',
+            'document': '📝',
+            'spreadsheet': '📊',
+            'archive': '📦',
+            'video': '🎥',
+            'audio': '🎵',
+            'other': '📎'
+        }
+        return icons.get(self.file_type, '📎')
+    
+    @property
+    def file_extension(self):
+        """Get file extension"""
+        return os.path.splitext(self.filename)[1].lower()

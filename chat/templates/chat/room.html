@@ -2,39 +2,46 @@
 
 {% block title %}Chat - {{ display_name }}{% endblock %}
 
-{% block main_class %}overflow-hidden flex flex-col h-full bg-gray-50{% endblock %}
+{% block page_title %}Chat: {{ display_name }}{% endblock %}
+
+{% block content_wrapper_class %}flex flex-col w-full h-[calc(100vh-3rem)] overflow-hidden{% endblock %}
 
 {% block content %}
-<div class="flex flex-col h-full bg-gray-50 overflow-hidden relative">
-    <!-- Abstract Background for Chat -->
-    <div class="absolute inset-0 opacity-[0.02] pointer-events-none" style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 32px 32px;"></div>
+<div class="flex flex-col h-full bg-gray-50 dark:bg-[#0f1117] overflow-hidden relative rounded-xl">
+    <!-- Abstract Background -->
+    <div class="absolute inset-0 opacity-[0.02] pointer-events-none dark:opacity-[0.01]" 
+         style="background-image: radial-gradient(#4a9d7e 1px, transparent 1px); background-size: 32px 32px;"></div>
 
     <!-- Main Chat Area -->
-    <div class="flex-1 flex flex-col min-h-0 relative z-10">
+    <div class="flex-1 flex flex-col min-h-0 relative z-10 bg-white dark:bg-[#111827] rounded-xl shadow-sm overflow-hidden">
+        
         <!-- Chat Header -->
-        <div class="bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div class="bg-white dark:bg-[#1e293b] border-b border-slate-200 dark:border-white/10 px-6 py-4 flex items-center justify-between shadow-sm flex-shrink-0">
             <div class="flex items-center gap-4">
-                <a href="{% url 'chat_rooms' %}" class="p-2 -ml-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-200">
+                <a href="{% url 'chat_rooms' %}" 
+                   class="p-2 -ml-2 text-slate-400 hover:text-[#4a9d7e] hover:bg-[#eef6f2] dark:hover:bg-white/5 rounded-full transition-all duration-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
                 </a>
                 <div class="relative">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-100 transform -rotate-1">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white font-bold shadow-lg shadow-[#4a9d7e]/20 transform -rotate-1">
                         {{ avatar_initial }}
                     </div>
-                    <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
+                    <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#1e293b] shadow-sm"></div>
                 </div>
                 <div>
-                    <h2 class="font-bold text-gray-800 text-base flex items-center gap-2">
+                    <h2 class="font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
                         {{ display_name }}
                     </h2>
                     <div class="flex items-center gap-1.5">
-                        <div id="connectionStatusDot" class="w-1.5 h-1.5 rounded-full bg-gray-400 transition-colors duration-300"></div>
-                        <p class="text-[11px] font-medium text-gray-500" id="connectionStatus text-uppercase">Connecting...</p>
+                        <div id="connectionStatusDot" class="w-1.5 h-1.5 rounded-full bg-slate-400 transition-colors duration-300"></div>
+                        <p class="text-[11px] font-medium text-slate-500 dark:text-slate-400" id="connectionStatus">Connecting...</p>
+                        <span class="text-[11px] text-slate-300 dark:text-slate-600 mx-1">|</span>
+                        <span id="messageCount" class="text-[11px] font-medium text-[#4a9d7e]">0 messages</span>
                         {% if is_group %}
-                        <span class="text-[11px] text-gray-300 mx-1">|</span>
-                        <span class="text-[11px] font-medium text-indigo-500">{{ participants.count }} participants</span>
+                        <span class="text-[11px] text-slate-300 dark:text-slate-600 mx-1">|</span>
+                        <span class="text-[11px] font-medium text-[#4a9d7e]">{{ participants.count }} participants</span>
                         {% endif %}
                     </div>
                 </div>
@@ -42,45 +49,75 @@
             
             <div class="flex items-center gap-2">
                 {% if is_group %}
-                <button id="groupInfoBtn" class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200">
+                <button id="groupInfoBtn" class="p-2 text-slate-400 hover:text-[#4a9d7e] hover:bg-[#eef6f2] dark:hover:bg-white/5 rounded-xl transition-all duration-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                     </svg>
                 </button>
                 {% endif %}
-                <button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
-                    </svg>
-                </button>
             </div>
         </div>
 
-        <!-- Messages Area -->
-        <div id="messagesContainer" class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth scrollbar-thin scrollbar-thumb-gray-200 space-y-4">
+        <!-- Messages Area - SCROLLABLE -->
+        <div id="messagesContainer" 
+             class="flex-1 overflow-y-auto px-4 sm:px-6 py-6 scroll-smooth space-y-6 bg-gray-50 dark:bg-[#0f1117] min-h-0 custom-scroll">
             <div id="loadingMessages" class="flex flex-col justify-center items-center py-12">
-                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600 mb-3"></div>
-                <p class="text-xs font-semibold text-indigo-500/60 uppercase tracking-widest">Loading Conversation</p>
+                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#4a9d7e] mb-3"></div>
+                <p class="text-xs font-semibold text-[#4a9d7e]/60 uppercase tracking-widest">Loading Conversation</p>
             </div>
         </div>
 
-        <!-- Typing Indicator Floating -->
-        <div id="typingIndicator" class="absolute bottom-24 left-8 px-4 py-2 bg-white/90 backdrop-blur-sm border border-indigo-100 rounded-2xl text-[11px] font-bold text-indigo-600 shadow-xl shadow-indigo-100/50 hidden animate-bounce italic z-20"></div>
+        <!-- Typing Indicator -->
+        <div id="typingIndicator" 
+             class="absolute bottom-24 left-8 px-4 py-2 bg-white dark:bg-[#1e293b] backdrop-blur-sm border border-[#4a9d7e]/20 rounded-2xl text-[11px] font-bold text-[#4a9d7e] shadow-xl hidden animate-bounce italic z-20">
+        </div>
 
-        <!-- Message Input Area -->
-        <div class="bg-white px-6 py-5 border-t border-gray-100/80 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] relative z-20">
-            <div class="max-w-4xl mx-auto flex items-end gap-3">
-                <div class="flex-1 bg-gray-50 rounded-2xl p-1.5 border border-gray-100 focus-within:ring-2 focus-within:ring-indigo-400/20 focus-within:bg-white focus-within:border-indigo-400 transition-all duration-300">
-                    <textarea id="messageInput" placeholder="Type your message here..." rows="1"
-                           class="w-full bg-transparent border-0 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-0 text-sm resize-none scrollbar-none min-h-[44px] max-h-32"
-                           autocomplete="off"></textarea>
+        <!-- Message Input Area - ALWAYS VISIBLE AT BOTTOM -->
+        <div class="bg-white dark:bg-[#1e293b] px-4 sm:px-6 py-5 border-t border-slate-200 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] flex-shrink-0">
+            <div class="max-w-4xl mx-auto">
+                
+                <!-- File Preview -->
+                <div id="filePreview" class="hidden mb-3 p-3 bg-gray-100 dark:bg-[#1f2937] rounded-2xl border border-dashed border-[#4a9d7e]/30">
+                    <div class="flex items-center gap-3">
+                        <div id="previewIcon" class="text-3xl"></div>
+                        <div class="flex-1 min-w-0">
+                            <p id="previewFilename" class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate"></p>
+                            <p id="previewSize" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                        </div>
+                        <button onclick="removeFilePreview()" 
+                                class="text-red-500 hover:text-red-600 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
                 </div>
-                <button id="sendBtn"
-                        class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white w-[44px] h-[44px] flex-shrink-0 rounded-2xl shadow-lg shadow-indigo-100 flex items-center justify-center transition-all duration-200 group">
-                    <svg class="w-5 h-5 transform rotate-90 ml-0.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                    </svg>
-                </button>
+
+                <div class="flex items-end gap-2 sm:gap-3">
+                    <!-- File Upload Button -->
+                    <label id="fileUploadLabel"
+                           class="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#0f1117] hover:bg-gray-200 dark:hover:bg-white/10 rounded-2xl cursor-pointer transition-all border border-slate-200 dark:border-white/10 active:scale-95">
+                        <i class="fa-solid fa-paperclip text-[#4a9d7e] text-xl"></i>
+                        <input type="file" id="fileInput" class="hidden" accept="*/*">
+                    </label>
+
+                    <!-- Message Input -->
+                    <div class="flex-1 bg-gray-50 dark:bg-[#0f1117] rounded-2xl p-1.5 border border-slate-200 dark:border-white/10 focus-within:ring-2 focus-within:ring-[#4a9d7e]/20 focus-within:bg-white dark:focus-within:bg-[#1e293b] focus-within:border-[#4a9d7e] transition-all duration-300">
+                        <textarea id="messageInput" 
+                                  placeholder="Type your message here..." 
+                                  rows="1"
+                                  class="w-full bg-transparent border-0 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-0 text-sm resize-none scrollbar-none min-h-[44px] max-h-32 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                                  autocomplete="off"></textarea>
+                    </div>
+
+                    <!-- Send Button -->
+                    <button id="sendBtn"
+                            class="bg-[#4a9d7e] hover:bg-[#3d8a6d] active:scale-95 text-white w-[44px] h-[44px] flex-shrink-0 rounded-2xl shadow-lg shadow-[#4a9d7e]/20 flex items-center justify-center transition-all duration-200 group">
+                        <svg class="w-5 h-5 transform rotate-90 ml-0.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" 
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -90,11 +127,11 @@
 const currentUserId = {{ request.user.id }};
 const roomId = {{ room.id }};
 let chatSocket = null;
-let usePolling = false;
-let pollInterval = null;
 let lastMessageId = 0;
 let pendingMessageIds = new Set();
 let typingTimeout = null;
+let selectedFile = null;
+let totalMessageCount = 0;
 
 function getCookie(name) {
     let cookieValue = null;
@@ -129,289 +166,373 @@ function formatTime(timestamp) {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function appendMessage(msg) {
+function updateMessageCount() {
+    const el = document.getElementById('messageCount');
+    if (el) {
+        el.textContent = totalMessageCount + (totalMessageCount === 1 ? ' message' : ' messages');
+    }
+}
+
+function appendMessage(msg, isNew = true) {
     const container = document.getElementById('messagesContainer');
     const isMe = msg.sender_id === currentUserId;
 
-    if (msg.message_id && pendingMessageIds.has(msg.message_id)) {
-        // Update existing message if needed (e.g., read status)
-        const existing = document.querySelector(`[data-message-id="${msg.message_id}"]`);
-        if (existing && isMe && msg.is_read) {
-            const statusEl = existing.querySelector('.read-status');
-            if (statusEl) statusEl.innerHTML = 'Read';
-        }
-        return;
-    }
-    
     if (msg.message_id) {
+        if (document.querySelector(`[data-message-id="${msg.message_id}"]`)) return;
         lastMessageId = Math.max(lastMessageId, msg.message_id);
-        pendingMessageIds.add(msg.message_id);
     }
+
+    totalMessageCount++;
+    updateMessageCount();
 
     const msgDiv = document.createElement('div');
     msgDiv.className = `flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group`;
     msgDiv.setAttribute('data-message-id', msg.message_id || '');
-    
-    msgDiv.innerHTML = `
+    msgDiv.setAttribute('data-sender-id', msg.sender_id);
+
+    let html = `
         <div class="max-w-[85%] md:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}">
-            <div class="px-4 py-2.5 shadow-sm transition-all duration-200 ${
+            <div class="px-4 py-3 shadow-sm transition-all duration-200 ${
                 isMe
-                    ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-tr-none hover:shadow-md'
-                    : 'bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none hover:shadow-md'
+                    ? 'bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] text-white rounded-2xl rounded-tr-none'
+                    : 'bg-white dark:bg-[#1e293b] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-2xl rounded-tl-none'
             }">
-                ${!isMe ? `<p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">${escapeHtml(msg.sender_name)}</p>` : ''}
+                ${!isMe ? `<p class="text-[10px] font-bold uppercase tracking-wider text-[#4a9d7e] mb-1">${escapeHtml(msg.sender_name)}</p>` : ''}
                 <p class="text-[13px] leading-relaxed break-words whitespace-pre-wrap">${escapeHtml(msg.message)}</p>
+    `;
+
+    // Add attachments with download button
+    if (msg.attachments && msg.attachments.length > 0) {
+        html += `<div class="mt-2 space-y-2">`;
+        msg.attachments.forEach(att => {
+            if (att.file_type === 'image' && att.thumbnail_url) {
+                html += `
+                    <div class="relative group/img">
+                        <img src="${att.thumbnail_url}" class="max-w-[220px] rounded-xl cursor-pointer" onclick="window.open('${att.file_url}', '_blank')">
+                        <a href="/chat/api/download/${att.id}/" 
+                           class="absolute top-2 right-2 w-8 h-8 rounded-full ${isMe ? 'bg-black/30 hover:bg-black/50' : 'bg-white/80 hover:bg-white dark:bg-black/30 dark:hover:bg-black/50'} flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity shadow-md"
+                           title="Download">
+                            <i class="fa-solid fa-download text-xs ${isMe ? 'text-white' : 'text-slate-600 dark:text-white'}"></i>
+                        </a>
+                    </div>`;
+            } else {
+                html += `
+                    <div class="flex items-center gap-2 ${isMe ? 'bg-white/10' : 'bg-gray-100 dark:bg-black/20'} p-2.5 rounded-xl transition">
+                        <span class="text-xl flex-shrink-0">${att.file_icon}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium truncate max-w-[180px] text-sm">${att.filename}</p>
+                            <p class="text-xs opacity-70">${att.formatted_size}</p>
+                        </div>
+                        <a href="/chat/api/download/${att.id}/" 
+                           class="w-8 h-8 rounded-full ${isMe ? 'bg-white/15 hover:bg-white/25' : 'bg-[#4a9d7e]/10 hover:bg-[#4a9d7e]/20'} flex items-center justify-center flex-shrink-0 transition"
+                           title="Download ${att.filename}">
+                            <i class="fa-solid fa-download text-xs ${isMe ? 'text-white' : 'text-[#4a9d7e]'}"></i>
+                        </a>
+                    </div>`;
+            }
+        });
+        html += `</div>`;
+    }
+
+    html += `
                 <div class="flex items-center justify-end gap-1.5 mt-1.5 opacity-70">
                     <p class="text-[10px] font-medium">${formatTime(msg.timestamp)}</p>
-                    ${isMe ? `
-                        <span class="read-status text-[10px]">
-                            ${msg.is_read ? 
-                                '<svg class="w-3 h-3 text-indigo-200" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>' : 
-                                '<svg class="w-3 h-3 text-indigo-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>'
-                            }
-                        </span>
-                    ` : ''}
+                    ${isMe ? `<span class="read-status text-[10px]">${getReadIcon(msg.is_read)}</span>` : ''}
                 </div>
             </div>
         </div>
     `;
+
+    msgDiv.innerHTML = html;
     container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
+
+    // Auto scroll to bottom
+    if (isNew || container.scrollHeight - container.scrollTop < 300) {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
+function getReadIcon(isRead) {
+    return isRead ? 
+        `<svg class="w-3.5 h-3.5 text-white/80" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" transform="translate(-6, 0)"/></svg>` :
+        `<svg class="w-3.5 h-3.5 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>`;
+}
+
+// ==================== FILE UPLOAD ====================
+const fileInput = document.getElementById('fileInput');
+const filePreview = document.getElementById('filePreview');
+const previewFilename = document.getElementById('previewFilename');
+const previewSize = document.getElementById('previewSize');
+const previewIcon = document.getElementById('previewIcon');
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        selectedFile = e.target.files[0];
+        showFilePreview(selectedFile);
+    }
+});
+
+function showFilePreview(file) {
+    previewFilename.textContent = file.name;
+    previewSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    
+    const ext = file.name.split('.').pop().toLowerCase();
+    const icons = { jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', pdf:'📕', doc:'📝', docx:'📝', xlsx:'📊' };
+    previewIcon.innerHTML = icons[ext] || '📎';
+    
+    filePreview.classList.remove('hidden');
+}
+
+function removeFilePreview() {
+    selectedFile = null;
+    filePreview.classList.add('hidden');
+    fileInput.value = '';
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const messageText = input.value.trim();
+
+    if (!messageText && !selectedFile) return;
+
+    // === FILE UPLOAD (works via HTTP) ===
+    if (selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        if (messageText) formData.append('message', messageText);
+
+        try {
+            const res = await fetch(`/chat/api/upload/${roomId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errorText}`);
+            }
+
+            const data = await res.json();
+
+            if (data.success) {
+                appendMessage({
+                    message_id: data.message_id,
+                    message: messageText || '[File]',
+                    sender_id: currentUserId,
+                    sender_name: "{{ request.user.get_full_name|default:request.user.username }}",
+                    timestamp: new Date().toISOString(),
+                    is_read: false,
+                    attachments: [data.attachment]
+                }, true);
+
+                input.value = '';
+                removeFilePreview();
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            alert("Failed to upload file: " + err.message);
+        }
+        return;
+    }
+
+    // === TEXT MESSAGE: try WebSocket first, fallback to HTTP ===
+    if (messageText) {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({
+                type: 'message',
+                message: messageText
+            }));
+            input.value = '';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/chat/api/send/${roomId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ message: messageText })
+            });
+            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            if (data.success) {
+                appendMessage({
+                    message_id: data.message_data.message_id,
+                    message: messageText,
+                    sender_id: currentUserId,
+                    sender_name: "{{ request.user.get_full_name|default:request.user.username }}",
+                    timestamp: new Date().toISOString(),
+                    is_read: false,
+                    attachments: []
+                }, true);
+                input.value = '';
+            } else {
+                throw new Error('Server returned error');
+            }
+        } catch (err) {
+            console.error('HTTP send error:', err);
+            alert('Failed to send message. Please refresh the page.');
+        }
+    }
+}
+
+// ==================== WEB SOCKET & OTHER FUNCTIONS ====================
 function loadMessages() {
     fetch(`/chat/api/messages/${roomId}/`, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        method: 'GET',
+        headers: { 
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
     })
     .then(res => res.json())
     .then(data => {
         const loadingDiv = document.getElementById('loadingMessages');
         if (loadingDiv) loadingDiv.remove();
         
-        if (data.messages) {
+        const container = document.getElementById('messagesContainer');
+        container.innerHTML = '';
+        totalMessageCount = 0;
+
+        if (data.messages && data.messages.length > 0) {
             data.messages.forEach(msg => {
-                if (msg.message_id && msg.message_id > lastMessageId) {
-                    lastMessageId = msg.message_id;
-                }
-                appendMessage(msg);
+                appendMessage(msg, false);
+                if (msg.message_id) lastMessageId = Math.max(lastMessageId, msg.message_id);
             });
+            // Scroll to bottom after loading
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+        } else {
+            container.innerHTML = '<div class="flex justify-center py-12"><p class="text-slate-400 dark:text-slate-500 text-sm">No messages yet. Start the conversation!</p></div>';
         }
+        updateMessageCount();
+        markAllMessagesRead();
     })
-    .catch(err => {
-        console.error('Error loading messages:', err);
-        const loadingDiv = document.getElementById('loadingMessages');
-        if (loadingDiv) {
-            loadingDiv.innerHTML = '<p class="text-gray-500 text-sm">Could not load messages</p>';
-        }
-    });
+    .catch(err => console.error('Error loading messages:', err));
+}
+
+function markAllMessagesRead() {
+    fetch(`/chat/api/mark-read/${roomId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        if (!response.ok) console.error('Mark read failed:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) console.log('Messages marked as read');
+    })
+    .catch(err => console.error('Error marking messages read:', err));
 }
 
 function connectWebSocket() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/ws/chat/${roomId}/`;
 
-    try {
-        chatSocket = new WebSocket(wsUrl);
+    chatSocket = new WebSocket(wsUrl);
 
-        chatSocket.onopen = function() {
-            const statusEl = document.getElementById('connectionStatus');
-            const statusDot = document.getElementById('connectionStatusDot');
-            if (statusEl) statusEl.textContent = 'Online';
-            if (statusDot) {
-                statusDot.classList.remove('bg-gray-400', 'bg-red-500');
-                statusDot.classList.add('bg-green-500');
-            }
-        };
+    chatSocket.onopen = () => {
+        document.getElementById('connectionStatus').textContent = 'Online';
+        document.getElementById('connectionStatusDot').classList.add('bg-green-500');
+        markAllMessagesRead();
+    };
 
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            if (data.type === 'chat_message') {
-                appendMessage(data);
-            } else if (data.type === 'typing') {
-                showTypingIndicator(data.user_name, data.is_typing);
-            } else if (data.type === 'read_receipt') {
-                updateReadReceipts(data.message_ids);
-            }
-        };
+    chatSocket.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'chat_message') {
+            appendMessage(data, true);
+            if (data.sender_id !== currentUserId) markAllMessagesRead();
+        } else if (data.type === 'typing') {
+            showTypingIndicator(data.user_name, data.is_typing);
+        }
+    };
 
-        chatSocket.onclose = function() {
-            const statusEl = document.getElementById('connectionStatus');
-            const statusDot = document.getElementById('connectionStatusDot');
-            if (statusEl) statusEl.textContent = 'Reconnecting...';
-            if (statusDot) {
-                statusDot.classList.remove('bg-green-500');
-                statusDot.classList.add('bg-gray-400');
-            }
-            startPolling();
-        };
-
-        chatSocket.onerror = function() {
-            chatSocket.close();
-        };
-    } catch(e) {
-        startPolling();
-    }
+    chatSocket.onclose = () => {
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+        setTimeout(connectWebSocket, 3000);
+    };
 }
 
-function startPolling() {
-    if (usePolling) return;
-    usePolling = true;
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(() => {
-        fetch(`/chat/api/messages/${roomId}/?after=${lastMessageId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.messages && data.messages.length > 0) {
-                    data.messages.forEach(msg => {
-                        if (msg.message_id && !pendingMessageIds.has(msg.message_id)) {
-                            appendMessage(msg);
-                        }
-                    });
-                }
-            })
-            .catch(() => {});
-    }, 3000);
-}
+// Typing Indicator
+let typingTimer;
+const messageInput = document.getElementById('messageInput');
 
-function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const message = input.value.trim();
-    if (!message) return;
-
+messageInput.addEventListener('input', () => {
+    messageInput.style.height = 'auto';
+    messageInput.style.height = Math.min(messageInput.scrollHeight, 128) + 'px';
+    
     if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-        chatSocket.send(JSON.stringify({ message: message }));
-        input.value = '';
-        input.style.height = 'auto';
-    } else {
-        fetch(`/chat/api/send/${roomId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message: message })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                appendMessage(data.message_data);
-                input.value = '';
-                input.style.height = 'auto';
-            }
-        });
+        chatSocket.send(JSON.stringify({ type: 'typing', is_typing: true }));
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            chatSocket.send(JSON.stringify({ type: 'typing', is_typing: false }));
+        }, 1500);
     }
-}
-
-let typingTimeoutId;
-function sendTypingIndicator(isTyping) {
-    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-        chatSocket.send(JSON.stringify({
-            type: 'typing',
-            is_typing: isTyping
-        }));
-    }
-}
+});
 
 function showTypingIndicator(userName, isTyping) {
     const indicator = document.getElementById('typingIndicator');
     if (isTyping) {
         indicator.textContent = `${userName} is typing...`;
         indicator.classList.remove('hidden');
-        if (typingTimeout) clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            indicator.classList.add('hidden');
-        }, 3000);
     } else {
         indicator.classList.add('hidden');
     }
 }
 
-function updateReadReceipts(messageIds) {
-    // Update UI to show messages as read
-    messageIds.forEach(msgId => {
-        const msgElement = document.querySelector(`[data-message-id="${msgId}"]`);
-        if (msgElement) {
-            // Update read status indicator
-        }
-    });
-}
+// Event Listeners
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
 
-// Event listeners
-const sendBtn = document.getElementById('sendBtn');
-const messageInput = document.getElementById('messageInput');
-
-if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-if (messageInput) {
-    // Auto-resize textarea
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-        
-        sendTypingIndicator(true);
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => {
-            sendTypingIndicator(false);
-        }, 2000);
-    });
-
-    messageInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    let typingTimer;
-}
-
-// Initialize
-loadMessages();
-connectWebSocket();
-
-// Mark messages as read when page loads
-fetch(`/chat/api/mark-read/${roomId}/`, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': csrftoken }
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
 });
 
-// Group info button
-const groupInfoBtn = document.getElementById('groupInfoBtn');
-if (groupInfoBtn) {
-    groupInfoBtn.addEventListener('click', () => {
-        alert('Group info feature coming soon');
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadMessages();
+    connectWebSocket();
+    
+    const messagesContainer = document.getElementById('messagesContainer');
+    messagesContainer.addEventListener('scroll', () => {
+        if (messagesContainer.scrollTop + messagesContainer.clientHeight > messagesContainer.scrollHeight - 100) {
+            markAllMessagesRead();
+        }
     });
-}
+});
+
+// Custom Scrollbar Style
+const style = document.createElement('style');
+style.innerHTML = `
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .dark .custom-scroll::-webkit-scrollbar-track { background: #1f2937; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #4a9d7e; border-radius: 10px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #3d8a6d; }
+    .animate-fade-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+`;
+document.head.appendChild(style);
 </script>
 
-<style>
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in {
-    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-#messagesContainer::-webkit-scrollbar {
-    width: 5px;
-}
-#messagesContainer::-webkit-scrollbar-track {
-    background: transparent;
-}
-#messagesContainer::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 20px;
-}
-#messagesContainer::-webkit-scrollbar-thumb:hover {
-    background: #cbd5e1;
-}
-
-/* Hide scrollbar for textarea */
-#messageInput::-webkit-scrollbar {
-    display: none;
-}
-#messageInput {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-</style>
 {% endblock %}

@@ -1,3 +1,5 @@
+# urls.py
+
 from django.urls import path
 from . import views
 
@@ -13,4 +15,7 @@ urlpatterns = [
     path('api/mark-read/<int:room_id>/', views.mark_messages_read, name='mark_messages_read'),
     path('api/unread-count/', views.get_unread_counts, name='unread_counts'),
     path('api/users/', views.get_all_users, name='all_users'),
+    # File upload endpoints
+    path('api/upload/<int:room_id>/', views.upload_file, name='upload_file'),
+    path('api/download/<int:attachment_id>/', views.download_file, name='download_file'),
 ]

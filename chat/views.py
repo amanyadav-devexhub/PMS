@@ -4,11 +4,18 @@ from .models import ChatRoom, Message
 from users.decorators import jwt_or_session_required
 from django.http import JsonResponse
 from users.models import User
+from .models import MessageAttachment, ChatRoom
 from django.db.models import Q, Max
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 import json
+from PIL import Image
+from io import BytesIO
+from django.core.files.base import ContentFile
+from django.http import HttpResponse
+
+#  # Add this line
 
 @jwt_or_session_required
 def chat_rooms(request):
@@ -49,7 +56,7 @@ def chat_room(request, room_id):
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     # Mark all messages as read when entering room
-    unread_messages = Message.objects.filter(room=room, is_read=False).exclude(sender=request.user)
+    unread_messages = Message.objects.filter(room=room).exclude(sender=request.user).exclude(read_by=request.user)
     for msg in unread_messages:
         msg.mark_as_read(request.user)
     
@@ -120,21 +127,39 @@ def create_group_room(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
+# views.py - Update get_messages function
+  # Add this line
+
 @jwt_or_session_required
 def get_messages(request, room_id):
-    """Get messages for a room with pagination"""
+    """Get messages for a room with pagination including attachments"""
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     after_id = request.GET.get('after', 0)
     limit = int(request.GET.get('limit', 50))
     
     if after_id and after_id != '0':
-        messages = room.messages.filter(id__gt=after_id).select_related('sender')[:limit]
+        messages = room.messages.filter(id__gt=after_id).select_related('sender').prefetch_related('read_by', 'attachments')[:limit]
     else:
-        messages = room.messages.all().select_related('sender')[:limit]
+        messages = room.messages.all().select_related('sender').prefetch_related('read_by', 'attachments')[:limit]
     
     messages_data = []
     for msg in messages:
+        # Build attachments data
+        attachments_data = []
+        for att in msg.attachments.all():
+            attachments_data.append({
+                'id': att.id,
+                'filename': att.filename,
+                'file_size': att.file_size,
+                'formatted_size': att.formatted_size,
+                'file_type': att.file_type,
+                'file_icon': att.file_icon,
+                'file_url': att.file.url,
+                'thumbnail_url': att.thumbnail.url if att.thumbnail else None,
+                'mime_type': att.mime_type
+            })
+        
         messages_data.append({
             'message_id': msg.id,
             'message': msg.content,
@@ -142,10 +167,12 @@ def get_messages(request, room_id):
             'sender_name': msg.sender.get_full_name() or msg.sender.username,
             'timestamp': msg.timestamp.isoformat(),
             'is_read': msg.is_read,
-            'read_by': [user.id for user in msg.read_by.all()]
+            'read_by': [user.id for user in msg.read_by.all()],
+            'attachments': attachments_data  # Add this line
         })
     
     return JsonResponse({'messages': messages_data})
+
 
 @csrf_exempt
 @jwt_or_session_required
@@ -218,20 +245,23 @@ def search_users(request):
         })
     
     return JsonResponse({'users': users_data})
+#  # Add this line
 
+@csrf_exempt
 @jwt_or_session_required
 @require_http_methods(["POST"])
 def mark_messages_read(request, room_id):
     """Mark messages as read"""
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
-    messages = Message.objects.filter(room=room, is_read=False).exclude(sender=request.user)
+    messages = Message.objects.filter(room=room).exclude(sender=request.user).exclude(read_by=request.user)
     updated = 0
     for msg in messages:
         msg.mark_as_read(request.user)
         updated += 1
     
     return JsonResponse({'success': True, 'marked_count': updated})
+#  # Add this line
 
 @jwt_or_session_required
 def get_unread_counts(request):
@@ -251,6 +281,7 @@ def get_unread_counts(request):
         'unread_counts': unread_counts,
         'total_unread': total_unread
     })
+#  # Add this line
 
 @jwt_or_session_required
 def get_all_users(request):
@@ -267,3 +298,117 @@ def get_all_users(request):
         })
     
     return JsonResponse({'users': users_data})
+#  # Add this line
+
+@csrf_exempt 
+@jwt_or_session_required
+@require_http_methods(["POST"])
+def upload_file(request, room_id):
+    """Upload a file attachment for a message"""
+    room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
+    
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file provided'}, status=400)
+    
+    uploaded_file = request.FILES['file']
+    message_text = request.POST.get('message', '').strip()
+    
+    # Validate file size (max 25MB)
+    if uploaded_file.size > 25 * 1024 * 1024:
+        return JsonResponse({'error': 'File too large. Max 25MB'}, status=400)
+    
+    # Create message
+    message = Message.objects.create(
+        room=room,
+        sender=request.user,
+        content=message_text or ''
+    )
+    
+    # Determine file type
+    file_type = determine_file_type(uploaded_file.name, uploaded_file.content_type)
+    
+    # Create attachment
+    attachment = MessageAttachment.objects.create(
+        message=message,
+        filename=uploaded_file.name,
+        file_size=uploaded_file.size,
+        file_type=file_type,
+        mime_type=uploaded_file.content_type
+    )
+    
+    # Save the file
+    attachment.file.save(uploaded_file.name, uploaded_file)
+    
+    # Create thumbnail for images
+    if file_type == 'image':
+        try:
+            img = Image.open(uploaded_file)
+            img.thumbnail((200, 200))
+            thumb_io = BytesIO()
+            img.save(thumb_io, format='JPEG' if img.mode == 'RGB' else 'PNG')
+            attachment.thumbnail.save(f'thumb_{uploaded_file.name}', ContentFile(thumb_io.getvalue()))
+        except Exception:
+            pass
+    
+    attachment.save()
+    
+    return JsonResponse({
+        'success': True,
+        'message_id': message.id,
+        'attachment': {
+            'id': attachment.id,
+            'filename': attachment.filename,
+            'file_size': attachment.file_size,
+            'formatted_size': attachment.formatted_size,
+            'file_type': attachment.file_type,
+            'file_icon': attachment.file_icon,
+            'file_url': attachment.file.url,
+            'thumbnail_url': attachment.thumbnail.url if attachment.thumbnail else None
+        }
+    })
+
+#  # Add this line
+
+@jwt_or_session_required
+def download_file(request, attachment_id):
+    """Download a file attachment"""
+    attachment = get_object_or_404(MessageAttachment, id=attachment_id)
+    
+    # Check if user has access to this attachment (is participant in the room)
+    room = attachment.message.room
+    if request.user not in room.participants.all():
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    response = HttpResponse(attachment.file.read(), content_type=attachment.mime_type or 'application/octet-stream')
+    response['Content-Disposition'] = f'attachment; filename="{attachment.filename}"'
+    return response
+
+
+def determine_file_type(filename, mime_type):
+    """Determine file type based on extension and MIME type"""
+    ext = filename.lower().split('.')[-1] if '.' in filename else ''
+    
+    image_exts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg']
+    pdf_exts = ['pdf']
+    doc_exts = ['doc', 'docx', 'txt', 'rtf', 'odt']
+    spreadsheet_exts = ['xls', 'xlsx', 'csv', 'ods']
+    archive_exts = ['zip', 'rar', '7z', 'tar', 'gz']
+    video_exts = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm']
+    audio_exts = ['mp3', 'wav', 'ogg', 'm4a', 'flac']
+    
+    if ext in image_exts:
+        return 'image'
+    elif ext in pdf_exts:
+        return 'pdf'
+    elif ext in doc_exts:
+        return 'document'
+    elif ext in spreadsheet_exts:
+        return 'spreadsheet'
+    elif ext in archive_exts:
+        return 'archive'
+    elif ext in video_exts:
+        return 'video'
+    elif ext in audio_exts:
+        return 'audio'
+    else:
+        return 'other'

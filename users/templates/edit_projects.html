@@ -9,190 +9,182 @@
 <div class="max-w-4xl mx-auto">
 
     <!-- Back Button -->
-    <div class="mb-4">
+    <div class="mb-6">
         <button onclick="goBack()"
-                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 20 20">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
-            Back
+                class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+            Back to Projects
         </button>
     </div>
 
-    <!-- Card -->
-    <div class="bg-white shadow-lg rounded-lg p-8">
-
-        <h2 class="text-2xl font-semibold text-gray-700 mb-6">
-            Edit Project: {{ project.name }}
-        </h2>
-
-        <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p class="text-sm text-gray-600">
-                <span class="font-medium">Project ID:</span> {{ project.id }} | 
-                <span class="font-medium">Created by:</span> 
-                {% if project.created_by %}
-                    {{ project.created_by.get_full_name|default:project.created_by.username }}
-                {% else %}
-                    <span class="text-gray-400">Unknown</span>
-                {% endif %}
-            </p>
-        </div>
-
-        <!-- Add loading overlay -->
-        <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
-                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+    <!-- Main Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+        
+        <!-- Card Header -->
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-[#4a9d7e] text-sm"></i>
+                <h2 class="text-base font-semibold text-slate-800 dark:text-white">
+                    Edit Project: {{ project.name }}
+                </h2>
+            </div>
+            <div class="mt-1 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <span><span class="font-medium">Project ID:</span> {{ project.id }}</span>
+                <span><span class="font-medium">Created by:</span> 
+                    {% if project.created_by %}
+                        {{ project.created_by.get_full_name|default:project.created_by.username }}
+                    {% else %}
+                        Unknown
+                    {% endif %}
+                </span>
             </div>
         </div>
 
-        <!-- Add notification container -->
-        <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
+        <!-- Form Body -->
+        <div class="p-6">
+            <form method="POST" id="editProjectForm" data-redirect-url="{% url 'view_projects' %}">
+                {% csrf_token %}
 
-        <form method="POST" class="space-y-5" id="editProjectForm" data-redirect-url="{% url 'view_projects' %}">
-            {% csrf_token %}
+                <div class="space-y-5">
 
-            {{ form.non_field_errors }}
-
-            <!-- Project Name -->
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">
-                    Name <span class="text-red-500">*</span>
-                </label>
-                {{ form.name|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-            </div>
-
-            <!-- Description -->
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">
-                    Description <span class="text-red-500">*</span>
-                </label>
-                {{ form.description|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-            </div>
-
-            <!-- Assigned to (Multiple) - SEARCHABLE DROPDOWN -->
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">
-                    Assign Employees to Project
-                </label>
-                
-                <!-- Custom Select Dropdown -->
-                <div class="custom-select-wrapper" style="position: relative;">
-                    <!-- Selected Items Display -->
-                    <div id="selectedItemsDisplay" 
-                         class="border border-gray-300 rounded-lg px-3 py-2 min-h-[42px] cursor-pointer bg-white flex flex-wrap gap-1 items-center"
-                         style="cursor: pointer;">
-                        <span class="text-gray-400 text-sm" id="placeholderText">Select employees...</span>
+                    <!-- Project Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Project Name <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.name|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent text-sm text-slate-800 dark:text-slate-200 transition" }}
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
-                    
-                    <!-- Hidden Arrow -->
-                    <div class="absolute right-3 top-2.5 pointer-events-none">
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Description <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.description|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent text-sm text-slate-800 dark:text-slate-200 transition" }}
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
-                    
-                    <!-- Dropdown List -->
-                    <div id="customDropdown" 
-                         class="hidden absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg"
-                         style="display: none;">
+
+                    <!-- Assigned To - Searchable Multi-Select -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Assign Employees to Project
+                        </label>
                         
-                        <!-- Search Bar Inside Dropdown -->
-                        <div class="sticky top-0 bg-white p-2 border-b border-gray-200">
-                            <input type="text" 
-                                   id="employeeSearchInput" 
-                                   placeholder="🔍 Search employees..." 
-                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                        </div>
-                        
-                        <!-- Options List -->
-                        <div id="dropdownOptions" class="max-h-60 overflow-y-auto">
-                            {% for user in form.assigned_to.field.queryset %}
-                                <div class="dropdown-option flex items-center px-3 py-2 hover:bg-indigo-50 cursor-pointer"
-                                     data-value="{{ user.id }}"
-                                     data-label="{{ user.get_full_name|default:user.username }}"
-                                     data-email="{{ user.email }}">
-                                    <input type="checkbox" 
-                                           class="option-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mr-3"
-                                           value="{{ user.id }}"
-                                           id="option_{{ user.id }}"
-                                           {% if user in project.assigned_to.all %}checked{% endif %}>
-                                    <label for="option_{{ user.id }}" class="flex-1 text-sm text-gray-700 cursor-pointer">
-                                        <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
-                                        <span class="text-gray-400 text-xs block">{{ user.email }}</span>
-                                    </label>
+                        <!-- Custom Select Dropdown -->
+                        <div class="custom-select-wrapper relative">
+                            <!-- Selected Items Display -->
+                            <div id="selectedItemsDisplay" 
+                                 class="border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 min-h-[42px] cursor-pointer bg-white dark:bg-[#1e293b] flex flex-wrap gap-1.5 items-center">
+                                <span class="text-slate-400 dark:text-slate-500 text-sm" id="placeholderText">Select employees...</span>
+                            </div>
+                            
+                            <!-- Hidden Arrow -->
+                            <div class="absolute right-3 top-2.5 pointer-events-none">
+                                <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+                            </div>
+                            
+                            <!-- Dropdown List -->
+                            <div id="customDropdown" 
+                                 class="hidden absolute z-20 w-full mt-1 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-lg shadow-lg">
+                                
+                                <!-- Search Bar Inside Dropdown -->
+                                <div class="sticky top-0 bg-white dark:bg-[#1e293b] p-2 border-b border-slate-200 dark:border-white/10">
+                                    <div class="relative">
+                                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                        <input type="text" 
+                                               id="employeeSearchInput" 
+                                               placeholder="Search employees..." 
+                                               class="w-full border border-slate-300 dark:border-white/10 rounded-md pl-8 pr-3 py-1.5 text-sm bg-white dark:bg-[#0f1117] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#4a9d7e]">
+                                    </div>
                                 </div>
-                            {% empty %}
-                                <div class="text-center py-4 text-gray-500">
-                                    <p>No employees available.</p>
+                                
+                                <!-- Options List -->
+                                <div id="dropdownOptions" class="max-h-60 overflow-y-auto">
+                                    {% for user in form.assigned_to.field.queryset %}
+                                        <div class="dropdown-option flex items-center px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition"
+                                             data-value="{{ user.id }}"
+                                             data-label="{{ user.get_full_name|default:user.username }}"
+                                             data-email="{{ user.email }}">
+                                            <input type="checkbox" 
+                                                   class="option-checkbox rounded border-slate-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e] mr-3"
+                                                   value="{{ user.id }}"
+                                                   id="option_{{ user.id }}"
+                                                   {% if user in project.assigned_to.all %}checked{% endif %}>
+                                            <label for="option_{{ user.id }}" class="flex-1 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
+                                                <span class="text-slate-400 dark:text-slate-500 text-xs block">{{ user.email }}</span>
+                                            </label>
+                                        </div>
+                                    {% empty %}
+                                        <div class="text-center py-4 text-slate-500 dark:text-slate-400">
+                                            <i class="fa-regular fa-user text-sm mb-1"></i>
+                                            <p class="text-xs">No employees available.</p>
+                                        </div>
+                                    {% endfor %}
                                 </div>
-                            {% endfor %}
+                                
+                                <!-- Dropdown Footer -->
+                                <div class="sticky bottom-0 bg-slate-50 dark:bg-white/5 p-2 border-t border-slate-200 dark:border-white/10 flex justify-between rounded-b-lg">
+                                    <button type="button" id="selectAllOptions" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] font-medium">Select All</button>
+                                    <button type="button" id="clearAllOptions" class="text-xs text-red-500 hover:text-red-600 font-medium">Clear All</button>
+                                </div>
+                            </div>
                         </div>
                         
-                        <!-- Dropdown Footer -->
-                        <div class="sticky bottom-0 bg-gray-50 p-2 border-t border-gray-200 flex justify-between">
-                            <button type="button" id="selectAllOptions" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Select All</button>
-                            <button type="button" id="clearAllOptions" class="text-xs text-red-600 hover:text-red-800 font-medium">Clear All</button>
+                        <!-- Hidden container for form submission -->
+                        <div id="selectedValuesContainer"></div>
+                        
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        {{ form.assigned_to.errors }}
+                    </div>
+
+                    <!-- Start and End Date -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="start_date" id="start_date" 
+                                   value="{{ project.start_date|date:'Y-m-d' }}"
+                                   class="w-full px-4 py-2.5 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent text-sm text-slate-800 dark:text-slate-200 transition">
+                            <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                                End Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="end_date" id="end_date" 
+                                   value="{{ project.end_date|date:'Y-m-d' }}"
+                                   class="w-full px-4 py-2.5 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent text-sm text-slate-800 dark:text-slate-200 transition">
+                            <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Hidden container for form submission -->
-                <div id="selectedValuesContainer"></div>
-                
-                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                {{ form.assigned_to.errors }}
-            </div>
 
-            <!-- Start and End Date -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Start Date -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">
-                        Start date <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" name="start_date" id="start_date" 
-                           value="{{ project.start_date|date:'Y-m-d' }}"
-                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
-                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Status <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.status|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent text-sm text-slate-800 dark:text-slate-200 transition" }}
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    </div>
+
                 </div>
 
-                <!-- End Date -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">
-                        End date <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" name="end_date" id="end_date" 
-                           value="{{ project.end_date|date:'Y-m-d' }}"
-                           class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
-                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                <!-- Form Actions -->
+                <div class="flex items-center gap-4 pt-6 mt-6 border-t border-slate-200 dark:border-white/10">
+                    <button type="submit"
+                            class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-6 py-2.5 rounded-lg text-sm font-medium shadow-sm transition">
+                        Update Project
+                    </button>
+                    <a href="{% url 'view_projects' %}"
+                       class="bg-white dark:bg-transparent border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 px-6 py-2.5 rounded-lg text-sm font-medium transition">
+                        Cancel
+                    </a>
                 </div>
-            </div>
-
-            <!-- Status -->
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">
-                    Status <span class="text-red-500">*</span>
-                </label>
-                {{ form.status|add_class:"w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none" }}
-                <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-            </div>
-
-            <!-- Buttons -->
-            <div class="flex items-center gap-4 pt-6 mt-6 border-t border-gray-200">
-                <button type="submit"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow transition">
-                    Update Project
-                </button>
-
-                <a href="{% url 'view_projects' %}"
-                   class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded shadow transition">
-                    Cancel
-                </a>
-            </div>
-
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -210,7 +202,7 @@
         const selectedValuesContainer = document.getElementById('selectedValuesContainer');
         const placeholderText = document.getElementById('placeholderText');
         
-        let selectedValues = new Set(); // Store selected employee IDs
+        let selectedValues = new Set();
         
         // Initialize selected values from pre-checked checkboxes
         function initializeSelectedValues() {
@@ -220,38 +212,31 @@
             updateDisplay();
         }
         
-        // Function to update display
         function updateDisplay() {
-            // Clear display
             selectedDisplay.innerHTML = '';
             
             if (selectedValues.size === 0) {
-                // Show placeholder
                 const placeholder = document.createElement('span');
-                placeholder.className = 'text-gray-400 text-sm';
+                placeholder.className = 'text-slate-400 dark:text-slate-500 text-sm';
                 placeholder.innerText = 'Select employees...';
                 selectedDisplay.appendChild(placeholder);
             } else {
-                // Show selected items as badges
                 selectedValues.forEach(value => {
                     const option = document.querySelector(`.dropdown-option[data-value="${value}"]`);
                     if (option) {
                         const label = option.getAttribute('data-label');
                         const badge = document.createElement('span');
-                        badge.className = 'bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs flex items-center gap-1';
+                        badge.className = 'bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] dark:text-[#34d399] px-2 py-1 rounded-full text-xs flex items-center gap-1';
                         badge.innerHTML = `
-                            ${label}
-                            <button type="button" class="remove-badge ml-1 text-indigo-500 hover:text-indigo-700" data-value="${value}">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                                </svg>
+                            ${escapeHtml(label)}
+                            <button type="button" class="remove-badge ml-1 text-[#4a9d7e] dark:text-[#34d399] hover:text-[#3d8a6d]" data-value="${value}">
+                                <i class="fa-solid fa-xmark text-xs"></i>
                             </button>
                         `;
                         selectedDisplay.appendChild(badge);
                     }
                 });
                 
-                // Add hidden inputs for form submission
                 selectedValuesContainer.innerHTML = '';
                 selectedValues.forEach(value => {
                     const hiddenInput = document.createElement('input');
@@ -262,28 +247,22 @@
                 });
             }
             
-            // Attach remove badge listeners
             document.querySelectorAll('.remove-badge').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const value = this.getAttribute('data-value');
                     selectedValues.delete(value);
-                    
-                    // Uncheck checkbox
                     const checkbox = document.querySelector(`.option-checkbox[value="${value}"]`);
                     if (checkbox) checkbox.checked = false;
-                    
                     updateDisplay();
                 });
             });
         }
         
-        // Toggle dropdown
         function toggleDropdown(show) {
             if (show) {
                 customDropdown.style.display = 'block';
                 customDropdown.classList.remove('hidden');
-                // Focus search input when opening
                 if (searchInput) setTimeout(() => searchInput.focus(), 100);
             } else {
                 customDropdown.style.display = 'none';
@@ -291,7 +270,6 @@
             }
         }
         
-        // Handle checkbox change
         function handleCheckboxChange(checkbox, value) {
             if (checkbox.checked) {
                 selectedValues.add(value);
@@ -301,26 +279,18 @@
             updateDisplay();
         }
         
-        // Search filter
         if (searchInput) {
             searchInput.addEventListener('keyup', function() {
                 const searchTerm = this.value.toLowerCase();
                 const options = document.querySelectorAll('.dropdown-option');
-                
                 options.forEach(option => {
                     const label = option.getAttribute('data-label').toLowerCase();
                     const email = option.getAttribute('data-email').toLowerCase();
-                    
-                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                    }
+                    option.style.display = (label.includes(searchTerm) || email.includes(searchTerm)) ? '' : 'none';
                 });
             });
         }
         
-        // Select All
         const selectAllBtn = document.getElementById('selectAllOptions');
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', function() {
@@ -336,7 +306,6 @@
             });
         }
         
-        // Clear All
         const clearAllBtn = document.getElementById('clearAllOptions');
         if (clearAllBtn) {
             clearAllBtn.addEventListener('click', function() {
@@ -348,29 +317,24 @@
             });
         }
         
-        // Click on selected display to toggle dropdown
         if (selectedDisplay) {
             selectedDisplay.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const isOpen = customDropdown.style.display === 'block';
-                toggleDropdown(!isOpen);
+                toggleDropdown(customDropdown.style.display !== 'block');
             });
         }
         
-        // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
             if (!selectedDisplay?.contains(e.target) && !customDropdown?.contains(e.target)) {
                 toggleDropdown(false);
             }
         });
         
-        // Attach checkbox listeners
         function attachCheckboxListeners() {
             document.querySelectorAll('.option-checkbox').forEach(checkbox => {
                 checkbox.removeEventListener('change', checkbox._listener);
                 const listener = function(e) {
-                    const value = this.value;
-                    handleCheckboxChange(this, value);
+                    handleCheckboxChange(this, this.value);
                 };
                 checkbox.addEventListener('change', listener);
                 checkbox._listener = listener;
@@ -378,71 +342,50 @@
         }
         
         attachCheckboxListeners();
-        
-        // Initialize selected values from pre-checked checkboxes
         initializeSelectedValues();
-        
         // ==================== END SEARCHABLE DROPDOWN ====================
         
-        // Function to show notification
         function showNotification(message, type = 'success') {
+            if (!notificationContainer) return;
             const notification = document.createElement('div');
             notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
                 type === 'success' ? 'bg-green-500' : 'bg-red-500'
-            } text-white`;
+            } text-white toast-notification`;
             notification.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            ${type === 'success' ? 
-                                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
-                                '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
-                            }
-                        </svg>
-                        <span>${message}</span>
+                        <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-2"></i>
+                        <span>${escapeHtml(message)}</span>
                     </div>
                     <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                        </svg>
+                        <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
             `;
             notificationContainer.appendChild(notification);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                notification.remove();
-            }, 5000);
+            setTimeout(() => notification.remove(), 5000);
         }
         
-        // Function to clear all error messages
         function clearErrors() {
             document.querySelectorAll('.error-message').forEach(el => {
                 el.classList.add('hidden');
                 el.innerHTML = '';
             });
             document.querySelectorAll('input, select, textarea').forEach(el => {
-                el.classList.remove('border-red-500', 'bg-red-50');
+                el.classList.remove('border-red-500', 'bg-red-50', 'dark:border-red-500');
             });
         }
         
-        // Function to display errors
         function displayErrors(errors) {
             clearErrors();
-            
             for (const [field, errorList] of Object.entries(errors)) {
                 const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
-                
                 if (field === 'date_error') {
-                    // Handle date error
                     const startDate = document.getElementById('start_date');
                     const endDate = document.getElementById('end_date');
                     if (startDate && endDate) {
                         startDate.classList.add('border-red-500', 'bg-red-50');
                         endDate.classList.add('border-red-500', 'bg-red-50');
-                        
-                        // Add error message after end date
                         const errorDiv = endDate.parentElement.querySelector('.error-message');
                         if (errorDiv) {
                             errorDiv.innerHTML = errorMessage;
@@ -450,15 +393,11 @@
                         }
                     }
                 } else {
-                    // Handle form field errors
                     const fieldElement = form.querySelector(`[name="${field}"]`);
                     if (fieldElement) {
                         fieldElement.classList.add('border-red-500', 'bg-red-50');
-                        
-                        // Find the error container for this field
                         const parentDiv = fieldElement.closest('div');
                         const errorDiv = parentDiv ? parentDiv.querySelector('.error-message') : null;
-                        
                         if (errorDiv) {
                             errorDiv.innerHTML = errorMessage;
                             errorDiv.classList.remove('hidden');
@@ -468,16 +407,13 @@
             }
         }
         
-        // Date validation function
         function validateDates() {
             const startDate = document.getElementById('start_date');
             const endDate = document.getElementById('end_date');
-            
             if (startDate && endDate && startDate.value && endDate.value) {
                 if (startDate.value >= endDate.value) {
                     endDate.classList.add('border-red-500', 'bg-red-50');
                     startDate.classList.add('border-red-500', 'bg-red-50');
-                    
                     const endDateError = endDate.parentElement.querySelector('.error-message');
                     if (endDateError) {
                         endDateError.innerHTML = 'End date must be after start date';
@@ -487,7 +423,6 @@
                 } else {
                     endDate.classList.remove('border-red-500', 'bg-red-50');
                     startDate.classList.remove('border-red-500', 'bg-red-50');
-                    
                     const endDateError = endDate.parentElement.querySelector('.error-message');
                     if (endDateError) {
                         endDateError.classList.add('hidden');
@@ -498,42 +433,45 @@
             return true;
         }
         
-        // Add date validation listeners
         const startDate = document.getElementById('start_date');
         const endDate = document.getElementById('end_date');
-        
         if (startDate && endDate) {
             startDate.addEventListener('change', validateDates);
             endDate.addEventListener('change', validateDates);
         }
         
-        // Handle form submission with AJAX
+        function getCSRFToken() {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                        cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            // Clear previous errors
             clearErrors();
+            if (!validateDates()) return;
             
-            // Validate dates
-            if (!validateDates()) {
-                return;
-            }
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
             
-            // Show loading overlay
-            loadingOverlay.classList.remove('hidden');
-            
-            // Get form data
             const formData = new FormData(form);
             const redirectUrl = form.dataset.redirectUrl;
             formData.append('redirect_url', redirectUrl);
             
             try {
-                // Send AJAX request
                 const response = await fetch(window.location.href, {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': form.querySelector('[name="csrfmiddlewaretoken"]').value
+                        'X-CSRFToken': getCSRFToken()
                     },
                     body: formData
                 });
@@ -541,38 +479,38 @@
                 const data = await response.json();
                 
                 if (response.ok && data.success) {
-                    // Success!
                     showNotification(data.message, 'success');
-                    
-                    // Redirect after success
                     setTimeout(() => {
                         window.location.href = data.redirect_url;
                     }, 1500);
                 } else {
-                    // Error handling
-                    if (data.errors) {
-                        displayErrors(data.errors);
-                    }
+                    if (data.errors) displayErrors(data.errors);
                     showNotification(data.message || 'Error updating project. Please check the form for errors.', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
                 showNotification('An unexpected error occurred. Please try again.', 'error');
             } finally {
-                // Hide loading overlay
-                loadingOverlay.classList.add('hidden');
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
             }
         });
     });
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 </script>
 
 <style>
-    /* Loading overlay styles */
-    #loadingOverlay {
-        transition: all 0.3s ease;
+    .custom-select-wrapper {
+        position: relative;
     }
-    
-    /* Notification animation */
+    .toast-notification {
+        animation: slideIn 0.3s ease-out;
+    }
     @keyframes slideIn {
         from {
             transform: translateX(100%);
@@ -583,26 +521,11 @@
             opacity: 1;
         }
     }
-    
-    #notificationContainer > div {
-        animation: slideIn 0.3s ease-out;
-    }
-    
-    /* Form field transitions */
     input, select, textarea {
         transition: all 0.2s ease;
     }
-    
     input:focus, select:focus, textarea:focus {
         transform: translateY(-1px);
-    }
-    
-    .dropdown-option:hover {
-        background-color: #eef2ff;
-    }
-    
-    .custom-select-wrapper {
-        position: relative;
     }
 </style>
 

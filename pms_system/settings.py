@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -31,10 +31,15 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.admin',           # ← Add this (recommended)
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.sessions',        # ← Add this too
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    'channels',                       # ← MUST ADD THIS
+    
     'users.apps.UsersConfig',
     'projects',
     'Tasks',
@@ -45,16 +50,19 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
 ]
-
+ASGI_APPLICATION = 'pms_system.asgi.application'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',      # ← Must come early
     'django.middleware.common.CommonMiddleware',
-    'users.middleware.JWTAuthenticationMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',   # ← Required for admin + auth
+    'django.contrib.messages.middleware.MessageMiddleware',      # ← Recommended
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # Your custom middleware (keep at the end)
+    'users.middleware.JWTAuthenticationMiddleware',
 ]
-
 ROOT_URLCONF = 'pms_system.urls'
 
 TEMPLATES = [
@@ -64,22 +72,30 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
-                'django.contrib.messages.context_processors.messages',
+                'django.contrib.auth.context_processors.auth',        # ← Add this
+                'django.contrib.messages.context_processors.messages', # ← Add this
                 'users.context_processors.notification_count',
                 'users.context_processors.permission_flags',
             ],
         },
     },
 ]
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the CSRF cookie
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+CSRF_USE_SESSIONS = False  # Use cookie-based CSRF storage
+CSRF_COOKIE_NAME = 'csrftoken'  # Default name, but explicit is good
 
+# Ensure CSRF cookie is set even for AJAX requests
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_AGE = 31449600  # 1 year (default)
 WSGI_APPLICATION = 'pms_system.wsgi.application'
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],   # or Redis URL in production
-        },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',   # Use this for quick testing
+        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',  # Switch to Redis later
     },
 }
 
@@ -93,7 +109,8 @@ DATABASES = {
     }
 }
 
-
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

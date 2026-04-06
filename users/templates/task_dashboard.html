@@ -4,180 +4,166 @@
 {% block page_title %}My Tasks{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6 max-w-7xl">
+<div class="max-w-7xl mx-auto">
 
     <!-- Back Button -->
-    <div class="mb-4">
+    <div class="mb-6">
         <button onclick="goBack()"
-                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
+                class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
             Back
         </button>
     </div>
 
-    <!-- Simple Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+    <!-- Header -->
+    <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">My Tasks</h1>
-            <p class="text-gray-500 mt-1">Manage and track all your assigned tasks</p>
+            <h1 class="text-xl font-bold text-slate-800 dark:text-white">My Tasks</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage and track all your assigned tasks</p>
         </div>
-        <div class="flex items-center space-x-3 mt-4 md:mt-0">
-            <!-- Create Task Button -->
+        <div>
             {% if can_add_task %}
-            <a href="{% url 'assign_task' %}" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                <span>Create Task</span>
+            <a href="{% url 'assign_task' %}" 
+               class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
+                <i class="fa-solid fa-plus text-xs"></i>
+                Create Task
             </a>
             {% endif %}
         </div>
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-blue-500">
-            <div class="flex justify-between items-center">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4">
+            <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-500">Total Tasks</p>
-                    <h3 class="text-2xl font-bold text-gray-800">{{ total_tasks }}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Total Tasks</p>
+                    <p class="text-2xl font-bold text-slate-800 dark:text-white" id="statTotalTasks">{{ total_tasks }}</p>
                 </div>
-                <div class="bg-blue-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
+                <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <i class="fa-regular fa-clipboard text-blue-600 dark:text-blue-400 text-sm"></i>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-yellow-500">
-            <div class="flex justify-between items-center">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4">
+            <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-500">In Progress</p>
-                    <h3 class="text-2xl font-bold text-gray-800">{{ ongoing_count }}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">In Progress</p>
+                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400" id="statOngoingCount">{{ ongoing_count }}</p>
                 </div>
-                <div class="bg-yellow-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                <div class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <i class="fa-solid fa-play-circle text-amber-600 dark:text-amber-400 text-sm"></i>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-green-500">
-            <div class="flex justify-between items-center">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4">
+            <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-500">Completed</p>
-                    <h3 class="text-2xl font-bold text-gray-800">{{ completed_count }}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Completed</p>
+                    <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="statCompletedCount">{{ completed_count }}</p>
                 </div>
-                <div class="bg-green-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                    <i class="fa-solid fa-check-circle text-emerald-600 dark:text-emerald-400 text-sm"></i>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-red-500">
-            <div class="flex justify-between items-center">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4">
+            <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-500">Overdue</p>
-                    <h3 class="text-2xl font-bold text-red-600">{{ overdue_count }}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Overdue</p>
+                    <p class="text-2xl font-bold text-red-600 dark:text-red-400" id="statOverdueCount">{{ overdue_count }}</p>
                 </div>
-                <div class="bg-red-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                <div class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                    <i class="fa-solid fa-clock text-red-600 dark:text-red-400 text-sm"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Simple Search Bar (Client-side only) -->
-    <div class="mb-6">
+    <!-- Search Bar -->
+    <div class="mb-5">
         <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
             <input type="text" 
                    id="searchInput"
                    placeholder="Search tasks by name..." 
-                   class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none">
-            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
+                   class="w-full pl-8 pr-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent transition">
         </div>
     </div>
 
     <!-- Tasks Table -->
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full">
+                <thead class="bg-slate-50 dark:bg-white/5">
                     <tr>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deadline</th>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignees</th>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Task</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Time</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Deadline</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Assignees</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Project</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="taskTableBody">
+                <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="taskTableBody">
                     {% for task in tasks %}
-                    <tr class="hover:bg-gray-50 transition cursor-pointer {% if task.is_overdue %}bg-red-100 hover:bg-red-200 border-l-4 border-red-500{% endif %}" onclick="window.location='{% url 'employee_tasks' %}?task_id={{ task.id }}'">
-                        <td class="px-6 py-4">
-                            <div class="font-medium text-gray-900">{{ task.name }}</div>
-                            <div class="text-xs text-gray-500 mt-1">ID: {{ task.id }}</div>
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer {% if task.is_overdue %}bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500{% endif %}" 
+                        onclick="window.location='{% url 'employee_tasks' %}?task_id={{ task.id }}'">
+                        <td class="px-5 py-3">
+                            <div class="text-sm font-medium text-slate-800 dark:text-white">{{ task.name }}</div>
+                            <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: {{ task.id }}</div>
                         </td>
-                        <td class="px-6 py-4">
-                            <span class="px-3 py-1 text-xs rounded-full 
-                                {% if task.status == 'PENDING' %}bg-yellow-100 text-yellow-700
-                                {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700
-                                {% else %}bg-green-100 text-green-700{% endif %}">
+                        <td class="px-5 py-3">
+                            <span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full 
+                                {% if task.status == 'PENDING' %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+                                {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
+                                {% else %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400{% endif %}">
                                 {{ task.get_status_display }}
                             </span>
                         </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-mono {% if task.is_overdue %}text-red-700 font-bold{% endif %}">
+                        <td class="px-5 py-3">
+                            <div class="text-sm font-mono {% if task.is_overdue %}text-red-600 dark:text-red-400 font-bold{% endif %}">
                                 {{ task.time_spent_display }}
                                 {% if task.is_overdue %}
-                                    <span class="ml-1 text-xs bg-red-200 px-1.5 py-0.5 rounded-full">Overdue</span>
+                                    <span class="ml-1 text-[10px] bg-red-200 dark:bg-red-800 px-1.5 py-0.5 rounded-full">Overdue</span>
                                 {% endif %}
                             </div>
-                            <div class="text-xs text-gray-500">/ {{ task.estimated_display }}</div>
+                            <div class="text-[10px] text-slate-400 dark:text-slate-500">/ {{ task.estimated_display }}</div>
                         </td>
-                        <td class="px-6 py-4">
+                        <td class="px-5 py-3">
                             {% if task.deadline %}
-                                <div class="text-sm {% if task.deadline < now and task.status != 'COMPLETED' %}text-red-600 font-semibold{% endif %}">
+                                <div class="text-sm {% if task.deadline < now and task.status != 'COMPLETED' %}text-red-600 dark:text-red-400 font-semibold{% endif %}">
                                     {{ task.deadline|date:"M d, H:i" }}
                                 </div>
                             {% else %}
-                                <span class="text-sm text-gray-400">No deadline</span>
+                                <span class="text-sm text-slate-400 dark:text-slate-500 italic">No deadline</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4">
+                        <td class="px-5 py-3">
                             <div class="flex flex-wrap gap-1">
                                 {% for assignee in task.assigned_to.all|slice:":2" %}
-                                    <span class="text-sm bg-gray-100 px-2 py-1 rounded">{{ assignee.get_full_name|default:assignee.username }}</span>
+                                    <span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">{{ assignee.get_full_name|default:assignee.username }}</span>
                                 {% endfor %}
                                 {% if task.assigned_to.count > 2 %}
-                                    <span class="text-sm bg-gray-100 px-2 py-1 rounded">+{{ task.assigned_to.count|add:"-2" }}</span>
+                                    <span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+{{ task.assigned_to.count|add:"-2" }}</span>
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="px-6 py-4">
-                            <span class="text-sm bg-orange-100 text-orange-700 px-3 py-1 rounded-full">
+                        <td class="px-5 py-3">
+                            <span class="inline-flex items-center gap-1 text-xs bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] dark:text-[#34d399] px-2 py-0.5 rounded-full">
+                                <i class="fa-regular fa-folder text-[9px]"></i>
                                 {{ task.project.name|truncatechars:15 }}
                             </span>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                            </svg>
-                            <p class="text-lg">No tasks found</p>
+                        <td colspan="6" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
+                            <i class="fa-regular fa-clipboard text-3xl mb-2 block"></i>
+                            <p class="text-sm">No tasks found</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -187,71 +173,50 @@
     </div>
 
     <!-- Pagination Controls -->
-<div class="flex justify-between items-center mt-6">
-    <div class="text-sm text-gray-600" id="showingInfo">
-        Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> tasks
+    <div class="mt-6 flex flex-wrap justify-between items-center gap-4">
+        <div class="text-xs text-slate-500 dark:text-slate-400" id="showingInfo">
+            Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> tasks
+        </div>
+        
+        <div class="flex gap-2 items-center">
+            <select id="pageSizeSelect" class="border border-slate-300 dark:border-white/10 rounded-lg px-2 py-1 text-sm bg-white dark:bg-[#1e293b] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#4a9d7e]">
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+            
+            <button id="prevPageBtn" 
+                    class="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                Prev
+            </button>
+            
+            <span id="pageIndicator" class="text-xs text-slate-500 dark:text-slate-400 mx-2">
+                Page 1 of 1
+            </span>
+            
+            <button id="nextPageBtn" 
+                    class="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    disabled>
+                Next
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+        </div>
     </div>
-    
-    <div class="flex gap-2 items-center">
-        <!-- Page Size Selector -->
-        <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
-            <option value="10">10 per page</option>
-            <option value="25">25 per page</option>
-            <option value="50">50 per page</option>
-            <option value="100">100 per page</option>
-        </select>
-        
-        <!-- Pagination Buttons -->
-        <button id="prevPageBtn" 
-                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                disabled>
-            ← Prev
-        </button>
-        
-        <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
-            Page 1 of 1
-        </span>
-        
-        <button id="nextPageBtn" 
-                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                disabled>
-            Next →
-        </button>
-    </div>
+
 </div>
 
 <!-- AJAX Loader with Pagination -->
 <script>
-// Get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-// Pagination variables
 let currentPage = 1;
 let currentPageSize = 10;
 let currentSearchQuery = '';
 
-// Loading overlay
-const loadingOverlay = document.createElement('div');
-loadingOverlay.id = 'loadingOverlay';
-loadingOverlay.className = 'hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
-loadingOverlay.innerHTML = '<div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div></div>';
-document.body.appendChild(loadingOverlay);
-
 function loadTasks(page = 1, pageSize = 10) {
-    loadingOverlay.classList.remove('hidden');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
     
     const url = new URL(window.location.href);
     url.searchParams.set('page', page);
@@ -269,18 +234,18 @@ function loadTasks(page = 1, pageSize = 10) {
             currentPageSize = data.page_size;
             
             // Update stats
-            document.querySelector('.border-blue-500 h3').innerText = data.total_tasks;
-            document.querySelector('.border-yellow-500 h3').innerText = data.ongoing_count;
-            document.querySelector('.border-green-500 h3').innerText = data.completed_count;
-            document.querySelector('.border-red-500 h3').innerText = data.overdue_count;
+            const statTotal = document.getElementById('statTotalTasks');
+            const statOngoing = document.getElementById('statOngoingCount');
+            const statCompleted = document.getElementById('statCompletedCount');
+            const statOverdue = document.getElementById('statOverdueCount');
+            if (statTotal) statTotal.innerText = data.total_tasks;
+            if (statOngoing) statOngoing.innerText = data.ongoing_count;
+            if (statCompleted) statCompleted.innerText = data.completed_count;
+            if (statOverdue) statOverdue.innerText = data.overdue_count;
             
-            // Render tasks table
             renderTasksTable(data.tasks);
-            
-            // Update pagination UI
             updatePaginationUI(data);
             
-            // Update showing info
             const startIndex = (data.current_page - 1) * data.page_size + 1;
             const endIndex = Math.min(data.current_page * data.page_size, data.total_tasks);
             const showingInfo = document.getElementById('showingInfo');
@@ -288,11 +253,11 @@ function loadTasks(page = 1, pageSize = 10) {
                 showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total_tasks} tasks`;
             }
         }
-        loadingOverlay.classList.add('hidden');
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
     })
     .catch(error => {
         console.error('Error:', error);
-        loadingOverlay.classList.add('hidden');
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
     });
 }
 
@@ -302,11 +267,9 @@ function renderTasksTable(tasks) {
     if (!tasks || tasks.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                    <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                    <p class="text-lg">No tasks found</p>
+                <td colspan="6" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
+                    <i class="fa-regular fa-clipboard text-3xl mb-2 block"></i>
+                    <p class="text-sm">No tasks found</p>
                 </td>
             </tr>
         `;
@@ -315,49 +278,55 @@ function renderTasksTable(tasks) {
     
     let html = '';
     tasks.forEach(task => {
-        const statusClass = task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                           task.status === 'ONGOING' ? 'bg-blue-100 text-blue-700' :
-                           'bg-green-100 text-green-700';
+        let statusClass = '';
+        let statusBgClass = '';
+        if (task.status === 'PENDING') {
+            statusClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+        } else if (task.status === 'ONGOING') {
+            statusClass = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        } else {
+            statusClass = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+        }
         
-        const rowClass = task.is_overdue ? 'bg-red-100 hover:bg-red-200 border-l-4 border-red-500' : 'hover:bg-gray-50';
+        const rowClass = task.is_overdue ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' : 'hover:bg-slate-50 dark:hover:bg-white/5';
         
-        // Assignees HTML
         let assigneesHtml = '';
-        task.assignees.forEach(assignee => {
-            assigneesHtml += `<span class="text-sm bg-gray-100 px-2 py-1 rounded">${escapeHtml(assignee)}</span>`;
+        task.assignees.slice(0, 2).forEach(assignee => {
+            assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">${escapeHtml(assignee)}</span>`;
         });
         if (task.total_assignees > 2) {
-            assigneesHtml += `<span class="text-sm bg-gray-100 px-2 py-1 rounded">+${task.total_assignees - 2}</span>`;
+            assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+${task.total_assignees - 2}</span>`;
         }
         
         html += `
             <tr class="${rowClass} transition cursor-pointer" onclick="window.location='${task.view_url}'">
-                <td class="px-6 py-4">
-                    <div class="font-medium text-gray-900">${escapeHtml(task.name)}</div>
-                    <div class="text-xs text-gray-500 mt-1">ID: ${task.id}</div>
+                <td class="px-5 py-3">
+                    <div class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(task.name)}</div>
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: ${task.id}</div>
                 </td>
-                <td class="px-6 py-4">
-                    <span class="px-3 py-1 text-xs rounded-full ${statusClass}">
+                <td class="px-5 py-3">
+                    <span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusClass}">
                         ${escapeHtml(task.status_display)}
                     </span>
                 </td>
-                <td class="px-6 py-4">
-                    <div class="text-sm font-mono ${task.is_overdue ? 'text-red-700 font-bold' : ''}">
+                <td class="px-5 py-3">
+                    <div class="text-sm font-mono ${task.is_overdue ? 'text-red-600 dark:text-red-400 font-bold' : ''}">
                         ${escapeHtml(task.time_spent_display)}
-                        ${task.is_overdue ? '<span class="ml-1 text-xs bg-red-200 px-1.5 py-0.5 rounded-full">Overdue</span>' : ''}
+                        ${task.is_overdue ? '<span class="ml-1 text-[10px] bg-red-200 dark:bg-red-800 px-1.5 py-0.5 rounded-full">Overdue</span>' : ''}
                     </div>
-                    <div class="text-xs text-gray-500">/ ${escapeHtml(task.estimated_display)}</div>
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500">/ ${escapeHtml(task.estimated_display)}</div>
                 </td>
-                <td class="px-6 py-4">
-                    ${task.deadline ? `<div class="text-sm">${escapeHtml(task.deadline)}</div>` : '<span class="text-sm text-gray-400">No deadline</span>'}
+                <td class="px-5 py-3">
+                    ${task.deadline ? `<div class="text-sm">${escapeHtml(task.deadline)}</div>` : '<span class="text-sm text-slate-400 dark:text-slate-500 italic">No deadline</span>'}
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-5 py-3">
                     <div class="flex flex-wrap gap-1">
-                        ${assigneesHtml || '<span class="text-sm text-gray-400">No assignees</span>'}
+                        ${assigneesHtml || '<span class="text-xs text-slate-400">No assignees</span>'}
                     </div>
                 </td>
-                <td class="px-6 py-4">
-                    <span class="text-sm bg-orange-100 text-orange-700 px-3 py-1 rounded-full">
+                <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1 text-xs bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] dark:text-[#34d399] px-2 py-0.5 rounded-full">
+                        <i class="fa-regular fa-folder text-[9px]"></i>
                         ${escapeHtml(task.project_name)}
                     </span>
                 </td>
@@ -403,10 +372,8 @@ function escapeHtml(text) {
 document.addEventListener('DOMContentLoaded', function() {
     const pageSizeSelect = document.getElementById('pageSizeSelect');
     
-    // Load initial tasks
     loadTasks(1, 10);
     
-    // Page size change
     if (pageSizeSelect) {
         pageSizeSelect.addEventListener('change', function() {
             currentPageSize = parseInt(this.value);
@@ -415,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Keep the client-side search functionality
+// Client-side search functionality
 document.getElementById('searchInput')?.addEventListener('keyup', function() {
     let searchText = this.value.toLowerCase();
     let rows = document.querySelectorAll('#taskTableBody tr');
@@ -430,21 +397,5 @@ document.getElementById('searchInput')?.addEventListener('keyup', function() {
     });
 });
 </script>
-
-<style>
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-    
-    .animate-spin {
-        animation: spin 1s linear infinite;
-    }
-    
-    #loadingOverlay {
-        transition: all 0.3s ease;
-    }
-</style>
 
 {% endblock %}

@@ -1,18 +1,23 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Chats - WhatsApp Clone{% endblock %}
+{% block title %}Chats - ReadyTask Messenger{% endblock %}
 
-{% block main_class %}overflow-hidden flex flex-col h-full bg-gray-50{% endblock %}
+{% block page_title %}Chat Rooms{% endblock %}
+
+{% block content_wrapper_class %}flex flex-col w-full h-[calc(100vh-3rem)] overflow-hidden{% endblock %}
 
 {% block content %}
-<div class="flex h-full bg-gray-100 overflow-hidden">
+<div class="flex h-full bg-gray-100 dark:bg-[#0f1117] overflow-hidden rounded-xl">
     <!-- Sidebar - Chat List -->
-    <div class="w-80 md:w-96 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm">
+    <div class="w-80 md:w-96 bg-white dark:bg-[#111827] border-r border-slate-200 dark:border-white/10 flex flex-col h-full shadow-sm rounded-l-xl">
         <!-- Header -->
-        <div class="bg-indigo-600 px-6 py-5 shadow-md z-10">
+        <div class="bg-[#4a9d7e] px-6 py-5 shadow-md z-10 rounded-tl-xl">
             <div class="flex justify-between items-center">
-                <h1 class="text-xl font-bold text-white tracking-tight">Conversations</h1>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-xl font-bold text-white tracking-tight">Conversations</h1>
+                    <span class="bg-white/20 text-white text-xs font-bold rounded-full h-6 min-w-[1.5rem] px-2 flex items-center justify-center">{{ rooms|length }}</span>
+                </div>
                 <button id="newChatBtn" class="text-white hover:bg-white/20 p-2 rounded-full transition-all duration-200 focus:ring-2 focus:ring-white/50">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -22,62 +27,61 @@
         </div>
 
         <!-- Search Bar -->
-        <div class="p-4 border-b border-gray-100 bg-gray-50/50">
+        <div class="p-4 border-b border-slate-200 dark:border-white/10 bg-gray-50/50 dark:bg-[#0f1117]/50">
             <div class="relative">
-                <input type="text" id="searchChats" placeholder="Search message..."
-                       class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all shadow-sm text-sm">
-                <svg class="absolute left-3.5 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <input type="text" id="searchChats" placeholder="Search messages..."
+                       class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent transition-all shadow-sm text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400">
+                <svg class="absolute left-3.5 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
             </div>
         </div>
 
         <!-- Chat List -->
-        <div id="chatList" class="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+        <div id="chatList" class="flex-1 overflow-y-auto scrollbar-thin">
             {% for room in rooms %}
             <a href="{% url 'chat_room' room.id %}" 
-               class="chat-item block group hover:bg-indigo-50/50 transition-all duration-200 {% if forloop.first %}bg-indigo-50/30{% endif %}"
+               class="chat-item block group hover:bg-[#eef6f2] dark:hover:bg-white/5 transition-all duration-200 {% if forloop.first %}bg-[#eef6f2] dark:bg-white/5{% endif %}"
                data-room-id="{{ room.id }}"
                data-last-message-time="{{ room.last_message_time|date:'U' }}">
-                <div class="flex items-center px-5 py-4 border-b border-gray-50 group-last:border-0 relative overflow-hidden">
-                    <!-- Active Indicator (Subtle) -->
+                <div class="flex items-center px-5 py-4 border-b border-slate-100 dark:border-white/5 group-last:border-0 relative overflow-hidden">
                     {% if forloop.first %}
-                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#4a9d7e]"></div>
                     {% endif %}
 
-                    <!-- Avatar with Modern Gradient -->
+                    <!-- Avatar with Gradient -->
                     <div class="relative flex-shrink-0">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-lg shadow-inner transform group-hover:scale-105 transition-transform duration-200">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white font-bold text-lg shadow-inner transform group-hover:scale-105 transition-transform duration-200">
                             {{ room.avatar_initial }}
                         </div>
                         {% if not room.is_group %}
-                        <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
+                        <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-[#111827] shadow-sm"></div>
                         {% endif %}
                     </div>
                     
                     <!-- Chat Info -->
                     <div class="flex-1 ml-4 min-w-0">
                         <div class="flex justify-between items-baseline mb-0.5">
-                            <h3 class="font-bold text-gray-800 text-sm truncate group-hover:text-indigo-700 transition-colors">{{ room.display_name }}</h3>
-                            <span class="text-[10px] font-medium text-gray-400 whitespace-nowrap ml-2">
+                            <h3 class="font-bold text-slate-800 dark:text-white text-sm truncate group-hover:text-[#4a9d7e] transition-colors">{{ room.display_name }}</h3>
+                            <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap ml-2">
                                 {% if room.last_message_time %}
                                     {{ room.last_message_time|timesince }} ago
                                 {% endif %}
                             </span>
                         </div>
                         <div class="flex justify-between items-center">
-                            <p class="text-xs text-gray-500 truncate leading-relaxed">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate leading-relaxed">
                                 {% if room.last_message %}
                                     {% if room.last_message_sender and room.is_group %}
-                                        <span class="font-semibold text-indigo-600/70">{{ room.last_message_sender }}: </span>
+                                        <span class="font-semibold text-[#4a9d7e]/70">{{ room.last_message_sender }}: </span>
                                     {% endif %}
                                     {{ room.last_message|truncatechars:40 }}
                                 {% else %}
-                                    <span class="italic text-gray-400">No messages yet</span>
+                                    <span class="italic text-slate-400 dark:text-slate-500">No messages yet</span>
                                 {% endif %}
                             </p>
                             {% if room.unread_count > 0 %}
-                            <span class="bg-indigo-600 text-white text-[10px] font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center shadow-lg shadow-indigo-200">
+                            <span class="unread-badge bg-[#4a9d7e] text-white text-[10px] font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center shadow-lg shadow-[#4a9d7e]/20">
                                 {{ room.unread_count }}
                             </span>
                             {% endif %}
@@ -87,39 +91,39 @@
             </a>
             {% empty %}
             <div class="flex flex-col items-center justify-center h-full py-16 px-10 text-center">
-                <div class="bg-gray-100 p-6 rounded-3xl mb-4">
-                    <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-slate-100 dark:bg-white/5 p-6 rounded-3xl mb-4">
+                    <svg class="w-12 h-12 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                     </svg>
                 </div>
-                <h4 class="text-base font-bold text-gray-800">No conversations here</h4>
-                <p class="text-sm text-gray-400 mt-2 max-w-[200px]">Click the plus button above to start a new chat!</p>
+                <h4 class="text-base font-bold text-slate-800 dark:text-white">No conversations here</h4>
+                <p class="text-sm text-slate-400 dark:text-slate-500 mt-2 max-w-[200px]">Click the plus button above to start a new chat!</p>
             </div>
             {% endfor %}
         </div>
     </div>
 
     <!-- Main Content Area - Empty State -->
-    <div class="flex-1 flex flex-col items-center justify-center bg-gray-50/50 relative">
+    <div class="flex-1 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#0f1117]/50 relative">
         <!-- Abstract Background Pattern -->
-        <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"></div>
+        <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#4a9d7e 1px, transparent 1px); background-size: 24px 24px;"></div>
         
         <div class="text-center relative z-10 max-w-sm px-6">
-            <div class="w-24 h-24 mx-auto mb-6 bg-white rounded-[2rem] shadow-xl shadow-indigo-100 flex items-center justify-center transform rotate-3">
-                <svg class="w-12 h-12 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-24 h-24 mx-auto mb-6 bg-white dark:bg-[#1e293b] rounded-[2rem] shadow-xl shadow-[#4a9d7e]/10 flex items-center justify-center transform rotate-3">
+                <svg class="w-12 h-12 text-[#4a9d7e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                 </svg>
             </div>
-            <h3 class="text-2xl font-bold text-gray-800 mb-3">PMS Messenger</h3>
-            <p class="text-gray-500 text-sm leading-relaxed">Choose a conversation from the sidebar or start a new one to communicate with your team members easily.</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mb-3">PMS Messenger</h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">Choose a conversation from the sidebar or start a new one to communicate with your team members easily.</p>
         </div>
     </div>
 </div>
 
 <!-- New Chat Modal -->
-<div id="newChatModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div class="bg-indigo-600 px-6 py-4 rounded-t-xl">
+<div id="newChatModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center">
+    <div class="bg-white dark:bg-[#111827] rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div class="bg-[#4a9d7e] px-6 py-4 rounded-t-xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-lg font-bold text-white">New Chat</h3>
                 <button id="closeModal" class="text-white hover:text-gray-200">
@@ -131,32 +135,32 @@
         </div>
         
         <div class="p-4">
-            <div class="flex gap-2 mb-4">
-                <button id="newChatTab" class="flex-1 py-2 text-center font-medium text-indigo-600 border-b-2 border-indigo-600">New Chat</button>
-                <button id="newGroupTab" class="flex-1 py-2 text-center font-medium text-gray-500 hover:text-gray-700">New Group</button>
+            <div class="flex gap-2 mb-4 border-b border-slate-200 dark:border-white/10">
+                <button id="newChatTab" class="flex-1 py-2 text-center font-medium text-[#4a9d7e] border-b-2 border-[#4a9d7e]">New Chat</button>
+                <button id="newGroupTab" class="flex-1 py-2 text-center font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300">New Group</button>
             </div>
             
             <!-- New Chat Tab -->
             <div id="newChatPanel">
                 <input type="text" id="userSearchInput" placeholder="Search users..."
-                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                       class="w-full border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b] rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-[#4a9d7e] focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400">
                 <div id="userSearchResults" class="max-h-96 overflow-y-auto space-y-1">
-                    <p class="text-gray-400 text-sm text-center py-4">Type to search for users</p>
+                    <p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">Type to search for users</p>
                 </div>
             </div>
             
             <!-- New Group Tab -->
             <div id="newGroupPanel" class="hidden">
                 <input type="text" id="groupNameInput" placeholder="Group name"
-                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                       class="w-full border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b] rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-[#4a9d7e] focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400">
                 <textarea id="groupDescription" placeholder="Group description (optional)" rows="2"
-                          class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"></textarea>
+                          class="w-full border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b] rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-[#4a9d7e] focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"></textarea>
                 <input type="text" id="groupSearchInput" placeholder="Search users to add..."
-                       class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                       class="w-full border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b] rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-[#4a9d7e] focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400">
                 <div id="selectedParticipants" class="flex flex-wrap gap-2 mb-3"></div>
                 <div id="groupSearchResults" class="max-h-64 overflow-y-auto space-y-1"></div>
                 <button id="createGroupBtn" 
-                        class="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium transition">
+                        class="w-full mt-3 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white py-2 rounded-lg font-medium transition">
                     Create Group
                 </button>
             </div>
@@ -203,12 +207,14 @@ if (closeModal) {
     });
 }
 
-modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-        modal.classList.add('hidden');
-        resetModals();
-    }
-});
+if (modal) {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            resetModals();
+        }
+    });
+}
 
 function resetModals() {
     selectedParticipants = [];
@@ -217,7 +223,7 @@ function resetModals() {
     document.getElementById('groupNameInput').value = '';
     document.getElementById('groupDescription').value = '';
     document.getElementById('groupSearchInput').value = '';
-    document.getElementById('userSearchResults').innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Type to search for users</p>';
+    document.getElementById('userSearchResults').innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">Type to search for users</p>';
     document.getElementById('groupSearchResults').innerHTML = '';
 }
 
@@ -227,24 +233,26 @@ const newGroupTab = document.getElementById('newGroupTab');
 const newChatPanel = document.getElementById('newChatPanel');
 const newGroupPanel = document.getElementById('newGroupPanel');
 
-newChatTab.addEventListener('click', () => {
-    newChatTab.classList.add('text-indigo-600', 'border-indigo-600');
-    newChatTab.classList.remove('text-gray-500');
-    newGroupTab.classList.remove('text-indigo-600', 'border-indigo-600');
-    newGroupTab.classList.add('text-gray-500');
-    newChatPanel.classList.remove('hidden');
-    newGroupPanel.classList.add('hidden');
-});
+if (newChatTab && newGroupTab) {
+    newChatTab.addEventListener('click', () => {
+        newChatTab.classList.add('text-[#4a9d7e]', 'border-[#4a9d7e]');
+        newChatTab.classList.remove('text-slate-500');
+        newGroupTab.classList.remove('text-[#4a9d7e]', 'border-[#4a9d7e]');
+        newGroupTab.classList.add('text-slate-500', 'dark:text-slate-400');
+        newChatPanel.classList.remove('hidden');
+        newGroupPanel.classList.add('hidden');
+    });
 
-newGroupTab.addEventListener('click', () => {
-    newGroupTab.classList.add('text-indigo-600', 'border-indigo-600');
-    newGroupTab.classList.remove('text-gray-500');
-    newChatTab.classList.remove('text-indigo-600', 'border-indigo-600');
-    newChatTab.classList.add('text-gray-500');
-    newGroupPanel.classList.remove('hidden');
-    newChatPanel.classList.add('hidden');
-    loadAllUsers();
-});
+    newGroupTab.addEventListener('click', () => {
+        newGroupTab.classList.add('text-[#4a9d7e]', 'border-[#4a9d7e]');
+        newGroupTab.classList.remove('text-slate-500', 'dark:text-slate-400');
+        newChatTab.classList.remove('text-[#4a9d7e]', 'border-[#4a9d7e]');
+        newChatTab.classList.add('text-slate-500', 'dark:text-slate-400');
+        newGroupPanel.classList.remove('hidden');
+        newChatPanel.classList.add('hidden');
+        loadAllUsers();
+    });
+}
 
 // User search
 let searchTimeout;
@@ -255,7 +263,7 @@ if (userSearchInput) {
         const query = this.value.trim();
         if (query.length < 2) {
             document.getElementById('userSearchResults').innerHTML = 
-                '<p class="text-gray-400 text-sm text-center py-4">Type at least 2 characters to search</p>';
+                '<p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">Type at least 2 characters to search</p>';
             return;
         }
         searchTimeout = setTimeout(() => searchUsers(query), 300);
@@ -263,51 +271,61 @@ if (userSearchInput) {
 }
 
 function searchUsers(query) {
-    fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}`)
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('userSearchResults');
-            if (data.users && data.users.length > 0) {
-                container.innerHTML = data.users.map(user => `
-                    <button onclick="startChat(${user.id})"
-                            class="w-full text-left px-4 py-3 rounded-lg hover:bg-indigo-50 transition flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                            ${escapeHtml(user.avatar_initial)}
-                        </div>
-                        <div>
-                            <div class="font-medium text-gray-800">${escapeHtml(user.full_name)}</div>
-                            <div class="text-xs text-gray-500">${escapeHtml(user.role)}</div>
-                        </div>
-                    </button>
-                `).join('');
-            } else {
-                container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No users found</p>';
-            }
-        });
+    fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        const container = document.getElementById('userSearchResults');
+        if (data.users && data.users.length > 0) {
+            container.innerHTML = data.users.map(user => `
+                <button onclick="startChat(${user.id})"
+                        class="w-full text-left px-4 py-3 rounded-lg hover:bg-[#eef6f2] dark:hover:bg-white/5 transition flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white font-bold">
+                        ${escapeHtml(user.avatar_initial)}
+                    </div>
+                    <div>
+                        <div class="font-medium text-slate-800 dark:text-white">${escapeHtml(user.full_name)}</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(user.role)}</div>
+                    </div>
+                </button>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">No users found</p>';
+        }
+    })
+    .catch(err => console.error('Search error:', err));
 }
 
 function startChat(userId) {
     fetch(`/chat/api/create-direct/${userId}/`, {
         method: 'POST',
-        headers: { 'X-CSRFToken': csrftoken }
+        headers: { 
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
     })
     .then(res => res.json())
     .then(data => {
         if (data.room_id) {
             window.location.href = `/chat/room/${data.room_id}/`;
         }
-    });
+    })
+    .catch(err => console.error('Start chat error:', err));
 }
 
 // Group creation
 function loadAllUsers() {
-    fetch('/chat/api/users/')
-        .then(res => res.json())
-        .then(data => {
-            if (data.users) {
-                displayGroupSearchResults(data.users);
-            }
-        });
+    fetch('/chat/api/users/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.users) {
+            displayGroupSearchResults(data.users);
+        }
+    })
+    .catch(err => console.error('Load users error:', err));
 }
 
 const groupSearchInput = document.getElementById('groupSearchInput');
@@ -317,13 +335,16 @@ if (groupSearchInput) {
         if (query.length < 2) {
             loadAllUsers();
         } else {
-            fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}&exclude=${selectedParticipants.join(',')}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.users) {
-                        displayGroupSearchResults(data.users);
-                    }
-                });
+            fetch(`/chat/api/search-users/?q=${encodeURIComponent(query)}&exclude=${selectedParticipants.map(p => p.id).join(',')}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.users) {
+                    displayGroupSearchResults(data.users);
+                }
+            })
+            .catch(err => console.error('Group search error:', err));
         }
     });
 }
@@ -335,18 +356,18 @@ function displayGroupSearchResults(users) {
     if (filteredUsers.length > 0) {
         container.innerHTML = filteredUsers.map(user => `
             <button onclick="addParticipant(${user.id}, '${escapeHtml(user.full_name)}', '${escapeHtml(user.avatar_initial)}')"
-                    class="w-full text-left px-4 py-3 rounded-lg hover:bg-indigo-50 transition flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                    class="w-full text-left px-4 py-3 rounded-lg hover:bg-[#eef6f2] dark:hover:bg-white/5 transition flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white font-bold">
                     ${escapeHtml(user.avatar_initial)}
                 </div>
                 <div>
-                    <div class="font-medium text-gray-800">${escapeHtml(user.full_name)}</div>
-                    <div class="text-xs text-gray-500">${escapeHtml(user.role)}</div>
+                    <div class="font-medium text-slate-800 dark:text-white">${escapeHtml(user.full_name)}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(user.role)}</div>
                 </div>
             </button>
         `).join('');
     } else {
-        container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No users to add</p>';
+        container.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">No users to add</p>';
     }
 }
 
@@ -370,9 +391,9 @@ function updateSelectedParticipants() {
     const container = document.getElementById('selectedParticipants');
     if (selectedParticipants.length > 0) {
         container.innerHTML = selectedParticipants.map(p => `
-            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+            <span class="bg-[#eef6f2] dark:bg-white/10 text-[#4a9d7e] dark:text-[#4a9d7e] px-3 py-1 rounded-full text-sm flex items-center gap-2">
                 ${escapeHtml(p.name)}
-                <button onclick="removeParticipant(${p.id})" class="hover:text-indigo-600">
+                <button onclick="removeParticipant(${p.id})" class="hover:text-[#3d8a6d]">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -380,7 +401,7 @@ function updateSelectedParticipants() {
             </span>
         `).join('');
     } else {
-        container.innerHTML = '<p class="text-gray-400 text-sm">No participants selected</p>';
+        container.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm">No participants selected</p>';
     }
 }
 
@@ -404,7 +425,8 @@ if (createGroupBtn) {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 name: groupName,
@@ -419,7 +441,8 @@ if (createGroupBtn) {
             } else {
                 alert(data.error || 'Failed to create group');
             }
-        });
+        })
+        .catch(err => console.error('Create group error:', err));
     });
 }
 
@@ -431,40 +454,42 @@ function escapeHtml(text) {
 }
 
 // Real-time unread count updates
-let previousUnreadCounts = {};
-
 function updateUnreadCounts() {
-    fetch('/chat/api/unread-count/')
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                for (const [roomId, newCount] of Object.entries(data.unread_counts)) {
-                    const chatItem = document.querySelector(`.chat-item[data-room-id="${roomId}"]`);
-                    if (chatItem) {
-                        let badge = chatItem.querySelector('.unread-badge');
-                        const infoDiv = chatItem.querySelector('.flex.justify-between.items-center.mt-1');
-                        
-                        if (newCount > 0) {
-                            if (badge) {
-                                badge.textContent = newCount > 99 ? '99+' : newCount;
-                            } else if (infoDiv) {
-                                badge = document.createElement('span');
-                                badge.className = 'bg-indigo-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-2 unread-badge';
-                                badge.textContent = newCount > 99 ? '99+' : newCount;
-                                infoDiv.appendChild(badge);
-                            }
-                        } else if (badge) {
-                            badge.remove();
+    fetch('/chat/api/unread-count/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.unread_counts) {
+            for (const [roomId, newCount] of Object.entries(data.unread_counts)) {
+                const chatItem = document.querySelector(`.chat-item[data-room-id="${roomId}"]`);
+                if (chatItem) {
+                    let badge = chatItem.querySelector('.unread-badge');
+                    const infoDiv = chatItem.querySelector('.flex.justify-between.items-center');
+                    
+                    if (newCount > 0) {
+                        if (badge) {
+                            badge.textContent = newCount > 99 ? '99+' : newCount;
+                        } else if (infoDiv) {
+                            badge = document.createElement('span');
+                            badge.className = 'bg-[#4a9d7e] text-white text-[10px] font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center shadow-lg shadow-[#4a9d7e]/20 unread-badge ml-2';
+                            badge.textContent = newCount > 99 ? '99+' : newCount;
+                            infoDiv.appendChild(badge);
                         }
+                    } else if (badge) {
+                        badge.remove();
                     }
                 }
             }
-        });
+        }
+    })
+    .catch(err => console.error('Unread count error:', err));
 }
 
 // Sort chats by last message time
 function sortChats() {
     const chatList = document.getElementById('chatList');
+    if (!chatList) return;
     const items = Array.from(chatList.querySelectorAll('.chat-item'));
     
     items.sort((a, b) => {
@@ -476,11 +501,6 @@ function sortChats() {
     items.forEach(item => chatList.appendChild(item));
 }
 
-// Initialize
-sortChats();
-setInterval(updateUnreadCounts, 5000);
-updateUnreadCounts();
-
 // Search chats
 const searchChats = document.getElementById('searchChats');
 if (searchChats) {
@@ -489,14 +509,22 @@ if (searchChats) {
         const items = document.querySelectorAll('.chat-item');
         
         items.forEach(item => {
-            const name = item.querySelector('h3').textContent.toLowerCase();
-            if (name.includes(query)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
+            const nameEl = item.querySelector('h3');
+            if (nameEl) {
+                const name = nameEl.textContent.toLowerCase();
+                if (name.includes(query)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
             }
         });
     });
 }
+
+// Initialize
+sortChats();
+setInterval(updateUnreadCounts, 5000);
+updateUnreadCounts();
 </script>
 {% endblock %}

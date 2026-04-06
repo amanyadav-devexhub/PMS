@@ -3,168 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PMS | Professional Project Management System</title>
+    <title>ReadyTask PMS · Professional Project Management System</title>
+    <!-- Tailwind + Font Awesome + Alpine -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); scroll-behavior: smooth; }
-        .pms-card { background: white; border: 1px solid #E2E8F0; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); transition: all 0.3s ease; }
-        .pms-card:hover { transform: translateY(-4px); box-shadow: 0 25px 30px -5px rgba(249, 115, 22, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.02); border-color: #F97316; }
-        .pms-orange { background-color: #F97316; }
-        .pms-orange-text { color: #EA580C; }
-        .pms-gradient { background: linear-gradient(135deg, #F97316 0%, #FB923C 100%); }
-        .hero-pattern {
-            background-image: radial-gradient(circle at 1px 1px, #E2E8F0 1px, transparent 0);
-            background-size: 40px 40px;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        .pms-card {
+            background: white;
+            border: 1px solid #eef2f6;
+            border-radius: 1.25rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .pms-card:hover {
+            transform: translateY(-3px);
+            border-color: #4a9d7e;
+            box-shadow: 0 20px 25px -12px rgba(74, 157, 126, 0.12);
+        }
+        .ready-accent {
+            color: #4a9d7e;
+        }
+        .ready-bg {
+            background-color: #4a9d7e;
+        }
+        .ready-hover-bg:hover {
+            background-color: #3d8a6d;
+        }
+        .ready-gradient {
+            background: linear-gradient(135deg, #4a9d7e 0%, #6bb59a 100%);
+        }
+        .hero-pattern-white {
+            background-image: radial-gradient(circle at 1px 1px, #e9edf2 1px, transparent 0);
+            background-size: 32px 32px;
+        }
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #f0f2f5;
+        }
+        .stats-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.04);
+            border: 1px solid #f0f2f5;
+        }
+        .cta-gradient {
+            background: linear-gradient(125deg, #2c5f4a 0%, #4a9d7e 100%);
+        }
+        .feature-icon-bg {
+            background: #f5faf8;
+        }
+        .border-soft {
+            border-color: #edf2f7;
+        }
+        .text-secondary {
+            color: #5b6e8c;
         }
     </style>
 </head>
-<body class="antialiased text-slate-900">
+<body class="antialiased text-[#1a2c3e] bg-white">
 
-    <!-- Navigation -->
-    <nav class="sticky top-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex items-center justify-between">
+    <!-- Navigation (clean white theme, matches ReadyTask branding) -->
+    <nav class="sticky top-0 w-full z-50 glass-nav px-6 md:px-10 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
-            <div class="w-12 h-12 pms-gradient rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-200">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                </svg>
+            <div class="w-10 h-10 rounded-xl ready-bg flex items-center justify-center shadow-sm">
+                <i class="fa-solid fa-check-double text-white text-xl"></i>
             </div>
             <div>
-                <span class="text-2xl font-extrabold tracking-tight block leading-none">PMS</span>
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PROJECT MANAGEMENT SYSTEM</span>
+                <span class="text-xl font-extrabold tracking-tight block leading-tight text-[#1a2c3e]">ReadyTask</span>
+                <span class="text-[9px] font-bold text-[#8ba0bc] uppercase tracking-[0.2em]">PMS · ENTERPRISE</span>
             </div>
         </div>
-        <div class="flex items-center gap-4">
-            <a href="{% url 'login_page' %}" class="px-6 py-2.5 text-sm font-bold text-slate-600 hover:text-orange-600 transition">Log in</a>
+        <div class="flex items-center gap-5">
+            <a href="#" class="text-sm font-semibold text-[#4a627a] hover:text-[#4a9d7e] transition flex items-center gap-2"><i class="fa-regular fa-circle-question"></i> Support</a>
+            <a href="{% url 'login_page' %}" class="px-5 py-2.5 text-sm font-bold rounded-xl border border-[#e2e8f0] text-[#1a2c3e] hover:bg-[#4a9d7e] hover:text-white hover:border-[#4a9d7e] transition-all">
+                Log in
+            </a>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <header class="relative pt-20 pb-32 px-6 overflow-hidden">
-        <div class="hero-pattern absolute inset-0 opacity-30"></div>
-        <div class="absolute top-0 right-0 w-96 h-96 pms-gradient rounded-full filter blur-3xl opacity-20"></div>
-        <div class="absolute bottom-0 left-0 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl opacity-10"></div>
+    <!-- Hero Section (white theme, crisp) -->
+    <header class="relative pt-16 pb-28 px-6 overflow-hidden">
+        <div class="hero-pattern-white absolute inset-0 opacity-40"></div>
+        <div class="absolute top-0 right-0 w-96 h-96 ready-gradient rounded-full filter blur-3xl opacity-8"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400 rounded-full filter blur-3xl opacity-6"></div>
         
         <div class="relative max-w-7xl mx-auto text-center">
-            <div class="inline-block bg-orange-100 text-orange-700 px-6 py-2 rounded-full text-sm font-black uppercase tracking-widest mb-8 shadow-sm">
-                Enterprise Edition v2.0
+            <div class="inline-flex items-center gap-2 bg-emerald-50 text-[#4a9d7e] px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider mb-8 shadow-sm border border-emerald-100">
+                <i class="fa-solid fa-rocket text-xs"></i>
+                <span>ReadyTask Enterprise v3.0 · New AI insights</span>
             </div>
             
-            <h1 class="text-6xl md:text-7xl font-black text-slate-900 mb-8 leading-tight">
-                One System.
-                <span class="pms-gradient text-transparent bg-clip-text block mt-2">
-                    Every Project.
+            <h1 class="text-5xl md:text-7xl font-extrabold text-[#1a2c3e] mb-6 leading-tight tracking-tight">
+                Streamline work.
+                <span class="ready-accent bg-clip-text text-transparent bg-gradient-to-r from-[#4a9d7e] to-[#6bb59a] block mt-2">
+                    Ship faster.
                 </span>
             </h1>
             
-            <p class="text-xl text-slate-600 max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
-                A dedicated project management system built to streamline collaboration 
-                between Admins, Team Leads, and Employees.
+            <p class="text-lg md:text-xl text-[#5b6e8c] max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+                A dedicated project management system built for Admins, Team Leads, and Employees — 
+                unify tasks, track progress, and deliver results with confidence.
             </p>
             
-            <div class="flex gap-6 justify-center">
-                <a href="{% url 'login_page' %}" class="bg-white text-slate-900 px-10 py-5 rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all border border-slate-200">
-                    Sign In →
+            <div class="flex flex-wrap gap-5 justify-center">
+                <a href="{% url 'login_page' %}" class="ready-bg hover:bg-[#3d8a6d] text-white px-8 py-4 rounded-xl font-bold text-base shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in to Workspace
+                </a>
+                <a href="#features" class="bg-white text-[#1a2c3e] px-8 py-4 rounded-xl font-bold text-base shadow-sm hover:shadow-md transition-all border border-[#e2e8f0] inline-flex items-center gap-2">
+                    <i class="fa-regular fa-compass"></i> Explore features
                 </a>
             </div>
 
-            <!-- Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto mt-20">
-                <div class="pms-card p-6 text-center">
-                    <div class="text-3xl font-black text-orange-600 mb-2">10K+</div>
-                    <div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Active Projects</div>
+            <!-- Stats cards clean white -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mt-20">
+                <div class="stats-card p-6 text-center">
+                    <div class="text-3xl font-black text-[#4a9d7e] mb-1">15K+</div>
+                    <div class="text-xs font-bold text-[#8ba0bc] uppercase tracking-wider">Active projects</div>
+                    <div class="text-[11px] text-[#b9c3d4] mt-1">global teams</div>
                 </div>
-                <div class="pms-card p-6 text-center">
-                    <div class="text-3xl font-black text-orange-600 mb-2">50K+</div>
-                    <div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Team Members</div>
+                <div class="stats-card p-6 text-center">
+                    <div class="text-3xl font-black text-[#4a9d7e] mb-1">87K+</div>
+                    <div class="text-xs font-bold text-[#8ba0bc] uppercase tracking-wider">Team members</div>
+                    <div class="text-[11px] text-[#b9c3d4] mt-1">real-time sync</div>
                 </div>
-                <div class="pms-card p-6 text-center">
-                    <div class="text-3xl font-black text-orange-600 mb-2">99.9%</div>
-                    <div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Uptime SLA</div>
+                <div class="stats-card p-6 text-center">
+                    <div class="text-3xl font-black text-[#4a9d7e] mb-1">99.97%</div>
+                    <div class="text-xs font-bold text-[#8ba0bc] uppercase tracking-wider">Uptime SLA</div>
+                    <div class="text-[11px] text-[#b9c3d4] mt-1">enterprise grade</div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Features Grid -->
-    <section class="max-w-7xl mx-auto px-6 py-20">
+    <!-- Features Grid (pure white cards, light borders) -->
+    <section id="features" class="max-w-7xl mx-auto px-6 py-20">
         <div class="text-center mb-16">
-            <h2 class="text-4xl font-black mb-4">Everything you need to succeed</h2>
-            <p class="text-lg text-slate-500 max-w-2xl mx-auto font-medium">
-                Built for modern teams who demand clarity, speed, and results.
+            <div class="inline-flex items-center gap-2 bg-emerald-50 rounded-full px-4 py-1.5 text-[#4a9d7e] text-xs font-bold uppercase tracking-wider mb-4">
+                <i class="fa-regular fa-gem text-xs"></i> platform power
+            </div>
+            <h2 class="text-4xl md:text-5xl font-black mb-5 text-[#1a2c3e] tracking-tight">Everything you need to succeed</h2>
+            <p class="text-lg text-[#5b6e8c] max-w-2xl mx-auto font-medium">
+                Purpose-built for modern teams who demand clarity, speed, and total visibility.
             </p>
         </div>
 
         <div class="grid md:grid-cols-3 gap-8">
             <!-- Feature 1 -->
             <div class="pms-card p-8">
-                <div class="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center mb-6">
-                    <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                    </svg>
+                <div class="w-14 h-14 feature-icon-bg rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-shield-haltered text-[#4a9d7e] text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-extrabold mb-3">Enterprise Security</h3>
-                <p class="text-slate-500 font-medium">Bank-level encryption and role-based access control for your sensitive project data.</p>
+                <h3 class="text-xl font-extrabold mb-3 text-[#1a2c3e]">Enterprise-grade security</h3>
+                <p class="text-[#5b6e8c] font-medium leading-relaxed">Role-based access control, audit logs, and encryption at rest. Your project data stays protected.</p>
             </div>
 
             <!-- Feature 2 -->
             <div class="pms-card p-8">
-                <div class="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center mb-6">
-                    <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                <div class="w-14 h-14 feature-icon-bg rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fa-regular fa-clock text-[#4a9d7e] text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-extrabold mb-3">Real-time Sync</h3>
-                <p class="text-slate-500 font-medium">Live updates across all devices. Know exactly when tasks are started, paused, or completed.</p>
+                <h3 class="text-xl font-extrabold mb-3 text-[#1a2c3e]">Real-time collaboration</h3>
+                <p class="text-[#5b6e8c] font-medium leading-relaxed">Live task updates, instant notifications, and activity feeds — know who's doing what, right now.</p>
             </div>
 
             <!-- Feature 3 -->
             <div class="pms-card p-8">
-                <div class="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center mb-6">
-                    <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
+                <div class="w-14 h-14 feature-icon-bg rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-chart-line text-[#4a9d7e] text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-extrabold mb-3">Advanced Analytics</h3>
-                <p class="text-slate-500 font-medium">Track team performance, project velocity, and resource allocation with custom reports.</p>
+                <h3 class="text-xl font-extrabold mb-3 text-[#1a2c3e]">Advanced analytics</h3>
+                <p class="text-[#5b6e8c] font-medium leading-relaxed">Custom reports, velocity tracking, and resource allocation dashboards for data-driven decisions.</p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="pms-card p-8">
+                <div class="w-14 h-14 feature-icon-bg rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fa-regular fa-rectangle-list text-[#4a9d7e] text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-extrabold mb-3 text-[#1a2c3e]">Smart task workflows</h3>
+                <p class="text-[#5b6e8c] font-medium leading-relaxed">Custom statuses, dependencies, subtasks, and automations to reduce manual overhead.</p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div class="pms-card p-8">
+                <div class="w-14 h-14 feature-icon-bg rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-puzzle-piece text-[#4a9d7e] text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-extrabold mb-3 text-[#1a2c3e]">Seamless integrations</h3>
+                <p class="text-[#5b6e8c] font-medium leading-relaxed">Connect Slack, GitHub, Jira, and 50+ tools. Keep your ecosystem in perfect harmony.</p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div class="pms-card p-8">
+                <div class="w-14 h-14 feature-icon-bg rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-mobile-screen-button text-[#4a9d7e] text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-extrabold mb-3 text-[#1a2c3e]">Mobile-first experience</h3>
+                <p class="text-[#5b6e8c] font-medium leading-relaxed">Manage projects on the go with fully responsive UI and native mobile apps (iOS/Android).</p>
             </div>
         </div>
     </section>
 
-    <!-- CTA Section -->
-    <section class="max-w-7xl mx-auto px-6 pb-32">
-        <div class="pms-gradient rounded-3xl p-16 text-center text-white relative overflow-hidden">
-            <div class="absolute inset-0 bg-white opacity-5" style="background-image: url('data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+    <!-- Role-based highlights (clean white cards) -->
+    <section class="max-w-7xl mx-auto px-6 py-12">
+        <div class="bg-white rounded-3xl shadow-sm border border-[#edf2f7] overflow-hidden">
+            <div class="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#eef2f8]">
+                <div class="p-8 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-5">
+                        <i class="fa-solid fa-crown text-2xl text-[#4a9d7e]"></i>
+                    </div>
+                    <h3 class="text-xl font-black mb-2 text-[#1a2c3e]">Admin</h3>
+                    <p class="text-[#5b6e8c] text-sm">Full system control, analytics, user permissions, and portfolio oversight.</p>
+                </div>
+                <div class="p-8 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-5">
+                        <i class="fa-solid fa-users-viewfinder text-2xl text-[#4a9d7e]"></i>
+                    </div>
+                    <h3 class="text-xl font-black mb-2 text-[#1a2c3e]">Team Lead</h3>
+                    <p class="text-[#5b6e8c] text-sm">Manage sprints, assign tasks, track team velocity, and lead agile ceremonies.</p>
+                </div>
+                <div class="p-8 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-5">
+                        <i class="fa-solid fa-user-check text-2xl text-[#4a9d7e]"></i>
+                    </div>
+                    <h3 class="text-xl font-black mb-2 text-[#1a2c3e]">Employee</h3>
+                    <p class="text-[#5b6e8c] text-sm">Focus on tasks, update progress, log hours, and collaborate in real time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Integration / trust bar (soft) -->
+    <div class="max-w-7xl mx-auto px-6 py-12">
+        <div class="flex flex-wrap justify-center gap-8 items-center opacity-70">
+            <div class="flex items-center gap-2 text-[#8ba0bc] text-sm font-semibold uppercase tracking-wide">
+                <i class="fa-brands fa-slack"></i> Slack
+            </div>
+            <div class="flex items-center gap-2 text-[#8ba0bc] text-sm font-semibold uppercase tracking-wide">
+                <i class="fa-brands fa-github"></i> GitHub
+            </div>
+            <div class="flex items-center gap-2 text-[#8ba0bc] text-sm font-semibold uppercase tracking-wide">
+                <i class="fa-brands fa-figma"></i> Figma
+            </div>
+            <div class="flex items-center gap-2 text-[#8ba0bc] text-sm font-semibold uppercase tracking-wide">
+                <i class="fa-solid fa-cloud"></i> AWS
+            </div>
+            <div class="flex items-center gap-2 text-[#8ba0bc] text-sm font-semibold uppercase tracking-wide">
+                <i class="fa-brands fa-jira"></i> Jira
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section (green gradient but on white theme it stays vibrant) -->
+    <section class="max-w-7xl mx-auto px-6 pb-28 pt-8">
+        <div class="cta-gradient rounded-3xl p-12 md:p-16 text-center text-white relative overflow-hidden shadow-xl">
+            <div class="absolute inset-0 bg-white opacity-5" style="background-image: url('data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
             
-            <h2 class="text-4xl font-black mb-6 relative">Ready to transform your workflow?</h2>
-            <p class="text-xl text-white/90 mb-10 max-w-2xl mx-auto relative font-medium">
-                Join thousands of teams who have already streamlined their project management with PMS.
+            <h2 class="text-3xl md:text-4xl font-black mb-5 relative">Ready to transform your workflow?</h2>
+            <p class="text-lg text-white/90 mb-8 max-w-2xl mx-auto relative font-medium">
+                Join thousands of high-performing teams already streamlining project delivery with ReadyTask PMS.
             </p>
             
-            <div class="relative">
-                <a href="{% url 'login_page' %}" class="inline-block bg-white text-orange-600 px-12 py-5 rounded-2xl font-black text-lg shadow-2xl hover:shadow-3xl hover:-translate-y-1 transition-all">
-                    Sign In to Get Started →
+            <div class="relative flex flex-wrap justify-center gap-4">
+                <a href="{% url 'login_page' %}" class="inline-flex items-center gap-2 bg-white text-[#2c5f4a] px-8 py-4 rounded-xl font-extrabold text-base shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in to get started
+                </a>
+                <a href="#" class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-white/30 transition-all">
+                    <i class="fa-regular fa-calendar-check"></i> Request demo
                 </a>
             </div>
+            <p class="text-xs text-white/70 mt-8 relative">Free for teams up to 5 members • Enterprise plans available</p>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 pt-20 pb-10 px-8">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 pms-orange rounded-lg flex items-center justify-center text-white font-bold italic">P</div>
-                <span class="text-lg font-black tracking-tight uppercase">PMS<span class="pms-orange-text">.system</span></span>
+    <!-- Footer (clean white) -->
+    <footer class="bg-white border-t border-[#edf2f7] pt-16 pb-8 px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-1">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-8 h-8 rounded-lg ready-bg flex items-center justify-center">
+                            <i class="fa-solid fa-check-double text-white text-xs"></i>
+                        </div>
+                        <span class="text-lg font-black tracking-tight text-[#1a2c3e]">ReadyTask</span>
+                    </div>
+                    <p class="text-xs text-[#5b6e8c] leading-relaxed">The complete project management system for modern engineering & product teams.</p>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-[#8ba0bc] mb-4">Product</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Features</a></li>
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Enterprise</a></li>
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Security</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-[#8ba0bc] mb-4">Resources</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Documentation</a></li>
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">API Reference</a></li>
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-[#8ba0bc] mb-4">Company</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">About</a></li>
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Careers</a></li>
+                        <li><a href="#" class="text-[#4a627a] hover:text-[#4a9d7e]">Privacy</a></li>
+                    </ul>
+                </div>
             </div>
-            <div class="flex gap-8 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
-                <a href="#" class="hover:text-orange-500 transition">GitHub</a>
-                <a href="#" class="hover:text-orange-500 transition">Documentation</a>
-                <a href="#" class="hover:text-orange-500 transition">Privacy</a>
+            <div class="border-t border-[#edf2f7] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-xs font-medium text-[#8ba0bc] uppercase tracking-wider">&copy; 2026 ReadyTask PMS — All rights reserved.</p>
+                <div class="flex gap-6 text-[#8ba0bc] text-sm">
+                    <a href="#" class="hover:text-[#4a9d7e] transition"><i class="fa-brands fa-twitter"></i></a>
+                    <a href="#" class="hover:text-[#4a9d7e] transition"><i class="fa-brands fa-github"></i></a>
+                    <a href="#" class="hover:text-[#4a9d7e] transition"><i class="fa-brands fa-linkedin"></i></a>
+                </div>
             </div>
-            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">&copy; 2026 PMS Global Operations</p>
         </div>
     </footer>
-
 </body>
 </html>

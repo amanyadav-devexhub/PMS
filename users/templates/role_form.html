@@ -1,60 +1,171 @@
 {% extends "base.html" %}
-{% block title %}{{ title }}{% endblock %}
+
+{% block title %}{{ title }} | ReadyTask PMS{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        transition: all 0.2s ease;
+    }
+    .dark .form-container {
+        background-color: #111827;
+        border-color: #374151;
+    }
+    .dark input, .dark select, .dark textarea {
+        background-color: #1e293b;
+        border-color: #374151;
+        color: #e2e8f0;
+    }
+    .dark input:focus, .dark select:focus, .dark textarea:focus {
+        border-color: #4a9d7e;
+        ring-color: #4a9d7e;
+    }
+    .dark .bg-gray-50 {
+        background-color: #1e293b;
+    }
+    .dark .border-gray-200 {
+        border-color: #374151;
+    }
+    .dark .text-gray-700 {
+        color: #cbd5e1;
+    }
+    .dark .hover\:bg-gray-100:hover {
+        background-color: #334155;
+    }
+    .permission-item {
+        transition: all 0.2s ease;
+    }
+    .permission-item:hover {
+        border-color: #4a9d7e;
+    }
+    .dark .permission-item:hover {
+        border-color: #4a9d7e;
+        background-color: #334155;
+    }
+    .permission-checkbox {
+        accent-color: #4a9d7e;
+    }
+    .dark .permission-checkbox {
+        accent-color: #4a9d7e;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="mb-4">
-        <a href="{% url 'role_list' %}" class="text-indigo-600 hover:text-indigo-800 flex items-center gap-2 text-sm font-medium">
-             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-             Back to Roles
+<div class="max-w-4xl mx-auto">
+
+    <!-- Back Button -->
+    <div class="mb-5">
+        <a href="{% url 'role_list' %}" 
+           class="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] text-sm font-medium transition">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+            Back to Roles
         </a>
     </div>
 
-    <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
-        <div class="bg-indigo-600 px-6 py-4">
-            <h2 class="text-xl font-bold text-white">{{ title }}</h2>
+    <!-- Form Card -->
+    <div class="form-container bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-lg overflow-hidden">
+        <div class="bg-[#4a9d7e] px-6 py-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-shield-haltered text-white text-xl"></i>
+                <h2 class="text-xl font-semibold text-white">{{ title }}</h2>
+            </div>
         </div>
+        
         <form method="POST" class="p-6 space-y-6">
             {% csrf_token %}
             
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Role Name</label>
-                {{ form.name }}
+            <!-- Role Name Field -->
+            <div class="bg-slate-50 dark:bg-[#1e293b] p-5 rounded-lg border border-slate-200 dark:border-white/10">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Role Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}"
+                       class="w-full border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e] focus:border-[#4a9d7e] focus:outline-none transition bg-white dark:bg-[#1e293b] text-slate-800 dark:text-slate-200"
+                       placeholder="e.g., Project Manager, Team Lead, Developer">
                 {% if form.name.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.name.errors.0 }}</p>
+                <p class="text-red-500 text-xs mt-2 flex items-center gap-1">
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                    {{ form.name.errors.0 }}
+                </p>
                 {% endif %}
-                <p class="text-xs text-gray-400 mt-1">Enter a unique name for the role (e.g., "Project Manager")</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                    <i class="fa-regular fa-circle-info text-[10px] mr-1"></i>
+                    Enter a unique name for the role (e.g., "Project Manager")
+                </p>
             </div>
 
+            <!-- Permissions Section -->
             <div>
-                <div class="flex justify-between items-center mb-2">
-                    <label class="block text-sm font-semibold text-gray-700">Assign Permissions</label>
-                    <span class="text-xs text-gray-500">Pick from available system capabilities</span>
+                <div class="flex justify-between items-center mb-3">
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Assign Permissions
+                    </label>
+                    <span class="text-xs text-slate-400 dark:text-slate-500">Select capabilities for this role</span>
                 </div>
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 max-h-96 overflow-y-auto shadow-inner">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-                        {% for perm in form.permissions %}
-                        <div class="flex items-center space-x-3 hover:bg-gray-100 p-2 rounded-md transition border border-transparent hover:border-gray-200">
-                            {{ perm.tag }}
-                            <label for="{{ perm.id_for_label }}" class="text-xs text-gray-700 cursor-pointer flex-grow">
-                                {{ perm.choice_label }}
-                            </label>
+                
+                <div class="bg-slate-50 dark:bg-[#1e293b] rounded-lg p-4 border border-slate-200 dark:border-white/10 max-h-96 overflow-y-auto">
+                    {% if form.permissions.field.queryset %}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                            {% for perm in form.permissions.field.queryset %}
+                            <div class="permission-item flex items-center gap-3 p-2 rounded-md transition border border-transparent hover:border-slate-200 dark:hover:border-white/10">
+                                <input type="checkbox" name="permissions" value="{{ perm.id }}" id="id_permissions_{{ perm.id }}"
+                                       class="permission-checkbox w-4 h-4 rounded border-slate-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e] focus:ring-offset-0"
+                                       {% if perm in form.permissions.value %}checked{% endif %}>
+                                <label for="id_permissions_{{ perm.id }}" class="text-xs text-slate-700 dark:text-slate-300 cursor-pointer flex-1">
+                                    <span class="font-mono text-[11px] text-[#4a9d7e]">{{ perm.content_type.app_label }}</span>
+                                    <span class="mx-1">·</span>
+                                    <span>{{ perm.name|default:perm.codename }}</span>
+                                </label>
+                            </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
+                    {% else %}
+                        <p class="text-center text-slate-500 dark:text-slate-400 py-8 text-sm">
+                            <i class="fa-solid fa-key text-2xl mb-2 block"></i>
+                            No permissions available. Please create permissions first.
+                        </p>
+                    {% endif %}
                 </div>
                 {% if form.permissions.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.permissions.errors.0 }}</p>
+                <p class="text-red-500 text-xs mt-2">{{ form.permissions.errors.0 }}</p>
                 {% endif %}
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                    <i class="fa-regular fa-circle-info text-[10px] mr-1"></i>
+                    Users with this role will have all selected permissions
+                </p>
             </div>
 
-            <div class="pt-6 border-t border-gray-100 flex justify-end space-x-4">
-                <a href="{% url 'role_list' %}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">Cancel</a>
-                <button type="submit" class="px-10 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition transform active:scale-95">
+            <!-- Form Actions -->
+            <div class="pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end gap-3">
+                <a href="{% url 'role_list' %}" 
+                   class="px-6 py-2.5 border border-slate-300 dark:border-white/20 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1e293b] transition font-medium">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-8 py-2.5 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2">
+                    <i class="fa-solid {% if role %}fa-save{% else %}fa-plus-circle{% endif %} text-xs"></i>
                     {% if role %}Update Role{% else %}Create Role{% endif %}
                 </button>
             </div>
         </form>
     </div>
+
+    <!-- Help Card (for create mode) -->
+    {% if not role %}
+    <div class="mt-6 bg-slate-50 dark:bg-[#1e293b] rounded-lg p-4 border border-slate-200 dark:border-white/10">
+        <div class="flex items-start gap-3">
+            <i class="fa-solid fa-lightbulb text-amber-500 text-sm mt-0.5"></i>
+            <div>
+                <p class="text-xs text-slate-600 dark:text-slate-400">
+                    <span class="font-medium">Pro Tip:</span> Create roles based on job functions in your organization.
+                    Common roles include Admin, Project Manager, Team Lead, Developer, and Viewer.
+                    You can assign multiple roles to a user for combined permissions.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

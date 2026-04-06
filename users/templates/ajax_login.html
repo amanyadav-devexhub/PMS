@@ -1,342 +1,261 @@
+{% load static %}
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark:bg-[#0f1117]">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login | PMS</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login · ReadyTask PMS</title>
 
-<style>
-    * {
-        box-sizing: border-box;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    body {
-        height: 100vh;
-        margin: 0;
-        background: linear-gradient(135deg, #f4f6fb 0%, #e9eef5 100%);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { primary: '#4a9d7e', accent: '#4a9d7e' }
+                    },
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
 
-    .login-container {
-        width: 100%;
-        max-width: 400px;
-        background: #ffffff;
-        padding: 40px 32px;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-        transition: transform 0.3s ease;
-    }
-
-    .login-container:hover {
-        transform: translateY(-4px);
-    }
-
-    .login-container h2 {
-        margin: 0 0 8px;
-        text-align: center;
-        font-weight: 700;
-        font-size: 28px;
-        color: #1f2937;
-    }
-
-    .login-subtitle {
-        text-align: center;
-        color: #6b7280;
-        font-size: 14px;
-        margin-bottom: 32px;
-    }
-
-    .form-group {
-        margin-bottom: 24px;
-    }
-
-    label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 8px;
-        color: #374151;
-    }
-
-    input {
-        width: 100%;
-        padding: 12px 14px;
-        font-size: 14px;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        outline: none;
-        transition: all 0.2s ease;
-        background: #fafbfc;
-    }
-
-    input:focus {
-        border-color: #f97316;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-        background: #ffffff;
-    }
-
-    button {
-        width: 100%;
-        padding: 12px;
-        margin-top: 8px;
-        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        border: none;
-        border-radius: 12px;
-        font-size: 15px;
-        font-weight: 600;
-        color: #ffffff;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
-    }
-
-    button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(249, 115, 22, 0.3);
-    }
-
-    button:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .error-message {
-        margin-top: 16px;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 13px;
-        text-align: center;
-        display: none;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .error-message.show {
-        display: block;
-    }
-
-    .error-message.error {
-        background-color: #fee2e2;
-        color: #dc2626;
-        border-left: 4px solid #dc2626;
-    }
-
-    .error-message.success {
-        background-color: #d1fae5;
-        color: #059669;
-        border-left: 4px solid #059669;
-    }
-
-    .error-message.info {
-        background-color: #fef3c7;
-        color: #d97706;
-        border-left: 4px solid #d97706;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .spinner {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid #ffffff;
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
-        margin-right: 8px;
-        vertical-align: middle;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .forgot-password {
-        text-align: center;
-        margin-top: 24px;
-    }
-
-    .forgot-password a {
-        color: #f97316;
-        text-decoration: none;
-        font-size: 13px;
-        font-weight: 500;
-    }
-
-    .forgot-password a:hover {
-        text-decoration: underline;
-    }
-</style>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f6f7f9 0%, #e8ecef 100%);
+        }
+        .dark body {
+            background: linear-gradient(135deg, #0f1117 0%, #1a202c 100%);
+        }
+        .login-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .login-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+        }
+        .input-focus {
+            transition: all 0.2s ease;
+        }
+        .input-focus:focus {
+            border-color: #4a9d7e;
+            box-shadow: 0 0 0 3px rgba(74, 157, 126, 0.15);
+        }
+        .brand-logo {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+    </style>
 </head>
 
-<body>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-md">
+        <!-- Login Card -->
+        <div class="login-card bg-white dark:bg-[#111827] rounded-3xl shadow-xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            
+            <!-- Header -->
+            <div class="px-8 pt-10 pb-6 text-center border-b border-slate-100 dark:border-white/10">
+                <div class="flex justify-center mb-5">
+                    <div class="w-16 h-16 rounded-2xl bg-[#4a9d7e] flex items-center justify-center brand-logo">
+                        <i class="fa-solid fa-check-double text-white text-3xl"></i>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-semibold text-slate-800 dark:text-white tracking-tight">
+                    Welcome back
+                </h2>
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+                    Sign in to continue to ReadyTask PMS
+                </p>
+            </div>
 
-<div class="login-container">
-    <h2>Welcome back</h2>
-    <p class="login-subtitle">Sign in to your account</p>
+            <!-- Form -->
+            <div class="p-8">
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Email Address
+                        </label>
+                        <input type="email" 
+                               id="email" 
+                               autocomplete="email"
+                               placeholder="you@example.com"
+                               class="input-focus w-full px-4 py-3.5 bg-[#f8fafc] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none">
+                    </div>
 
-    <form id="loginForm">
-        <!-- {% csrf_token %} -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Password
+                        </label>
+                        <input type="password" 
+                               id="password" 
+                               autocomplete="current-password"
+                               placeholder="Enter your password"
+                               class="input-focus w-full px-4 py-3.5 bg-[#f8fafc] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none">
+                    </div>
 
-        <div class="form-group">
-            <label for="email">Email address</label>
-            <input type="email" id="email" autocomplete="email" placeholder="you@example.com">
+                    <button type="submit" 
+                            id="loginBtn"
+                            class="w-full bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white font-semibold py-4 rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 text-base shadow-sm">
+                        <span id="btnText">Sign In</span>
+                    </button>
+
+                    <div id="error" class="hidden px-4 py-3 rounded-2xl text-sm text-center"></div>
+                </form>
+
+                <div class="text-center mt-6">
+                    <a href="{% url 'reset_password' %}" 
+                       class="text-[#4a9d7e] hover:text-[#3d8a6d] text-sm font-medium transition">
+                        Forgot your password?
+                    </a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-8 py-6 border-t border-slate-100 dark:border-white/10 text-center">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Need access? Contact your administrator
+                </p>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" autocomplete="current-password" placeholder="Enter your password">
+        <!-- Version / Brand -->
+        <div class="text-center mt-6">
+            <p class="text-xs text-slate-400 dark:text-slate-500">ReadyTask PMS • Secure Login</p>
         </div>
-
-        <button type="submit" id="loginBtn">
-            <span id="btnText">Sign In</span>
-        </button>
-
-        <div id="error" class="error-message"></div>
-    </form>
-
-    <div class="forgot-password">
-        <a href="{% url 'reset_password' %}">Forgot password?</a>
     </div>
-</div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-<script>
-const form = document.getElementById("loginForm");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const errorDiv = document.getElementById("error");
-const loginBtn = document.getElementById("loginBtn");
-const btnText = document.getElementById("btnText");
+    <script>
+        const form = document.getElementById("loginForm");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const errorDiv = document.getElementById("error");
+        const loginBtn = document.getElementById("loginBtn");
+        const btnText = document.getElementById("btnText");
 
-function getCSRFToken() {
-    return document.cookie
-        .split("; ")
-        .find(row => row.startsWith("csrftoken="))
-        ?.split("=")[1];
-}
-
-// ========== NEW: Store JWT tokens ==========
-function storeTokens(accessToken, refreshToken, userData) {
-    // Clear any existing tokens
-    localStorage.clear();
-    
-    // Store new tokens
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
-    localStorage.setItem('user_role', userData.role);
-    localStorage.setItem('username', userData.username);
-    localStorage.setItem('user_id', userData.id);
-    localStorage.setItem('user_email', userData.email);
-    
-    console.log('✅ JWT tokens stored');
-    console.log(`👤 User: ${userData.username} (${userData.role})`);
-    console.log(`🔑 Token: ${accessToken.substring(0, 50)}...`);
-}
-
-function showLoading() {
-    loginBtn.disabled = true;
-    btnText.innerHTML = '<span class="loading-text"><span class="spinner"></span>Signing in...</span>';
-}
-
-function hideLoading() {
-    loginBtn.disabled = false;
-    btnText.innerHTML = 'Sign In';
-}
-
-function showMessage(message, type = "error") {
-    errorDiv.textContent = message;
-    errorDiv.className = `error-message show ${type}`;
-    
-    setTimeout(() => {
-        errorDiv.classList.remove("show");
-    }, 5000);
-}
-
-function clearMessage() {
-    errorDiv.classList.remove("show");
-}
-
-form.addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-
-    if (!email) {
-        showMessage("Email is required", "error");
-        emailInput.focus();
-        return;
-    }
-
-    if (!password) {
-        showMessage("Password is required", "error");
-        passwordInput.focus();
-        return;
-    }
-
-    const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        showMessage("Please enter a valid email address", "error");
-        emailInput.focus();
-        return;
-    }
-
-    clearMessage();
-    showLoading();
-
-    $.ajax({
-        url: "/ajax_login/",
-        method: "POST",
-        contentType: "application/json",
-        headers: {
-            "X-CSRFToken": getCSRFToken()
-        },
-        data: JSON.stringify({ email, password }),
-        success: function (data) {
-            hideLoading();
-
-            if (data.status === "success") {
-                storeTokens(data.access_token, data.refresh_token, data.user);
-                showMessage(`Welcome back, ${data.username}! Redirecting...`, "success");
-
-                setTimeout(() => {
-                    window.location.href = data.redirect_url || "/dashboard/";
-                }, 800);
-            } else {
-                showMessage(data.error || "Login failed", "error");
-            }
-        },
-        error: function (xhr) {
-            hideLoading();
-            const error = xhr.responseJSON?.error || "Server error. Please try again later.";
-            showMessage(error, "error");
+        function getCSRFToken() {
+            return document.cookie
+                .split("; ")
+                .find(row => row.startsWith("csrftoken="))
+                ?.split("=")[1];
         }
-    });
-});
 
-emailInput.addEventListener("input", clearMessage);
-passwordInput.addEventListener("input", clearMessage);
+        // Store JWT tokens (same as before)
+        function storeTokens(accessToken, refreshToken, userData) {
+            localStorage.clear();
+            localStorage.setItem('access_token', accessToken);
+            localStorage.setItem('refresh_token', refreshToken);
+            localStorage.setItem('user_role', userData.role || '');
+            localStorage.setItem('username', userData.username || '');
+            localStorage.setItem('user_id', userData.id || '');
+            localStorage.setItem('user_email', userData.email || '');
+            
+            console.log('✅ Tokens stored successfully');
+        }
 
-passwordInput.addEventListener("keypress", function(e) {
-    if (e.key === "Enter") {
-        form.dispatchEvent(new Event("submit"));
-    }
-});
+        function showLoading() {
+            loginBtn.disabled = true;
+            btnText.innerHTML = `
+                <span class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    Signing in...
+                </span>`;
+        }
 
-</script>
+        function hideLoading() {
+            loginBtn.disabled = false;
+            btnText.textContent = 'Sign In';
+        }
+
+        function showMessage(message, type = "error") {
+            errorDiv.textContent = message;
+            errorDiv.className = `block px-4 py-3 rounded-2xl text-sm text-center font-medium ${
+                type === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                type === "error" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : 
+                "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+            }`;
+            
+            setTimeout(() => {
+                errorDiv.classList.add("hidden");
+            }, 5000);
+        }
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!email) {
+                showMessage("Email is required", "error");
+                emailInput.focus();
+                return;
+            }
+
+            if (!password) {
+                showMessage("Password is required", "error");
+                passwordInput.focus();
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showMessage("Please enter a valid email address", "error");
+                emailInput.focus();
+                return;
+            }
+
+            showLoading();
+
+            $.ajax({
+                url: "/ajax_login/",
+                method: "POST",
+                contentType: "application/json",
+                headers: {
+                    "X-CSRFToken": getCSRFToken()
+                },
+                data: JSON.stringify({ email, password }),
+                success: function (data) {
+                    hideLoading();
+
+                    if (data.status === "success") {
+                        storeTokens(data.access_token, data.refresh_token, data.user);
+                        showMessage(`Welcome back, ${data.username || 'User'}!`, "success");
+
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url || "{% url 'dashboard' %}";
+                        }, 900);
+                    } else {
+                        showMessage(data.error || "Login failed. Please try again.", "error");
+                    }
+                },
+                error: function (xhr) {
+                    hideLoading();
+                    const errorMsg = xhr.responseJSON?.error || "Something went wrong. Please try again.";
+                    showMessage(errorMsg, "error");
+                }
+            });
+        });
+
+        // Clear error on input
+        emailInput.addEventListener("input", () => errorDiv.classList.add("hidden"));
+        passwordInput.addEventListener("input", () => errorDiv.classList.add("hidden"));
+
+        // Support Enter key on password field
+        passwordInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                form.dispatchEvent(new Event("submit"));
+            }
+        });
+    </script>
 </body>
 </html>

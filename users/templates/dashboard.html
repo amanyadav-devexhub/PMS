@@ -6,30 +6,34 @@
 {% block content %}
 
 <!-- Loading Overlay -->
-<div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+<div id="loadingOverlay" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-[#111827] rounded-xl p-6 shadow-xl flex items-center gap-3">
+        <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+        <span class="text-sm text-slate-600 dark:text-slate-300">Loading dashboard...</span>
     </div>
 </div>
 
-<div class="space-y-6" id="dashboardContent">
-    <!-- Content will be loaded via AJAX -->
+<div id="dashboardContent" class="space-y-6">
     <div class="flex justify-center items-center py-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
-        <span class="ml-3 text-gray-600">Loading dashboard...</span>
+        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+        <span class="ml-3 text-sm text-slate-500">Loading dashboard...</span>
     </div>
 </div>
 
 <script>
-// Loading overlay
 const loadingOverlay = document.getElementById('loadingOverlay');
+
+function getAccessToken() {
+    return localStorage.getItem('access_token');
+}
 
 function loadDashboard() {
     loadingOverlay.classList.remove('hidden');
     
     fetch(window.location.href, {
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Authorization': `Bearer ${getAccessToken()}`
         }
     })
     .then(response => response.json())
@@ -41,7 +45,12 @@ function loadDashboard() {
     })
     .catch(error => {
         console.error('Error:', error);
-        document.getElementById('dashboardContent').innerHTML = '<div class="text-center text-red-500 py-10">Error loading dashboard. Please refresh the page.</div>';
+        document.getElementById('dashboardContent').innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+                <i class="fa-solid fa-circle-exclamation text-red-500 text-2xl mb-2"></i>
+                <p class="text-red-600 dark:text-red-400">Error loading dashboard. Please refresh the page.</p>
+            </div>
+        `;
         loadingOverlay.classList.add('hidden');
     });
 }
@@ -49,90 +58,100 @@ function loadDashboard() {
 function renderDashboard(data) {
     const container = document.getElementById('dashboardContent');
     const userRole = data.role || 'User';
+    const userName = "{{ request.user.get_full_name|default:request.user.username }}";
     
-    // 1. Common Welcome Header
+    // Welcome Header
     let html = `
-        <div class="bg-gradient-to-r from-orange-600 to-blue-700 text-white p-8 rounded-2xl shadow-xl mb-8">
-            <div class="flex justify-between items-center">
+        <div class="bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] text-white p-6 md:p-8 rounded-2xl shadow-lg mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold mb-2">Welcome back, {{ request.user.username }}! 👋</h1>
-                    <p class="text-orange-100 text-lg">${userRole} Dashboard • Accessing authorized modules</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa-regular fa-hand-peace text-2xl"></i>
+                        <h1 class="text-xl md:text-2xl font-bold">Welcome back, ${escapeHtml(userName)}!</h1>
+                    </div>
+                    <p class="text-white/80 text-sm">${userRole} Dashboard • Manage your projects and tasks efficiently</p>
                 </div>
-                <div class="hidden md:block bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                    <p class="text-sm opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
+                <div class="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl">
+                    <p class="text-xs opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
                     <p class="text-xs opacity-75">{{ request.user.email }}</p>
                 </div>
             </div>
         </div>
     `;
 
-    // 2. Statistics Grid (5 cards now - including Chat)
-    html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">`;
+    // Statistics Grid
+    html += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">`;
     
     if (data.dashboard_variant === 'owner') {
         html += `
-            ${renderStatCard('Total Users', data.stats.total_users, 'orange', 'users')}
-            ${renderStatCard('Active Users', data.stats.active_users, 'green', 'user-check')}
-            ${renderStatCard('Total Projects', data.stats.total_projects, 'blue', 'folder')}
-            ${renderStatCard('Total Tasks', data.stats.total_tasks, 'purple', 'clipboard-list')}
+            ${renderStatCard('Total Users', data.stats.total_users, '#4a9d7e', 'users', 'fa-users')}
+            ${renderStatCard('Active Users', data.stats.active_users, '#60a5fa', 'user-check', 'fa-user-check')}
+            ${renderStatCard('Total Projects', data.stats.total_projects, '#f59e0b', 'folder', 'fa-folder')}
+            ${renderStatCard('Total Tasks', data.stats.total_tasks, '#8b5cf6', 'clipboard', 'fa-clipboard-list')}
             ${renderChatCard()}
         `;
     } else if (data.dashboard_variant === 'manager') {
         html += `
-            ${renderStatCard('My Projects', data.stats.total_projects, 'blue', 'folder')}
-            ${renderStatCard('Active Tasks', data.stats.active_tasks, 'yellow', 'clock')}
-            ${renderStatCard('Completed', data.stats.completed_tasks, 'green', 'check-circle')}
-            ${renderStatCard('Team Members', data.stats.team_members, 'purple', 'users')}
+            ${renderStatCard('My Projects', data.stats.total_projects, '#60a5fa', 'folder', 'fa-folder')}
+            ${renderStatCard('Active Tasks', data.stats.active_tasks, '#f59e0b', 'clock', 'fa-clock')}
+            ${renderStatCard('Completed', data.stats.completed_tasks, '#4a9d7e', 'check', 'fa-check-circle')}
+            ${renderStatCard('Team Members', data.stats.team_members, '#8b5cf6', 'users', 'fa-users')}
             ${renderChatCard()}
         `;
     } else {
         html += `
-            ${renderStatCard('Assigned Tasks', data.stats.tasks_count, 'blue', 'clipboard-list')}
-            ${renderStatCard('Ongoing', data.stats.ongoing_tasks, 'yellow', 'clock')}
-            ${renderStatCard('Completed', data.stats.completed_tasks, 'green', 'check-circle')}
-            ${renderStatCard('My Projects', data.stats.projects_count, 'purple', 'folder')}
+            ${renderStatCard('Assigned Tasks', data.stats.tasks_count, '#60a5fa', 'tasks', 'fa-clipboard-list')}
+            ${renderStatCard('Ongoing', data.stats.ongoing_tasks, '#f59e0b', 'play', 'fa-play-circle')}
+            ${renderStatCard('Completed', data.stats.completed_tasks, '#4a9d7e', 'check', 'fa-check-circle')}
+            ${renderStatCard('My Projects', data.stats.projects_count, '#8b5cf6', 'projects', 'fa-folder-open')}
             ${renderChatCard()}
         `;
     }
     html += `</div>`;
 
-    // 3. Main Content Sections
-    html += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">`;
+    // Main Content - 2 column layout
+    html += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">`;
 
-    // Admin: User Management List
+    // Left column (spans 2 columns on xl)
+    html += `<div class="xl:col-span-2 space-y-6">`;
+
+    // Admin: User Management
     if (data.dashboard_variant === 'owner' && data.users) {
         html += `
-            <div class="xl:col-span-3 bg-white rounded-xl shadow-lg overflow-hidden">
-                <div class="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
-                    <h3 class="text-lg font-bold text-gray-800">Member Management</h3>
-                    <a href="{% url 'admin_view_users' %}" class="text-orange-600 hover:text-orange-700 text-sm font-medium">View All →</a>
+            <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-users text-[#4a9d7e] text-sm"></i>
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Team Members</h3>
+                    </div>
+                    <a href="{% url 'admin_view_users' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] transition">View All →</a>
                 </div>
-                <div class="p-6 overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 dark:bg-white/5">
                             <tr>
-                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">User</th>
-                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">Email</th>
-                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">Role</th>
-                                <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3">Status</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">User</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">Email</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">Role</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody class="divide-y divide-slate-100 dark:divide-white/5">
                             ${data.users.map(user => `
-                                <tr>
-                                    <td class="py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold mr-3">${user.username[0].toUpperCase()}</div>
-                                            <span class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</span>
+                                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-7 h-7 rounded-full bg-[#eef6f2] text-[#4a9d7e] flex items-center justify-center text-xs font-bold">${user.username[0].toUpperCase()}</div>
+                                            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">${escapeHtml(user.username)}</span>
                                         </div>
                                     </td>
-                                    <td class="py-4 text-sm text-gray-500">${escapeHtml(user.email)}</td>
-                                    <td class="py-4 text-sm">
-                                        <span class="px-2 py-1 rounded-md text-xs font-medium ${getRoleBadgeClass(user.role_tier)}">${user.role}</span>
+                                    <td class="px-5 py-3 text-xs text-slate-500">${escapeHtml(user.email)}</td>
+                                    <td class="px-5 py-3">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-medium ${getRoleBadgeClass(user.role_tier)}">${user.role}</span>
                                     </td>
-                                    <td class="py-4">
-                                        <span class="flex items-center text-xs ${user.is_active ? 'text-green-600' : 'text-red-600'}">
-                                            <span class="w-2 h-2 rounded-full ${user.is_active ? 'bg-green-600' : 'bg-red-600'} mr-2"></span>
+                                    <td class="px-5 py-3">
+                                        <span class="flex items-center gap-1.5 text-xs ${user.is_active ? 'text-green-600' : 'text-red-500'}">
+                                            <span class="w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-red-500'}"></span>
                                             ${user.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
@@ -148,21 +167,26 @@ function renderDashboard(data) {
     // Manager: Recent Projects
     if (data.dashboard_variant === 'manager' && data.recent_projects) {
         html += `
-            <div class="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-6">Managed Projects</h3>
-                <div class="space-y-4">
+            <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-folder text-[#4a9d7e] text-sm"></i>
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Recent Projects</h3>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-white/5">
                     ${data.recent_projects.map(p => `
-                        <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                            <div class="flex items-center">
-                                <div class="p-3 bg-blue-100 rounded-lg mr-4">
-                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                        <div class="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                    <i class="fa-solid fa-folder-open text-blue-500 text-xs"></i>
                                 </div>
                                 <div>
-                                    <h4 class="font-bold text-gray-800">${escapeHtml(p.name)}</h4>
-                                    <p class="text-xs text-gray-500">Starts: ${p.start_date || 'N/A'} • Ends: ${p.end_date}</p>
+                                    <h4 class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(p.name)}</h4>
+                                    <p class="text-[10px] text-slate-400">Due: ${p.end_date || 'N/A'}</p>
                                 </div>
                             </div>
-                            <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wider">${p.status}</span>
+                            <span class="px-2 py-1 rounded-full text-[10px] font-medium ${getStatusBadgeClass(p.status)}">${p.status}</span>
                         </div>
                     `).join('')}
                 </div>
@@ -173,21 +197,26 @@ function renderDashboard(data) {
     // Contributor: Recent Tasks
     if (data.dashboard_variant === 'contributor' && data.recent_tasks) {
         html += `
-            <div class="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-6">Recent Task Assignments</h3>
-                <div class="space-y-4">
+            <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-[#4a9d7e] text-sm"></i>
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Recent Tasks</h3>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-white/5">
                     ${data.recent_tasks.map(t => `
-                        <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                            <div class="flex items-center">
-                                <div class="p-3 bg-indigo-100 rounded-lg mr-4">
-                                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                        <div class="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                    <i class="fa-solid fa-tasks text-purple-500 text-xs"></i>
                                 </div>
                                 <div>
-                                    <h4 class="font-bold text-gray-800">${escapeHtml(t.name)}</h4>
-                                    <p class="text-xs text-gray-500">${escapeHtml(t.project_name)} • Due: ${t.end_date}</p>
+                                    <h4 class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(t.name)}</h4>
+                                    <p class="text-[10px] text-slate-400">${escapeHtml(t.project_name)} • Due: ${t.end_date}</p>
                                 </div>
                             </div>
-                            <span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider">${t.status_display}</span>
+                            <span class="px-2 py-1 rounded-full text-[10px] font-medium ${getTaskStatusBadgeClass(t.status)}">${t.status_display}</span>
                         </div>
                     `).join('')}
                 </div>
@@ -195,110 +224,61 @@ function renderDashboard(data) {
         `;
     }
 
-    // Recent Chats Widget (visible to all users)
+    html += `</div>`; // Close left column
+
+    // Right column (Recent Chats)
     html += `
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800">💬 Recent Chats</h3>
-                <a href="{% url 'chat_rooms' %}" class="text-pink-600 hover:text-pink-700 text-sm font-medium">View All →</a>
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-regular fa-message text-[#4a9d7e] text-sm"></i>
+                    <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Recent Chats</h3>
+                </div>
+                <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] transition">View All →</a>
             </div>
-            <div id="recentChatsContainer">
+            <div id="recentChatsContainer" class="p-4">
                 <div class="flex justify-center py-4">
-                    <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-pink-600"></div>
-                    <span class="ml-2 text-gray-500 text-sm">Loading chats...</span>
+                    <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+                    <span class="ml-2 text-xs text-slate-400">Loading chats...</span>
                 </div>
             </div>
         </div>
     `;
 
-    // Common Sidebar Section (Quick Actions)
-    /*html += `
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-6">Quick Actions</h3>
-            <div class="grid grid-cols-1 gap-3">
-                ${data.permissions.can_manage_users ? `
-                    <a href="{% url 'create_user' %}" class="flex items-center p-3 text-sm font-medium text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition">
-                        <span class="mr-3">➕</span> Add New Member
-                    </a>
-                ` : ''}
-                ${data.permissions.can_manage_roles ? `
-                    <a href="{% url 'role_list' %}" class="flex items-center p-3 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
-                        <span class="mr-3">🛡️</span> Manage Roles
-                    </a>
-                ` : ''}
-                ${data.permissions.can_manage_users ? ` 
-                    <a href="{% url 'permission_list' %}" class="flex items-center p-3 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition">
-                        <span class="mr-3">🔑</span> Manage Permissions
-                    </a>
-                ` : ''}
-                ${data.permissions.can_manage_projects ? `
-                    <a href="{% url 'create_project' %}" class="flex items-center p-3 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
-                        <span class="mr-3">🏗️</span> Create Project
-                    </a>
-                ` : ''}
-                ${data.permissions.can_add_task ? `
-                    <a href="{% url 'assign_task' %}" class="flex items-center p-3 text-sm font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
-                        <span class="mr-3">📝</span> Assign New Task
-                    </a>
-                ` : ''}
-                <a href="{% url 'task_dashboard' %}" class="flex items-center p-3 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <span class="mr-3">📅</span> View My Tasks
-                </a>
-                <a href="{% url 'chat_rooms' %}" class="flex items-center p-3 text-sm font-medium text-pink-700 bg-pink-50 rounded-lg hover:bg-pink-100 transition">
-                    <span class="mr-3">💬</span> Open Chat
-                </a>
-            </div>
-        </div>
-    `;*/
-
-    html += `</div>`; // End main content grid
+    html += `</div>`; // Close grid
     container.innerHTML = html;
     
-    // Load recent chats after rendering
     loadRecentChats();
 }
 
-function renderStatCard(title, value, color, icon) {
-    const colors = {
-        orange: 'border-orange-500 bg-orange-50 text-orange-600',
-        blue: 'border-blue-500 bg-blue-50 text-blue-600',
-        green: 'border-green-500 bg-green-50 text-green-600',
-        purple: 'border-purple-500 bg-purple-50 text-purple-600',
-        yellow: 'border-yellow-500 bg-yellow-50 text-yellow-600',
-    };
-    
+function renderStatCard(title, value, color, key, icon) {
     return `
-        <div class="bg-white rounded-xl shadow p-6 border-l-4 ${colors[color].split(' ')[0]}">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">${title}</p>
-                    <h3 class="text-2xl font-black text-gray-800">${value}</h3>
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="w-8 h-8 rounded-lg" style="background: ${color}15;">
+                    <i class="fa-solid ${icon} text-sm flex items-center justify-center h-full" style="color: ${color};"></i>
                 </div>
-                <div class="p-3 rounded-xl ${colors[color].split(' ').slice(1).join(' ')}">
-                    <span class="text-xl font-bold">#</span>
-                </div>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider">${key}</span>
             </div>
+            <div class="text-2xl font-bold text-slate-800 dark:text-white">${value}</div>
+            <div class="text-[11px] text-slate-400 mt-1">${title}</div>
         </div>
     `;
 }
 
 function renderChatCard() {
     return `
-        <div class="bg-white rounded-xl shadow p-6 border-l-4 border-pink-500">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Messages</p>
-                    <h3 class="text-2xl font-black text-gray-800" id="statUnreadCount">0</h3>
-                    <p class="text-xs text-gray-400 mt-1">unread messages</p>
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="w-8 h-8 rounded-lg bg-[#4a9d7e]15">
+                    <i class="fa-regular fa-message text-sm flex items-center justify-center h-full text-[#4a9d7e]"></i>
                 </div>
-                <div class="p-3 rounded-xl bg-pink-50 text-pink-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                </div>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider">chat</span>
             </div>
-            <a href="{% url 'chat_rooms' %}" class="mt-3 text-sm text-pink-600 hover:text-pink-700 font-medium flex items-center">
-                Open Chat →
+            <div class="text-2xl font-bold text-slate-800 dark:text-white" id="statUnreadCount">0</div>
+            <div class="text-[11px] text-slate-400 mt-1">Unread Messages</div>
+            <a href="{% url 'chat_rooms' %}" class="mt-3 text-[11px] text-[#4a9d7e] hover:text-[#3d8a6d] font-medium inline-flex items-center gap-1">
+                Open Chat <i class="fa-solid fa-arrow-right text-[8px]"></i>
             </a>
         </div>
     `;
@@ -306,32 +286,30 @@ function renderChatCard() {
 
 function loadRecentChats() {
     fetch('/chat/api/unread-count/', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Authorization': `Bearer ${getAccessToken()}`
+        }
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
             const totalUnread = data.total_unread || 0;
-            
-            // Update stat card
             const statUnreadElement = document.getElementById('statUnreadCount');
-            if (statUnreadElement) {
-                statUnreadElement.innerText = totalUnread;
-            }
+            if (statUnreadElement) statUnreadElement.innerText = totalUnread;
             
-            // Update recent chats container
             const recentChatsContainer = document.getElementById('recentChatsContainer');
             if (recentChatsContainer) {
                 if (totalUnread > 0) {
                     recentChatsContainer.innerHTML = `
-                        <div class="bg-pink-50 border border-pink-200 rounded-lg p-4">
+                        <div class="bg-[#eef6f2] dark:bg-[#1a3a2a] rounded-lg p-4">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-pink-800 font-medium">📬 New Messages</p>
-                                    <p class="text-2xl font-bold text-pink-600 mt-1">${totalUnread}</p>
-                                    <p class="text-xs text-pink-500">unread conversation${totalUnread > 1 ? 's' : ''}</p>
+                                    <p class="text-sm font-medium text-[#4a9d7e] dark:text-[#34d399]">📬 New Messages</p>
+                                    <p class="text-2xl font-bold text-[#4a9d7e] dark:text-[#34d399] mt-1">${totalUnread}</p>
+                                    <p class="text-xs text-[#4a9d7e]/70 dark:text-[#34d399]/70">unread conversation${totalUnread > 1 ? 's' : ''}</p>
                                 </div>
-                                <a href="{% url 'chat_rooms' %}" class="px-3 py-1 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition">
+                                <a href="{% url 'chat_rooms' %}" class="px-3 py-1.5 bg-[#4a9d7e] text-white text-xs rounded-lg hover:bg-[#3d8a6d] transition">
                                     Read
                                 </a>
                             </div>
@@ -340,11 +318,9 @@ function loadRecentChats() {
                 } else {
                     recentChatsContainer.innerHTML = `
                         <div class="text-center py-6">
-                            <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                            </svg>
-                            <p class="text-gray-500">No new messages</p>
-                            <a href="{% url 'chat_rooms' %}" class="text-sm text-pink-600 hover:text-pink-700 mt-2 inline-block">Start a conversation →</a>
+                            <i class="fa-regular fa-comment-dots text-3xl text-slate-300 mb-2"></i>
+                            <p class="text-sm text-slate-500">No new messages</p>
+                            <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Start a conversation →</a>
                         </div>
                     `;
                 }
@@ -357,8 +333,8 @@ function loadRecentChats() {
         if (recentChatsContainer) {
             recentChatsContainer.innerHTML = `
                 <div class="text-center py-6">
-                    <p class="text-gray-400 text-sm">Unable to load messages</p>
-                    <a href="{% url 'chat_rooms' %}" class="text-sm text-pink-600 hover:text-pink-700 mt-2 inline-block">Open Chat →</a>
+                    <p class="text-xs text-slate-400">Unable to load messages</p>
+                    <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Open Chat →</a>
                 </div>
             `;
         }
@@ -367,10 +343,28 @@ function loadRecentChats() {
 
 function getRoleBadgeClass(tier) {
     switch(tier) {
-        case 'owner': return 'bg-purple-100 text-purple-700 underline decoration-purple-300';
-        case 'manager': return 'bg-blue-100 text-blue-700';
-        case 'contributor': return 'bg-green-100 text-green-700';
-        default: return 'bg-gray-100 text-gray-700';
+        case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+        case 'manager': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        case 'contributor': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+        default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+    }
+}
+
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+        case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+        default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+    }
+}
+
+function getTaskStatusBadgeClass(status) {
+    switch(status) {
+        case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+        case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+        default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
     }
 }
 
@@ -381,24 +375,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Load dashboard on page load
 loadDashboard();
 </script>
-
-<style>
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-    
-    .animate-spin {
-        animation: spin 1s linear infinite;
-    }
-    
-    #loadingOverlay {
-        transition: all 0.3s ease;
-    }
-</style>
-
 {% endblock %}

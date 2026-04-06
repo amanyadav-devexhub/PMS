@@ -8,120 +8,122 @@
 <div class="max-w-7xl mx-auto">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-semibold text-gray-700">
-            All Projects
-        </h2>
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-lg font-semibold text-slate-800 dark:text-white">
+                All Projects
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">View and manage all projects</p>
+        </div>
 
         <!-- Add Project Button -->
         <div id="addProjectButtonContainer" style="display: none;">
             <a href="{% url 'create_project' %}"
-               class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded shadow transition">
-                + Add Project
+               class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
+                <i class="fa-solid fa-plus text-xs"></i>
+                Add Project
             </a>
         </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+    <!-- Search Bar -->
+    <div class="mb-5 flex flex-wrap gap-2">
+        <div class="relative flex-1 max-w-xs">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text"
+                   id="searchInput"
+                   name="search"
+                   value="{{ search_query }}"
+                   placeholder="Search project or member..."
+                   class="w-full pl-8 pr-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent transition">
         </div>
-    </div>
-
-    <!-- Notification Container -->
-    <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
-
-    <!-- Search Bar with AJAX -->
-    <div class="mb-4 flex gap-2">
-        <input type="text"
-               id="searchInput"
-               name="search"
-               value="{{ search_query }}"
-               placeholder="Search project or member..."
-               class="border border-gray-300 px-4 py-2 rounded w-72 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
         
         <button type="button"
                 id="searchBtn"
-                class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded transition">
+                class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            <i class="fa-solid fa-search text-xs"></i>
             Search
         </button>
         
         <button type="button"
                 id="clearSearchBtn"
-                class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded transition hidden">
+                class="inline-flex items-center gap-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition hidden">
+            <i class="fa-solid fa-times text-xs"></i>
             Clear
         </button>
     </div>
 
-    <!-- Card -->
-    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+    <!-- Projects Table Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
 
         <!-- Table -->
         <div class="overflow-x-auto">
-            <table class="min-w-full border-collapse">
-                <thead class="bg-gray-100">
+            <table class="min-w-full">
+                <thead class="bg-slate-50 dark:bg-white/5">
                     <tr>
-                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">#</th>
-                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Project Name</th>
-                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Assign_to</th>
-                        <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Status</th>
-                        <th class="text-center px-6 py-3 text-sm font-semibold text-gray-600">Actions</th>
+                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">#</th>
+                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Project Name</th>
+                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Assigned To</th>
+                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                        <th class="text-center px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
 
-                <tbody class="divide-y divide-gray-200" id="projects-table-body">
+                <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="projects-table-body">
                     {% for project in projects %}
-                    <tr class="hover:bg-gray-50 transition" id="project-row-{{ project.id }}">
-                        <td class="px-6 py-4 text-sm text-gray-700">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition" id="project-row-{{ project.id }}">
+                        <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">
                             {{ forloop.counter }}
                         </td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-800">
+                        <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-white">
                             {{ project.name }}
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-700">
+                        <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">
                             {% if project.assigned_to.all %}
                                 {% for user in project.assigned_to.all %}
                                     {{ user.get_full_name|default:user.username }}{% if not forloop.last %}, {% endif %}
                                 {% endfor %}
                             {% else %}
-                                Not assigned
+                                <span class="text-slate-400">Not assigned</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4">
+                        <td class="px-5 py-3">
                             {% if project.status == "PENDING" %}
-                                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                                     {{ project.get_status_display }}
                                 </span>
                             {% elif project.status == "ONGOING" %}
-                                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                     {{ project.get_status_display }}
                                 </span>
                             {% elif project.status == "COMPLETED" %}
-                                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                     {{ project.get_status_display }}
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-center space-x-2">
-                            <a href="{% url 'view_project_detail' project.id %}"
-                               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
-                                View
-                            </a>
-                        
-                                <!-- Delete button -->
-                            <button type="button" 
-                                    onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
-                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition delete-project-btn"
-                                    style="display: none;"
-                                    id="delete-project-{{ project.id }}">
-                                Delete
-                            </button>
+                        <td class="px-5 py-3 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <a href="{% url 'view_project_detail' project.id %}"
+                                   class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition">
+                                    <i class="fa-regular fa-eye text-[10px]"></i>
+                                    View
+                                </a>
+                                <button type="button" 
+                                        onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
+                                        class="delete-project-btn inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition"
+                                        style="display: none;"
+                                        id="delete-project-{{ project.id }}">
+                                    <i class="fa-solid fa-trash text-[10px]"></i>
+                                    Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-6 text-gray-500">
+                        <td colspan="5" class="text-center py-12 text-slate-500 dark:text-slate-400">
+                            <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
                             No projects found.
                         </td>
                     </tr>
@@ -132,14 +134,14 @@
     </div>
 
     <!-- Pagination Controls -->
-    <div class="mt-6 flex justify-between items-center">
-        <div class="text-sm text-gray-600" id="showingInfo">
+    <div class="mt-6 flex flex-wrap justify-between items-center gap-4">
+        <div class="text-xs text-slate-500 dark:text-slate-400" id="showingInfo">
             Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> projects
         </div>
         
         <div class="flex gap-2 items-center">
             <!-- Page Size Selector -->
-            <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+            <select id="pageSizeSelect" class="border border-slate-300 dark:border-white/10 rounded-lg px-2 py-1 text-sm bg-white dark:bg-[#1e293b] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#4a9d7e]">
                 <option value="10">10 per page</option>
                 <option value="25">25 per page</option>
                 <option value="50">50 per page</option>
@@ -148,19 +150,21 @@
             
             <!-- Pagination Buttons -->
             <button id="prevPageBtn" 
-                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    class="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     disabled>
-                ← Prev
+                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                Prev
             </button>
             
-            <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+            <span id="pageIndicator" class="text-xs text-slate-500 dark:text-slate-400 mx-2">
                 Page 1 of 1
             </span>
             
             <button id="nextPageBtn" 
-                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    class="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     disabled>
-                Next →
+                Next
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
             </button>
         </div>
     </div>
@@ -179,19 +183,14 @@
     
     // Show/hide buttons based on permission flags
     function updateButtonVisibility() {
-        const canAdd = canAddProjects;
-        const canDelete = canDeleteProjects;
-        
-        // Show/hide Add Project button
         const addButtonContainer = document.getElementById('addProjectButtonContainer');
         if (addButtonContainer) {
-            addButtonContainer.style.display = canAdd ? 'block' : 'none';
+            addButtonContainer.style.display = canAddProjects ? 'block' : 'none';
         }
         
-        // Show/hide delete buttons
         const deleteButtons = document.querySelectorAll('.delete-project-btn');
         deleteButtons.forEach(btn => {
-            btn.style.display = canDelete ? 'inline-block' : 'none';
+            btn.style.display = canDeleteProjects ? 'inline-flex' : 'none';
         });
     }
     
@@ -224,30 +223,23 @@
     let currentPage = 1;
     let currentPageSize = 10;
     let currentSearchQuery = '';
-    let currentProjects = [];
-
-    // Function to show notification
+    
     function showNotification(message, type = 'success') {
         const notificationContainer = document.getElementById('notificationContainer');
+        if (!notificationContainer) return;
+        
         const notification = document.createElement('div');
-        notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
-            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        notification.className = `mb-3 p-3 rounded-lg shadow-lg transform transition-all duration-300 toast-notification ${
+            type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
         } text-white`;
         notification.innerHTML = `
             <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        ${type === 'success' ? 
-                            '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
-                            '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
-                        }
-                    </svg>
-                    <span>${escapeHtml(message)}</span>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
+                    <span class="text-sm">${escapeHtml(message)}</span>
                 </div>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                    </svg>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
         `;
@@ -255,18 +247,16 @@
         setTimeout(() => notification.remove(), 5000);
     }
     
-    // Helper function to escape HTML
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-
-    // Function to load projects via AJAX with pagination
+    
     async function loadProjects(search = '', page = 1, pageSize = 10) {
         const loadingOverlay = document.getElementById('loadingOverlay');
-        loadingOverlay.classList.remove('hidden');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
         
         try {
             const url = new URL(window.location.href);
@@ -278,25 +268,18 @@
             url.searchParams.set('page', page);
             url.searchParams.set('page_size', pageSize);
             
-            const response = await authFetch(url, {
-                method: 'GET'
-            });
-            
+            const response = await authFetch(url, { method: 'GET' });
             const data = await response.json();
             
             if (data.success) {
-                currentProjects = data.projects;
                 currentSearchQuery = data.search_query;
                 currentPage = data.current_page;
                 currentPageSize = data.page_size;
                 
                 renderProjectsTable(data.projects);
                 updatePaginationUI(data);
-                
-                // Update button visibility after rendering table
                 updateButtonVisibility();
                 
-                // Update showing info
                 const startIndex = (data.current_page - 1) * data.page_size + 1;
                 const endIndex = Math.min(data.current_page * data.page_size, data.total);
                 const showingInfo = document.getElementById('showingInfo');
@@ -304,30 +287,31 @@
                     showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total} projects`;
                 }
                 
-                // Update clear button visibility
                 const clearBtn = document.getElementById('clearSearchBtn');
-                if (data.search_query) {
-                    clearBtn.classList.remove('hidden');
-                } else {
-                    clearBtn.classList.add('hidden');
+                if (clearBtn) {
+                    if (data.search_query) {
+                        clearBtn.classList.remove('hidden');
+                    } else {
+                        clearBtn.classList.add('hidden');
+                    }
                 }
             }
         } catch (error) {
             console.error('Error:', error);
             showNotification('Error loading projects. Please try again.', 'error');
         } finally {
-            loadingOverlay.classList.add('hidden');
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
         }
     }
     
-    // Function to render projects table
     function renderProjectsTable(projects) {
         const tableBody = document.getElementById('projects-table-body');
         
         if (!projects || projects.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center py-6 text-gray-500">
+                    <td colspan="5" class="text-center py-12 text-slate-500 dark:text-slate-400">
+                        <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
                         No projects found.
                     </td>
                 </tr>
@@ -335,42 +319,38 @@
             return;
         }
         
-        const canDelete = canDeleteProjects;
-        
         let html = '';
         projects.forEach((project, index) => {
             const counter = (currentPage - 1) * currentPageSize + index + 1;
             const viewDetailUrl = `/project/${project.id}/`;
             
             html += `
-                <tr class="hover:bg-gray-50 transition" id="project-row-${project.id}">
-                    <td class="px-6 py-4 text-sm text-gray-700">
-                        ${counter}
-                    </td>
-                    <td class="px-6 py-4 text-sm font-medium text-gray-800">
-                        ${escapeHtml(project.name)}
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-700">
-                        ${escapeHtml(project.assigned_to_display)}
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="${project.status_class} px-3 py-1 rounded-full text-xs font-semibold">
+                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition" id="project-row-${project.id}">
+                    <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">${counter}</td>
+                    <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(project.name)}</td>
+                    <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">${escapeHtml(project.assigned_to_display)}</td>
+                    <td class="px-5 py-3">
+                        <span class="${project.status_class} inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold">
                             ${escapeHtml(project.status_display)}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-center space-x-2">
-                        <a href="${viewDetailUrl}"
-                           class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm shadow transition">
-                            View
-                        </a>
-                        ${canDelete ? `
-                        <button type="button" 
-                                onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
-                                class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm shadow transition"
-                                id="delete-project-${project.id}">
-                            Delete
-                        </button>
-                        ` : ''}
+                    <td class="px-5 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <a href="${viewDetailUrl}"
+                               class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition">
+                                <i class="fa-regular fa-eye text-[10px]"></i>
+                                View
+                            </a>
+                            ${canDeleteProjects ? `
+                            <button type="button" 
+                                    onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
+                                    class="inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition"
+                                    id="delete-project-${project.id}">
+                                <i class="fa-solid fa-trash text-[10px]"></i>
+                                Delete
+                            </button>
+                            ` : ''}
+                        </div>
                     </td>
                 </tr>
             `;
@@ -379,7 +359,6 @@
         tableBody.innerHTML = html;
     }
     
-    // Function to update pagination UI
     function updatePaginationUI(data) {
         const prevBtn = document.getElementById('prevPageBtn');
         const nextBtn = document.getElementById('nextPageBtn');
@@ -404,7 +383,6 @@
         }
     }
     
-    // Delete project function (AJAX)
     function deleteProject(projectId, projectName) {
         if (!confirm(`Are you sure you want to delete project "${projectName}"? This will also delete ALL tasks under this project.`)) {
             return;
@@ -413,51 +391,38 @@
         const btn = document.getElementById(`delete-project-${projectId}`);
         if (!btn) return;
         
-        const originalText = btn.textContent;
-        
-        btn.textContent = 'Deleting...';
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Deleting...';
         btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
         
-        authFetch(`/project/${projectId}/delete/`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('✅ ' + data.message, 'success');
-                // Reload current page after deletion
-                loadProjects(currentSearchQuery, currentPage, currentPageSize);
-            } else {
-                showNotification('❌ ' + (data.error || 'Something went wrong'), 'error');
-                resetDeleteButton(btn, originalText);
-            }
-        })
-        .catch(error => {
-            showNotification('Network error. Please try again.', 'error');
-            console.error('Error:', error);
-            resetDeleteButton(btn, originalText);
-        });
-    }
-    
-    function resetDeleteButton(btn, originalText) {
-        if (btn) {
-            btn.textContent = originalText;
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
+        authFetch(`/project/${projectId}/delete/`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    loadProjects(currentSearchQuery, currentPage, currentPageSize);
+                } else {
+                    showNotification(data.error || 'Something went wrong', 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                showNotification('Network error. Please try again.', 'error');
+                console.error('Error:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
     }
     
     // Event Listeners
     document.addEventListener('DOMContentLoaded', function() {
-        // Check authentication
         const token = getAccessToken();
         if (!token) {
             window.location.href = '/render_login/';
             return;
         }
         
-        // Update button visibility on page load
         updateButtonVisibility();
         
         const searchInput = document.getElementById('searchInput');
@@ -465,18 +430,14 @@
         const clearBtn = document.getElementById('clearSearchBtn');
         const pageSizeSelect = document.getElementById('pageSizeSelect');
         
-        // Load initial projects
         loadProjects('', 1, 10);
         
-        // Search button click
         if (searchBtn) {
             searchBtn.addEventListener('click', function() {
-                const searchValue = searchInput.value.trim();
-                loadProjects(searchValue, 1, currentPageSize);
+                loadProjects(searchInput.value.trim(), 1, currentPageSize);
             });
         }
         
-        // Clear button click
         if (clearBtn) {
             clearBtn.addEventListener('click', function() {
                 searchInput.value = '';
@@ -484,17 +445,14 @@
             });
         }
         
-        // Enter key in search input
         if (searchInput) {
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    const searchValue = searchInput.value.trim();
-                    loadProjects(searchValue, 1, currentPageSize);
+                    loadProjects(this.value.trim(), 1, currentPageSize);
                 }
             });
         }
         
-        // Page size change
         if (pageSizeSelect) {
             pageSizeSelect.addEventListener('change', function() {
                 currentPageSize = parseInt(this.value);
@@ -502,18 +460,12 @@
             });
         }
     });
-    
-    // Fix: rename function call in DOMContentLoaded
-    function loadUsers(search, page, pageSize) {
-        loadProjects(search, page, pageSize);
-    }
 </script>
 
 <style>
-    #loadingOverlay {
-        transition: all 0.3s ease;
+    .toast-notification {
+        animation: slideIn 0.3s ease-out;
     }
-    
     @keyframes slideIn {
         from {
             transform: translateX(100%);
@@ -524,23 +476,12 @@
             opacity: 1;
         }
     }
-    
-    #notificationContainer > div {
-        animation: slideIn 0.3s ease-out;
+    .fa-spin {
+        animation: fa-spin 1s infinite linear;
     }
-    
-    button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    tr {
-        transition: all 0.2s ease;
-    }
-    
-    input:focus {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    @keyframes fa-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 
