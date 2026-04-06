@@ -25,16 +25,81 @@
 <!-- Content Container - Hidden until loaded -->
 <div id="contentContainer" class="max-w-6xl mx-auto space-y-6 hidden"></div>
 
+<!-- Edit Profile Modal (Only for own profile) -->
+<div id="editProfileModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto z-50">
+    <div class="relative top-20 mx-auto max-w-md bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Edit My Information</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        
+        <form id="editProfileForm" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="self_edit" value="1">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
+                <input type="file" name="profile_image" accept="image/*" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <p class="text-xs text-gray-400 mt-1">Upload JPG, PNG, or GIF</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input type="text" name="phone" id="modal_phone" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
+                <input type="text" name="emergency_contact" id="modal_emergency" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <textarea name="address" id="modal_address" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2"></textarea>
+            </div>
+            
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeEditModal()" 
+                        class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition">Cancel</button>
+                <button type="submit" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+// Store current user ID for comparison
+const currentLoggedInUserId = {{ request.user.id }};
+const viewingUserId = {{ user_id|default:0 }};
+const isOwnProfile = (currentLoggedInUserId === viewingUserId);
+
 // Template for user details
 function createUserTemplate(data) {
+    // Show Edit button only if viewing own profile
+    const editButtonHtml = isOwnProfile ? 
+        `<button onclick="openEditModalWithData('${escapeHtml(data.profile.phone)}', '${escapeHtml(data.profile.emergency_contact)}', '${escapeHtml(data.profile.address)}')" 
+            class="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded shadow transition">
+            ✏️ Edit My Info
+        </button>` : 
+        `<a href="/user/${data.user.id}/edit/" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow edit-link">
+            Edit
+        </a>`;
+    
+    // Avatar with profile image support
+    const avatarHtml = data.profile.profile_image ? 
+        `<img src="${escapeHtml(data.profile.profile_image)}" alt="Profile Image" class="w-28 h-28 rounded-full object-cover border-4 border-indigo-300">` :
+        `<div class="w-28 h-28 bg-indigo-100 rounded-full flex items-center justify-center text-4xl font-bold text-indigo-600 border-4 border-indigo-300">
+            ${data.user.username.charAt(0).toUpperCase()}
+        </div>`;
+    
     return `
     <!-- ================= TOP PROFILE CARD ================= -->
     <div class="bg-white shadow rounded-lg p-6 flex gap-6 items-center">
 
         <!-- Avatar -->
-        <div class="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center text-4xl font-bold text-gray-600">
-            ${data.user.username.charAt(0).toUpperCase()}
+        <div>
+            ${avatarHtml}
         </div>
 
         <!-- Basic Info -->
@@ -54,10 +119,7 @@ function createUserTemplate(data) {
         </div>
 
         <!-- Edit Button -->
-    <a href="/user/${data.user.id}/edit/"
-   class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow edit-link">
-    Edit
-</a>
+        ${editButtonHtml}
     </div>
 
     <!-- ================= BASIC DETAILS ================= -->
@@ -167,6 +229,54 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Store current data for modal
+let currentPhone = '';
+let currentEmergency = '';
+let currentAddress = '';
+
+function openEditModalWithData(phone, emergency, address) {
+    currentPhone = phone === '—' ? '' : phone;
+    currentEmergency = emergency === '—' ? '' : emergency;
+    currentAddress = address === '—' ? '' : address;
+    
+    document.getElementById('modal_phone').value = currentPhone;
+    document.getElementById('modal_emergency').value = currentEmergency;
+    document.getElementById('modal_address').value = currentAddress;
+    
+    document.getElementById('editProfileModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editProfileModal').classList.add('hidden');
+}
+
+// Handle self-edit form submission via AJAX
+document.getElementById('editProfileForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.error || 'Error updating profile');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error. Please try again.');
+    });
+});
+
 function loadUserDetails() {
     const loadingState = document.getElementById('loadingState');
     const contentContainer = document.getElementById('contentContainer');
@@ -179,14 +289,11 @@ function loadUserDetails() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Hide loading, show content
             loadingState.classList.add('hidden');
             contentContainer.classList.remove('hidden');
-            
-            // Populate content
             contentContainer.innerHTML = createUserTemplate(data);
             
-            // Handle edit link clicks with AJAX
+            // Handle edit link clicks with AJAX (for admin edit button)
             document.querySelectorAll('.edit-link').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -202,14 +309,6 @@ function loadUserDetails() {
 }
 
 function loadPage(url) {
-    // Show loading
-    /*document.body.innerHTML = `
-        <div class="flex justify-center items-center h-screen">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
-            <span class="ml-3 text-gray-600">Loading...</span>
-        </div>
-    `;*/
-    
     fetch(url, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -219,7 +318,6 @@ function loadPage(url) {
         if (response.headers.get('content-type')?.includes('application/json')) {
             return response.json().then(data => {
                 if (data.success) {
-                    // Handle JSON response
                     document.body.innerHTML = `
                         <div class="container mx-auto p-8">
                             <button onclick="window.location.reload()" class="mb-4 bg-gray-500 text-white px-4 py-2 rounded">Back</button>
@@ -233,7 +331,6 @@ function loadPage(url) {
         } else {
             return response.text().then(html => {
                 document.body.innerHTML = html;
-                // Re-initialize scripts for the new page
                 const scripts = document.querySelectorAll('script');
                 scripts.forEach(script => {
                     const newScript = document.createElement('script');
@@ -252,6 +349,5 @@ function loadPage(url) {
 // Load user details on page load
 loadUserDetails();
 </script>
-
 
 {% endblock %}

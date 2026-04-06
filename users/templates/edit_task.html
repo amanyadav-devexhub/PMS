@@ -202,6 +202,7 @@
                     </label>
                     <input type="date" name="start_date" id="start_date" 
                            value="{{ task.start_date|date:'Y-m-d' }}"
+                           min="{% now 'Y-m-d' %}"
                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
                 </div>
 
@@ -211,6 +212,7 @@
                     </label>
                     <input type="date" name="end_date" id="end_date" 
                            value="{{ task.end_date|date:'Y-m-d' }}"
+                           min="{% now 'Y-m-d' %}"
                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
                 </div>
             </div>
@@ -222,6 +224,7 @@
                 </label>
                 <input type="datetime-local" name="deadline" 
                        value="{{ task.deadline|date:'Y-m-d\\TH:i' }}"
+                       min="{% now 'Y-m-d' %}"
                        class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
                 {% if form.deadline.help_text %}
                     <p class="text-xs text-gray-400 mt-1">{{ form.deadline.help_text }}</p>
@@ -626,86 +629,132 @@
             minutesInput.addEventListener('input', updateEstimatedTime);
         }
     });
+
+    // ==================== PAST DATE FREEZING ====================
+const today = new Date().toISOString().split('T')[0];
+
+// Function to prevent past dates
+function preventPastDates() {
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    if (startDateInput) {
+        startDateInput.setAttribute('min', today);
+        startDateInput.addEventListener('change', function() {
+            if (this.value && this.value < today) {
+                showNotification('Cannot select past dates for start date!', 'error');
+                this.value = '';
+            }
+            validateDates();
+        });
+    }
+    
+    if (endDateInput) {
+        endDateInput.setAttribute('min', today);
+        endDateInput.addEventListener('change', function() {
+            if (this.value && this.value < today) {
+                showNotification('Cannot select past dates for end date!', 'error');
+                this.value = '';
+            }
+            validateDates();
+        });
+    }
+}
+
+// Call the function
+preventPastDates();
 </script>
 
 <!-- AJAX Form Submission -->
 <script>
-    const form = document.getElementById('editTaskForm');
-    if (form) {
-        form.addEventListener('submit', function (e) {
+const form = document.getElementById('editTaskForm');
+
+if (form) {
+    form.addEventListener('submit', function (e) {
+
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
+        const deadlineInput = document.querySelector('[name="deadline"]');
+
+        let isValid = true;
+
+        // Clear previous styles
+        document.querySelectorAll('.border-red-500, .bg-red-50').forEach(el => {
+            el.classList.remove('border-red-500', 'bg-red-50');
+        });
+
+        // Start > End
+        if (startDate.value && endDate.value && startDate.value > endDate.value) {
+            startDate.classList.add('border-red-500', 'bg-red-50');
+            endDate.classList.add('border-red-500', 'bg-red-50');
+            alert('End date must be after start date');
+            isValid = false;
+        }
+
+        // Deadline validation
+        if (deadlineInput && deadlineInput.value) {
+            const deadlineDate = deadlineInput.value.split('T')[0];
+
+            if (startDate.value && deadlineDate < startDate.value) {
+                deadlineInput.classList.add('border-red-500', 'bg-red-50');
+                alert('Deadline cannot be before start date');
+                isValid = false;
+            }
+
+            if (endDate.value && deadlineDate > endDate.value) {
+                deadlineInput.classList.add('border-red-500', 'bg-red-50');
+                alert('Deadline cannot be after end date');
+                isValid = false;
+            }
+        }
+
+        // 🚫 STOP SUBMIT
+        if (!isValid) {
             e.preventDefault();
+            return;
+        }
 
-            const formData = new FormData(this);
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
+        // NORMAL FLOW
+        e.preventDefault();
 
-            submitBtn.textContent = 'Updating...';
-            submitBtn.disabled = true;
-            submitBtn.classList.add('opacity-50');
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
 
-            document.querySelectorAll('.field-error').forEach(el => el.remove());
-            document.querySelectorAll('.border-red-500, .bg-red-50').forEach(el => {
-                el.classList.remove('border-red-500', 'bg-red-50');
-            });
+        submitBtn.textContent = 'Updating...';
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-50');
 
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('✅ ' + data.message);
-                    window.location.href = "{% url 'view_project_detail' task.project.id %}";
-                } else {
-                    if (data.errors) {
-                        Object.keys(data.errors).forEach(field => {
-                            const fieldElement = document.querySelector(`[name="${field}"]`);
-                            if (fieldElement) {
-                                fieldElement.classList.add('border-red-500', 'bg-red-50');
-                                const errorDiv = document.createElement('p');
-                                errorDiv.className = 'field-error text-red-500 text-xs mt-1';
-                                errorDiv.textContent = data.errors[field][0];
-                                fieldElement.parentNode.appendChild(errorDiv);
-                            }
-                        });
-                    } else if (data.error && data.field === 'end_date') {
-                        const endDateField = document.querySelector('[name="end_date"]');
-                        if (endDateField) {
-                            endDateField.classList.add('border-red-500', 'bg-red-50');
-                            const errorDiv = document.createElement('p');
-                            errorDiv.className = 'field-error text-red-500 text-xs mt-1';
-                            errorDiv.textContent = data.error;
-                            endDateField.parentNode.appendChild(errorDiv);
-                        }
-                    } else if (data.error) {
-                        const formElement = document.getElementById('editTaskForm');
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'field-error bg-red-100 text-red-800 p-3 rounded-lg mb-4';
-                        errorDiv.textContent = '❌ ' + data.error;
-                        formElement.insertBefore(errorDiv, formElement.firstChild);
-                    }
+        document.querySelectorAll('.field-error').forEach(el => el.remove());
 
-                    submitBtn.textContent = originalText;
-                    submitBtn.disabled = false;
-                    submitBtn.classList.remove('opacity-50');
-                }
-            })
-            .catch(error => {
-                alert('Network error. Please try again.');
-                console.error('Error:', error);
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ ' + data.message);
+                window.location.href = "{% url 'view_project_detail' task.project.id %}";
+            } else {
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-50');
-            });
+            }
+        })
+        .catch(error => {
+            alert('Network error. Please try again.');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50');
         });
-    }
+    });
+}
 </script>
-
 <style>
     .dropdown-option:hover {
         background-color: #eef2ff;

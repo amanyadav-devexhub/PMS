@@ -3,8 +3,6 @@
 {% block title %}Create User{% endblock %}
 {% block page_title %}Create User{% endblock %}
 
-{% load widget_tweaks %}
-
 {% block content %}
 
 <div class="max-w-4xl mx-auto">
@@ -12,7 +10,7 @@
     <!-- Back Button -->
     <div class="mb-4">
         <button onclick="goBack()"
-                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
@@ -30,6 +28,7 @@
         <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p class="text-sm text-gray-600">
                 <span class="font-medium">Note:</span> Fill in all the required details to create a new user account.
+                <span class="text-red-500 font-medium mt-1 block">* Employee ID is required and must be unique.</span>
             </p>
         </div>
 
@@ -52,29 +51,7 @@
                     <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">1</span>
                     Account Information
                 </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% for field in user_form %}
-                    <div class="{% if forloop.counter == 3 %}md:col-span-2{% endif %} field-group" data-field-name="user_{{ field.name }}">
-                        <label class="block text-sm font-medium text-gray-600 mb-1">
-                            {{ field.label }}
-                            {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
-                        </label>
-                        {{ field|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
-                        {% if field.help_text %}
-                            <p class="text-xs text-gray-400 mt-1">{{ field.help_text }}</p>
-                        {% endif %}
-                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                        {% if field.errors %}
-                            <div class="field-errors hidden">
-                                {% for error in field.errors %}
-                                    <p class="text-red-500 text-xs">{{ error }}</p>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
+                <div id="userFieldsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
 
             <!-- Profile Info Section -->
@@ -83,40 +60,17 @@
                     <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">2</span>
                     Profile Information
                 </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% for field in profile_form %}
-                    <div class="{% if field.name == 'address' or field.name == 'bio' %}md:col-span-2{% endif %} field-group" data-field-name="profile_{{ field.name }}">
-                        <label class="block text-sm font-medium text-gray-600 mb-1">
-                            {{ field.label }}
-                            {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
-                        </label>
-                        {{ field|add_class:"w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" }}
-                        {% if field.help_text %}
-                            <p class="text-xs text-gray-400 mt-1">{{ field.help_text }}</p>
-                        {% endif %}
-                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                        {% if field.errors %}
-                            <div class="field-errors hidden">
-                                {% for error in field.errors %}
-                                    <p class="text-red-500 text-xs">{{ error }}</p>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
+                <div id="profileFieldsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
 
             <!-- Form Actions -->
             <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
                 <a href="{% url 'dashboard' %}"
-                   class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2.5 rounded-lg shadow transition font-medium">
+                    class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2.5 rounded-lg shadow transition font-medium">
                     Cancel
                 </a>
-                <button type="submit"
-                        id="submitBtn"
-                        class="bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition font-medium flex items-center gap-2">
+                <button type="submit" id="submitBtn"
+                    class="bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition font-medium flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                     </svg>
@@ -137,10 +91,10 @@
             <div>
                 <p class="text-sm font-medium text-blue-800">Account Setup Guide</p>
                 <ul class="text-xs text-blue-600 mt-2 space-y-1 list-disc list-inside">
-                    <li>Username and email are required fields</li>
-                    <li>Password must be at least 8 characters long</li>
-                    <li>Profile information can be updated later</li>
-                    <li>New users will receive an activation email</li>
+                    <li>First Name, Last Name, Email, Username, Role, and Employee ID are <strong class="text-red-600">required</strong></li>
+                    <li>Phone: 10 digits starting with 6/7/8/9 (optional)</li>
+                    <li>Department and Designation are optional</li>
+                    <li>New users will receive an email with login credentials</li>
                 </ul>
             </div>
         </div>
@@ -148,47 +102,34 @@
 
 </div>
 
-<!-- AJAX JavaScript -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('createUserForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const notificationContainer = document.getElementById('notificationContainer');
         const submitBtn = document.getElementById('submitBtn');
-        
-        // Function to show notification
+
         function showNotification(message, type = 'success') {
             const notification = document.createElement('div');
-            notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
-                type === 'success' ? 'bg-green-500' : 'bg-red-500'
-            } text-white`;
+            notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
             notification.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             ${type === 'success' ? 
-                                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' : 
                                 '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
                             }
                         </svg>
                         <span>${message}</span>
                     </div>
-                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                        </svg>
-                    </button>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">×</button>
                 </div>
             `;
             notificationContainer.appendChild(notification);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                notification.remove();
-            }, 5000);
+            setTimeout(() => notification.remove(), 5000);
         }
-        
-        // Function to clear all error messages
+
         function clearErrors() {
             document.querySelectorAll('.error-message').forEach(el => {
                 el.classList.add('hidden');
@@ -198,120 +139,111 @@
                 el.classList.remove('border-red-500', 'bg-red-50');
             });
         }
-        
-        // Function to display errors
+
         function displayErrors(errors) {
             clearErrors();
-            
             for (const [field, errorList] of Object.entries(errors)) {
                 const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
-                
-                // Find the field group by data-field-name
-                const fieldGroup = document.querySelector(`.field-group[data-field-name="${field}"]`);
-                if (fieldGroup) {
-                    const inputElement = fieldGroup.querySelector('input, select, textarea');
-                    if (inputElement) {
-                        inputElement.classList.add('border-red-500', 'bg-red-50');
-                    }
-                    
-                    const errorDiv = fieldGroup.querySelector('.error-message');
-                    if (errorDiv) {
-                        errorDiv.innerHTML = errorMessage;
-                        errorDiv.classList.remove('hidden');
-                    }
-                } else if (field === 'system_error') {
-                    // System-wide error
-                    showNotification(errorMessage, 'error');
-                } else {
-                    // Try to find by field name without prefix
-                    const fieldWithoutPrefix = field.replace(/^(user_|profile_)/, '');
-                    const fallbackField = document.querySelector(`[name="${fieldWithoutPrefix}"]`);
-                    if (fallbackField) {
-                        fallbackField.classList.add('border-red-500', 'bg-red-50');
-                        const parentDiv = fallbackField.closest('.field-group');
-                        if (parentDiv) {
-                            const errorDiv = parentDiv.querySelector('.error-message');
-                            if (errorDiv) {
-                                errorDiv.innerHTML = errorMessage;
-                                errorDiv.classList.remove('hidden');
-                            }
+                const fieldElement = document.querySelector(`[name="${field}"]`);
+                if (fieldElement) {
+                    fieldElement.classList.add('border-red-500', 'bg-red-50');
+                    const parentDiv = fieldElement.closest('.field-group');
+                    if (parentDiv) {
+                        const errorDiv = parentDiv.querySelector('.error-message');
+                        if (errorDiv) {
+                            errorDiv.innerHTML = errorMessage;
+                            errorDiv.classList.remove('hidden');
                         }
                     }
                 }
             }
         }
-        
-        // Password strength indicator (optional enhancement)
-        function checkPasswordStrength(password) {
-            let strength = 0;
-            if (password.length >= 8) strength++;
-            if (password.match(/[a-z]+/)) strength++;
-            if (password.match(/[A-Z]+/)) strength++;
-            if (password.match(/[0-9]+/)) strength++;
-            if (password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/)) strength++;
+
+        function renderField(fieldName, fieldData) {
+            const requiredAttr = fieldData.required ? 'required' : '';
+            const asterisk = fieldData.required ? '<span class="text-red-500">*</span>' : '';
             
-            return strength;
-        }
-        
-        // Real-time password validation (optional)
-        const passwordField = document.querySelector('[name="password1"]');
-        const confirmPasswordField = document.querySelector('[name="password2"]');
-        
-        if (passwordField) {
-            passwordField.addEventListener('input', function() {
-                const strength = checkPasswordStrength(this.value);
-                // You can add a password strength indicator here if desired
-            });
-        }
-        
-        if (confirmPasswordField) {
-            confirmPasswordField.addEventListener('input', function() {
-                const password = passwordField ? passwordField.value : '';
-                if (this.value && password && this.value !== password) {
-                    this.classList.add('border-red-500', 'bg-red-50');
-                    const parentDiv = this.closest('.field-group');
-                    if (parentDiv) {
-                        const errorDiv = parentDiv.querySelector('.error-message');
-                        if (errorDiv) {
-                            errorDiv.innerHTML = 'Passwords do not match';
-                            errorDiv.classList.remove('hidden');
-                        }
-                    }
-                } else {
-                    this.classList.remove('border-red-500', 'bg-red-50');
-                    const parentDiv = this.closest('.field-group');
-                    if (parentDiv) {
-                        const errorDiv = parentDiv.querySelector('.error-message');
-                        if (errorDiv) {
-                            errorDiv.classList.add('hidden');
-                            errorDiv.innerHTML = '';
-                        }
-                    }
+            if (fieldData.type === 'select') {
+                let optionsHtml = '<option value="">Select ' + fieldData.label + '</option>';
+                if (fieldData.options) {
+                    fieldData.options.forEach(option => {
+                        optionsHtml += `<option value="${option.id}">${option.name}</option>`;
+                    });
                 }
-            });
+                return `
+                    <div class="field-group" data-field-name="${fieldName}">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            ${fieldData.label} ${asterisk}
+                        </label>
+                        <select name="${fieldName}" ${requiredAttr} class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                            ${optionsHtml}
+                        </select>
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    </div>
+                `;
+            } else {
+                let patternAttr = fieldData.pattern ? `pattern="${fieldData.pattern}"` : '';
+                let maxlengthAttr = fieldData.maxlength ? `maxlength="${fieldData.maxlength}"` : '';
+                let minlengthAttr = fieldData.minlength ? `minlength="${fieldData.minlength}"` : '';
+                let helpTextHtml = fieldData.help_text ? `<p class="text-xs text-gray-400 mt-1">${fieldData.help_text}</p>` : '';
+                
+                return `
+                    <div class="field-group" data-field-name="${fieldName}">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            ${fieldData.label} ${asterisk}
+                        </label>
+                        <input type="${fieldData.type}" name="${fieldName}" ${requiredAttr} ${patternAttr} ${maxlengthAttr} ${minlengthAttr}
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        ${helpTextHtml}
+                    </div>
+                `;
+            }
         }
-        
-        // Handle form submission with AJAX
-        form.addEventListener('submit', async function(e) {
+
+        // Load form structure via AJAX (GET request)
+        fetch(window.location.href, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const userContainer = document.getElementById('userFieldsContainer');
+                const profileContainer = document.getElementById('profileFieldsContainer');
+                
+                userContainer.innerHTML = '';
+                profileContainer.innerHTML = '';
+                
+                // Render user fields
+                for (const [fieldName, fieldData] of Object.entries(data.user_fields)) {
+                    userContainer.innerHTML += renderField(fieldName, fieldData);
+                }
+                
+                // Render profile fields
+                for (const [fieldName, fieldData] of Object.entries(data.profile_fields)) {
+                    profileContainer.innerHTML += renderField(fieldName, fieldData);
+                }
+            }
+        })
+        .catch(error => console.error('Error loading form:', error));
+
+        // Handle form submission with AJAX (POST request)
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
-            
-            // Clear previous errors
             clearErrors();
-            
-            // Disable submit button to prevent double submission
+
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            
-            // Show loading overlay
             loadingOverlay.classList.remove('hidden');
-            
-            // Get form data
+
             const formData = new FormData(form);
             const redirectUrl = form.dataset.redirectUrl;
             formData.append('redirect_url', redirectUrl);
-            
+
             try {
-                // Send AJAX request
                 const response = await fetch(window.location.href, {
                     method: 'POST',
                     headers: {
@@ -320,111 +252,43 @@
                     },
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok && data.success) {
-                    // Success!
                     showNotification(data.message, 'success');
-                    
-                    // Clear the form
                     form.reset();
-                    
-                    // Redirect after success
                     setTimeout(() => {
                         window.location.href = data.redirect_url;
                     }, 1500);
                 } else {
-                    // Error handling
                     if (data.errors) {
                         displayErrors(data.errors);
                     }
-                    showNotification(data.message || 'Error creating user. Please check the form for errors.', 'error');
+                    showNotification(data.message || 'Error creating user.', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showNotification('An unexpected error occurred. Please try again.', 'error');
+                showNotification('An unexpected error occurred.', 'error');
             } finally {
-                // Hide loading overlay
                 loadingOverlay.classList.add('hidden');
-                
-                // Re-enable submit button
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         });
     });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Hide password fields since they're not needed
-        const passwordFields = document.querySelectorAll('[name="password1"], [name="password2"]');
-        passwordFields.forEach(field => {
-            const parent = field.closest('.field-group');
-            if (parent) {
-                parent.style.display = 'none';
-            }
-        });
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Remove password fields completely from the form
-        const passwordFields = document.querySelectorAll('[name="password1"], [name="password2"]');
-        passwordFields.forEach(field => {
-            const parent = field.closest('.field-group');
-            if (parent) {
-                parent.remove(); // Remove the entire field group instead of hiding
-            }
-        });
-        
-        // Also remove the password fields from the form data by removing them from DOM
-        const passwordInputs = document.querySelectorAll('input[name="password1"], input[name="password2"]');
-        passwordInputs.forEach(input => input.remove());
-    });
 </script>
 
 <style>
-    /* Loading overlay styles */
-    #loadingOverlay {
-        transition: all 0.3s ease;
-    }
-    
-    /* Notification animation */
+    #loadingOverlay { transition: all 0.3s ease; }
     @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    
-    #notificationContainer > div {
-        animation: slideIn 0.3s ease-out;
-    }
-    
-    /* Form field transitions */
-    input, select, textarea {
-        transition: all 0.2s ease;
-    }
-    
-    input:focus, select:focus, textarea:focus {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Button disabled state */
-    button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    /* Field group hover effect */
-    .field-group:hover {
-        transform: translateX(2px);
-        transition: transform 0.2s ease;
-    }
+    #notificationContainer > div { animation: slideIn 0.3s ease-out; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .field-group:hover { transform: translateX(2px); transition: transform 0.2s ease; }
+    input:focus, select:focus, textarea:focus { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 </style>
 
 {% endblock %}

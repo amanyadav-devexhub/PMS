@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PMS Dashboard{% endblock %}</title>
 
-
     <script>
         // Suppress Tailwind production warning
         const consoleWarn = console.warn;
@@ -18,10 +17,6 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-
-
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
@@ -31,28 +26,22 @@
                 transform: rotate(360deg);
             }
         }
-
         .animate-spin {
             animation: spin 1s linear infinite;
         }
-
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
                 opacity: 0;
             }
-
             to {
                 transform: translateX(0);
                 opacity: 1;
             }
         }
-
         .toast-notification {
             animation: slideIn 0.3s ease-out;
         }
-        
-        /* Chat button pulse animation for new messages */
         @keyframes pulse-ring {
             0% {
                 transform: scale(0.95);
@@ -67,18 +56,13 @@
                 box-shadow: 0 0 0 0 rgba(236, 72, 153, 0);
             }
         }
-        
         .chat-badge-pulse {
             animation: pulse-ring 1.5s cubic-bezier(0.66, 0, 0, 1) infinite;
         }
-        
-        /* Sidebar chat button active state */
         .sidebar-chat-active {
             background-color: #fdf2f8;
             color: #db2777;
         }
-        
-        /* Badge styles */
         .chat-badge {
             transition: all 0.2s ease;
         }
@@ -91,103 +75,70 @@
 
         <!-- ================= SIDEBAR ================= -->
         <aside class="w-64 bg-white shadow-lg">
-
-            <!-- Logo / Brand -->
             <div class="p-6 border-b">
                 <h1 class="text-2xl font-bold text-orange-600">PMS</h1>
             </div>
-
-            <!-- Navigation -->
             <nav class="p-4 space-y-2 text-gray-700">
-
                 {% if request.user.is_authenticated %}
-                <!-- Dashboard - Role Based (Simpler) -->
                 <a href="{{ dashboard_url }}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Dashboard
                 </a>
-
-                <!-- ========== CHAT BUTTON IN SIDEBAR (WITH UNREAD COUNT) ========== -->
                 <a href="{% url 'chat_rooms' %}" id="sidebarChatBtn"
                     class="block px-4 py-2 rounded hover:bg-pink-100 hover:text-pink-600 transition flex items-center justify-between group">
                     <span class="flex items-center">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
+                            </path>
                         </svg>
                         Chat
                     </span>
-                    <!-- Unread count badge for sidebar -->
-                    <span id="sidebarChatBadge" 
-                        class="hidden bg-pink-500 text-white text-xs font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center chat-badge">
-                        0
-                    </span>
+                    <span id="sidebarChatBadge" class="hidden bg-pink-500 text-white text-xs font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center chat-badge">0</span>
                 </a>
-
                 {% if can_manage_users %}
-                <a href="{% url 'admin_view_users' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'admin_view_users' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Members
                 </a>
                 {% endif %}
-
                 {% if can_view_projects %}
-                <a href="{% url 'view_projects' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'view_projects' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     {% if can_view_all_projects %}Projects{% else %}My Projects{% endif %}
                 </a>
                 {% endif %}
-
                 {% if can_view_task %}
-                <a href="{% url 'task_dashboard' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'task_dashboard' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     {% if can_view_all_tasks %}Tasks{% else %}My Tasks{% endif %}
                 </a>
                 {% endif %}
-
                 {% if can_add_task %}
-                <a href="{% url 'assign_task' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'assign_task' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Create Task
                 </a>
                 {% endif %}
-
                 {% if can_manage_departments %}
-                <!-- Departments -->
-                <a href="{% url 'departments' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'departments' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Departments
                 </a>
                 {% endif %}
-
                 {% if can_manage_designations %}
-                <!-- Designations -->
-                <a href="{% url 'designations' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'designations' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Designations
                 </a>
                 {% endif %}
-
                 {% if can_manage_roles %}
-                <a href="{% url 'role_list' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'role_list' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Roles & Permissions
                 </a>
                 {% endif %}
-
                 {% if request.user.is_superuser or request.user.role == 'ADMIN' %}
-                <!-- Analytics -->
-                <a href="{% url 'user_analytics' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
+                <a href="{% url 'user_analytics' %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
                     Analytics
                 </a>
                 {% endif %}
-
-                <!--Logout!-->
-                <button id="logoutBtn" type="button"
-                    class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
+                <button id="logoutBtn" type="button" class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
                     Logout
                 </button>
                 {% endif %}
-
             </nav>
         </aside>
         <!-- ================= END SIDEBAR ================= -->
@@ -197,84 +148,85 @@
 
             <!-- Topbar -->
             <header class="bg-white shadow p-4 flex justify-between items-center">
-
                 <h2 class="text-xl font-semibold text-gray-800">
                     {% block page_title %}Dashboard{% endblock %}
                 </h2>
-
                 <div class="flex items-center space-x-4">
 
-                    <!-- Notification Bell with AJAX -->
+                    <!-- Notification Bell -->
                     <div class="relative" id="notificationBellContainer">
                         <button id="notificationBellBtn" class="relative focus:outline-none">
-                            <svg class="w-6 h-6 text-gray-600 hover:text-orange-500 transition" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-6 h-6 text-gray-600 hover:text-orange-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
                                 </path>
                             </svg>
-                            <!-- Unread Count Badge -->
-                            <span id="notificationBadge"
-                                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                                style="display: {% if unread_notifications_count > 0 %}flex{% else %}none{% endif %};">
+                            <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center" style="display: {% if unread_notifications_count > 0 %}flex{% else %}none{% endif %};">
                                 {{ unread_notifications_count }}
                             </span>
                         </button>
-
-                        <!-- Dropdown Menu - Shows ONLY 1 latest notification -->
-                        <div id="notificationDropdown"
-                            class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50">
+                        <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50">
                             <div class="p-4 border-b border-gray-200">
                                 <div class="flex justify-between items-center">
                                     <h3 class="text-lg font-semibold text-gray-800">Latest Notification</h3>
                                 </div>
                             </div>
-
                             <div id="notificationList" class="max-h-96 overflow-y-auto">
-                                <!-- Single notification will appear here -->
                                 <div class="p-4 text-center text-gray-500">
-                                    <div
-                                        class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500">
-                                    </div>
+                                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500"></div>
                                     <p class="mt-2 text-sm">Loading...</p>
                                 </div>
                             </div>
-
                             <div class="p-3 border-t border-gray-200">
-                                <a href="{% url 'all_notifications' %}"
-                                    class="block text-center text-orange-500 hover:text-orange-600 font-medium transition">
+                                <a href="{% url 'all_notifications' %}" class="block text-center text-orange-500 hover:text-orange-600 font-medium transition">
                                     View all notifications
                                 </a>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- ========== TOPBAR CHAT BUTTON WITH UNREAD COUNT BADGE ========== -->
+
+                    <!-- Chat Button in Topbar -->
                     <div class="relative">
                         <a href="{% url 'chat_rooms' %}" id="topbarChatBtn" class="relative focus:outline-none block">
                             <svg class="w-6 h-6 text-gray-600 hover:text-pink-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
+                                </path>
                             </svg>
-                            <!-- Chat Unread Count Badge (shows total unread messages) -->
-                            <span id="topbarChatBadge" 
-                                class="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center hidden chat-badge">
-                                0
-                            </span>
+                            <span id="topbarChatBadge" class="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center hidden chat-badge">0</span>
                         </a>
                     </div>
 
-                    <!-- User Info -->
-                    <div class="flex items-center space-x-2">
-                        <img src="https://i.pravatar.cc/40" class="rounded-full w-10 h-10" alt="User">
-                        <span class="font-medium">
-                            {{ request.user.username }}
-                        </span>
+                    <!-- User Menu -->
+                    <div class="relative">
+                        <button id="userMenuButton" class="flex items-center space-x-3 focus:outline-none">
+                            {% if request.user.profile.profile_image %}
+                            <img src="{{ request.user.profile.profile_image.url }}" alt="{{ request.user.username }}"
+                                class="w-8 h-8 rounded-full object-cover border-2 border-indigo-300">
+                            {% else %}
+                            <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+                                {{ request.user.username|first|upper }}
+                            </div>
+                            {% endif %}
+                            <span class="text-gray-700">{{ request.user.username }}</span>
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <!-- User Dropdown Menu -->
+                        <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                            <a href="{% url 'view_user_details' request.user.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                👤 My Profile
+                            </a>
+                            <hr class="my-1">
+                            <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                🚪 Logout
+                            </a>
+                        </div>
                     </div>
 
-                    <!-- Logout Button -->
-                    <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
-                        Logout
-                    </button>
+                    <!-- Removed duplicate Logout button here -->
 
                 </div>
             </header>
@@ -291,7 +243,54 @@
 
     </div>
 
+    <!-- Access Denied Modal -->
+    <div id="accessDeniedModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="window.NotificationManager?.closeAccessDeniedModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-red-100">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-bold text-gray-900">Access Denied</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500" id="accessDeniedMessage">You do not have the required permissions to perform this action.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="window.NotificationManager?.closeAccessDeniedModal()" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Toggle user dropdown
+        const userMenuButton = document.getElementById('userMenuButton');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenuButton && userDropdown) {
+            userMenuButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('hidden');
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!userMenuButton.contains(e.target) && !userDropdown.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+        }
+
         function getCSRFToken() {
             return document.cookie
                 .split('; ')
@@ -311,11 +310,6 @@
                 }
                 xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
                 xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                if (jqXHR.status === 403) {
-                    // Logic is now handled by the global ajaxError handler in NotificationManager
-                }
             }
         });
 
@@ -349,46 +343,34 @@
 
     <script>
         function logout() {
-            // Clear session storage (for back button navigation)
             sessionStorage.clear();
-
-            // Clear all cookies
             const cookies = document.cookie.split(';');
             for (let cookie of cookies) {
                 const eqPos = cookie.indexOf('=');
                 const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
                 document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
             }
-
-            // Clear local storage (JWT tokens)
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('user_role');
             localStorage.removeItem('username');
             localStorage.removeItem('user_id');
             localStorage.removeItem('user_email');
-
-            // Call server logout endpoint
             fetch('/logout/', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(() => {
-                    window.location.href = "{% url 'login_page' %}";
-                })
-                .catch(() => {
-                    window.location.href = "{% url 'login_page' %}";
-                });
+            .then(() => {
+                window.location.href = "{% url 'login_page' %}";
+            })
+            .catch(() => {
+                window.location.href = "{% url 'login_page' %}";
+            });
         }
-    </script>
 
-    <!-- Navigation Helper - Prevents Back Button Loops -->
-    <script>
-        // ========== GLOBAL NAVIGATION HELPER ==========
-
-        // Store the previous page before any navigation
+        // Navigation Helper
         (function () {
             sessionStorage.setItem('currentPage', window.location.pathname);
             if (!sessionStorage.getItem('initialPage')) {
@@ -396,19 +378,14 @@
             }
         })();
 
-        // Smart back button function - Fixed for loop issue
         function goBack() {
             const previousPage = sessionStorage.getItem('previousPage');
             const currentPage = window.location.pathname;
-
-            // If we have a stored previous page and it's different from current
             if (previousPage && previousPage !== currentPage) {
                 sessionStorage.removeItem('previousPage');
                 window.location.href = previousPage;
                 return;
             }
-
-            // Check if it's a project detail page
             if (currentPage.includes('view_project_detail')) {
                 {% if can_view_all_projects %}
                 window.location.href = "{% url 'view_projects' %}";
@@ -417,20 +394,14 @@
                 {% endif %}
                 return;
             }
-
-            // If it's the projects page, go to dashboard
             if (currentPage.includes('employee_projects') || currentPage.includes('projects/')) {
                 window.location.href = "{{ dashboard_url }}";
                 return;
             }
-
-            // Check if there's browser history
             if (document.referrer && document.referrer !== window.location.href) {
                 window.history.back();
                 return;
             }
-
-            // Final fallback to dashboard
             {% if request.user.is_authenticated %}
             window.location.href = "{{ dashboard_url }}";
             {% else %}
@@ -438,62 +409,33 @@
             {% endif %}
         }
 
-        // Automatically capture clicks on ALL links to track navigation
         document.addEventListener('click', function (e) {
             const link = e.target.closest('a');
             if (link && link.href && !link.href.includes('#') && link.target !== '_blank') {
-                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes('goBack')) {
-                    return;
-                }
-                if (link.classList.contains('no-history')) {
-                    return;
-                }
-                if (link.href.includes('javascript:')) {
-                    return;
-                }
-
+                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes('goBack')) return;
+                if (link.classList.contains('no-history')) return;
+                if (link.href.includes('javascript:')) return;
                 const currentPath = window.location.pathname;
                 try {
                     const linkPath = new URL(link.href).pathname;
                     if (currentPath !== linkPath) {
                         sessionStorage.setItem('previousPage', currentPath);
                     }
-                } catch (e) {
-                    // Invalid URL, ignore
-                }
+                } catch (e) {}
             }
-        });
-
-        // Convert all existing back buttons to use goBack function
-        document.addEventListener('DOMContentLoaded', function () {
-            const backButtons = document.querySelectorAll('[onclick*="history.back"], [onclick*="window.history.back"]');
-            backButtons.forEach(btn => {
-                btn.setAttribute('onclick', 'goBack()');
-            });
-
-            const backButtonsByClass = document.querySelectorAll('.back-btn, [data-back-button]');
-            backButtonsByClass.forEach(btn => {
-                if (!btn.getAttribute('onclick')) {
-                    btn.setAttribute('onclick', 'goBack()');
-                }
-            });
         });
     </script>
 
-    <!-- Chat Unread Count Manager - Shows TOTAL unread message count -->
+    <!-- Chat Badge Manager -->
     <script>
-        // ChatBadgeManager handles fetching TOTAL unread message count and updating all chat badges
         const ChatBadgeManager = {
             totalUnread: 0,
             pollInterval: null,
             previousUnread: 0,
-            
             init() {
                 this.fetchUnreadCount();
                 this.startPolling();
-                this.highlightActiveChatPage();
             },
-            
             fetchUnreadCount() {
                 fetch('/chat/api/unread-count/', {
                     headers: {
@@ -507,46 +449,22 @@
                         this.previousUnread = this.totalUnread;
                         this.totalUnread = data.total_unread || 0;
                         this.updateAllBadges();
-                        
-                        // Show toast notification for new messages
-                        if (this.totalUnread > this.previousUnread && this.previousUnread > 0) {
-                            const newMessages = this.totalUnread - this.previousUnread;
-                            if (newMessages > 0 && !window.location.pathname.includes('/chat/')) {
-                                this.showMessageToast(`${newMessages} new message${newMessages > 1 ? 's' : ''}`);
-                            }
-                        } else if (this.totalUnread > 0 && this.previousUnread === 0 && !window.location.pathname.includes('/chat/')) {
-                            this.showMessageToast(`${this.totalUnread} new message${this.totalUnread > 1 ? 's' : ''}`);
-                        }
                     }
                 })
-                .catch(error => {
-                    console.error('Error fetching chat unread count:', error);
-                });
+                .catch(error => console.error('Error fetching chat unread count:', error));
             },
-            
             updateAllBadges() {
                 const displayCount = this.totalUnread > 99 ? '99+' : (this.totalUnread || '');
                 const hasUnread = this.totalUnread > 0;
-                
-                // Update topbar chat badge
                 const topbarBadge = document.getElementById('topbarChatBadge');
                 if (topbarBadge) {
                     if (hasUnread) {
                         topbarBadge.textContent = displayCount;
                         topbarBadge.classList.remove('hidden');
-                        // Add pulse animation for attention if there are unread messages
-                        if (this.totalUnread > 0) {
-                            topbarBadge.classList.add('chat-badge-pulse');
-                        } else {
-                            topbarBadge.classList.remove('chat-badge-pulse');
-                        }
                     } else {
                         topbarBadge.classList.add('hidden');
-                        topbarBadge.classList.remove('chat-badge-pulse');
                     }
                 }
-                
-                // Update sidebar chat badge
                 const sidebarBadge = document.getElementById('sidebarChatBadge');
                 if (sidebarBadge) {
                     if (hasUnread) {
@@ -556,218 +474,80 @@
                         sidebarBadge.classList.add('hidden');
                     }
                 }
-                
-                // Update sidebar button styling based on unread count
-                const sidebarBtn = document.getElementById('sidebarChatBtn');
-                if (sidebarBtn) {
-                    if (hasUnread) {
-                        sidebarBtn.classList.add('bg-pink-50', 'text-pink-600');
-                    } else {
-                        sidebarBtn.classList.remove('bg-pink-50', 'text-pink-600');
-                    }
-                }
-                
-                // Update any dashboard stat card if present
-                const statUnreadElement = document.getElementById('statUnreadCount');
-                if (statUnreadElement) {
-                    statUnreadElement.innerText = this.totalUnread;
-                }
-                
-                // Update document title with unread count (like WhatsApp)
-                this.updateDocumentTitle();
             },
-            
-            updateDocumentTitle() {
-                const originalTitle = document.title.replace(/^\(\d+\)\s/, '');
-                if (this.totalUnread > 0) {
-                    document.title = `(${this.totalUnread}) ${originalTitle}`;
-                } else {
-                    document.title = originalTitle;
-                }
-            },
-            
             startPolling() {
-                // Poll every 5 seconds for real-time updates (faster for chat)
                 this.pollInterval = setInterval(() => {
-                    if (!document.hidden) {
-                        this.fetchUnreadCount();
-                    }
-                }, 5000);
-            },
-            
-            highlightActiveChatPage() {
-                // Check if current page is chat rooms page and highlight sidebar button
-                const currentPath = window.location.pathname;
-                const isChatPage = currentPath.includes('/chat/') || currentPath.includes('chat_rooms');
-                const sidebarBtn = document.getElementById('sidebarChatBtn');
-                const topbarBtn = document.getElementById('topbarChatBtn');
-                
-                if (isChatPage) {
-                    if (sidebarBtn) {
-                        sidebarBtn.classList.add('sidebar-chat-active');
-                        sidebarBtn.classList.add('bg-pink-100');
-                    }
-                    if (topbarBtn) {
-                        const svg = topbarBtn.querySelector('svg');
-                        if (svg) {
-                            svg.classList.add('text-pink-600');
-                        }
-                    }
-                }
-            },
-            
-            showMessageToast(message) {
-                // Create and show a toast notification for new messages
-                const existingToast = document.querySelector('.chat-toast-notification');
-                if (existingToast) existingToast.remove();
-                
-                const toast = document.createElement('div');
-                toast.className = 'chat-toast-notification fixed bottom-20 right-4 bg-pink-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full cursor-pointer';
-                toast.innerHTML = `
-                    <div class="flex items-center space-x-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                        </svg>
-                        <span class="text-sm font-medium">${message}</span>
-                    </div>
-                `;
-                
-                toast.addEventListener('click', () => {
-                    window.location.href = "{% url 'chat_rooms' %}";
-                });
-                
-                document.body.appendChild(toast);
-                
-                setTimeout(() => toast.classList.remove('translate-x-full'), 10);
-                setTimeout(() => {
-                    toast.classList.add('translate-x-full');
-                    setTimeout(() => toast.remove(), 300);
-                }, 4000);
+                    if (!document.hidden) this.fetchUnreadCount();
+                }, 50000);
             }
         };
-        
-        // Initialize chat badge manager when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            ChatBadgeManager.init();
-        });
-        
-        // Expose globally for possible manual refresh from other scripts
+        document.addEventListener('DOMContentLoaded', () => ChatBadgeManager.init());
         window.ChatBadgeManager = ChatBadgeManager;
     </script>
 
-    <!-- Notification System JavaScript -->
+    <!-- Notification Manager -->
     <script>
-        // Notification Manager - Handles real-time updates
         const NotificationManager = {
             unreadCount: parseInt("{{ unread_notifications_count|default:'0' }}") || 0,
             pollInterval: null,
             isLoading: false,
-
             init() {
                 this.loadLatestNotification();
                 this.startPolling();
                 this.attachEventListeners();
-                
-                // Add Access Denied checks
                 this.checkDjangoMessages();
-                this.setupGlobalAjaxHandler();
             },
-
             attachEventListeners() {
                 const bellBtn = document.getElementById('notificationBellBtn');
                 const dropdown = document.getElementById('notificationDropdown');
-
                 if (bellBtn && dropdown) {
                     bellBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         dropdown.classList.toggle('hidden');
-                        if (!dropdown.classList.contains('hidden')) {
-                            this.loadLatestNotification();
-                        }
+                        if (!dropdown.classList.contains('hidden')) this.loadLatestNotification();
                     });
-
                     document.addEventListener('click', (e) => {
                         if (!bellBtn.contains(e.target) && !dropdown.contains(e.target)) {
                             dropdown.classList.add('hidden');
                         }
                     });
                 }
-
-                const markAllBtn = document.getElementById('markAllReadBtn');
-                if (markAllBtn) {
-                    markAllBtn.addEventListener('click', () => this.markAllAsRead());
-                }
             },
-
             loadLatestNotification() {
                 if (this.isLoading) return;
                 this.isLoading = true;
-
                 fetch('/notifications/all/?page=1&page_size=1', {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                     }
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.renderSingleNotification(data.notifications);
-                            this.unreadCount = data.unread_count;
-                            this.updateBadge();
-                        }
-                        this.isLoading = false;
-                    })
-                    .catch(error => {
-                        console.error('Error loading notification:', error);
-                        this.isLoading = false;
-                    });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.renderSingleNotification(data.notifications);
+                        this.unreadCount = data.unread_count;
+                        this.updateBadge();
+                    }
+                    this.isLoading = false;
+                })
+                .catch(error => {
+                    console.error('Error loading notification:', error);
+                    this.isLoading = false;
+                });
             },
-
             renderSingleNotification(notifications) {
                 const container = document.getElementById('notificationList');
                 if (!container) return;
-
                 const latestNotif = notifications && notifications.length > 0 ? notifications[0] : null;
-
                 if (!latestNotif) {
-                    container.innerHTML = `
-                        <div class="p-8 text-center">
-                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                            </svg>
-                            <p class="text-gray-500">No notifications yet</p>
-                            <p class="text-xs text-gray-400 mt-1">New notifications will appear here</p>
-                        </div>
-                    `;
+                    container.innerHTML = `<div class="p-8 text-center"><p class="text-gray-500">No notifications yet</p></div>`;
                     return;
                 }
-
                 const isUnread = !latestNotif.is_read;
                 const bgColor = isUnread ? 'bg-blue-50' : 'bg-white';
-
-                container.innerHTML = `
-                    <div class="p-4 border-b border-gray-100 ${bgColor}">
-                        <div class="flex justify-between items-start">
-                            <div class="flex-1">
-                                <p class="text-sm text-gray-800 leading-relaxed">${this.escapeHtml(latestNotif.message)}</p>
-                                <p class="text-xs text-gray-400 mt-2">${this.formatDate(latestNotif.created_at)}</p>
-                            </div>
-                            ${isUnread ? `
-                            <button onclick="NotificationManager.markAsRead(${latestNotif.id})" 
-                                    class="text-xs text-blue-600 hover:text-blue-800 ml-2 px-2 py-1 rounded hover:bg-blue-100 whitespace-nowrap">
-                                Mark read
-                            </button>
-                            ` : `
-                            <span class="text-xs text-green-600 ml-2 whitespace-nowrap">
-                                ✓ Read
-                            </span>
-                            `}
-                        </div>
-                    </div>
-                `;
+                container.innerHTML = `<div class="p-4 border-b border-gray-100 ${bgColor}"><div class="flex justify-between items-start"><div class="flex-1"><p class="text-sm text-gray-800 leading-relaxed">${this.escapeHtml(latestNotif.message)}</p><p class="text-xs text-gray-400 mt-2">${this.formatDate(latestNotif.created_at)}</p></div>${isUnread ? `<button onclick="NotificationManager.markAsRead(${latestNotif.id})" class="text-xs text-blue-600 hover:text-blue-800">Mark read</button>` : `<span class="text-xs text-green-600">✓ Read</span>`}</div></div>`;
             },
-
             markAsRead(notificationId) {
                 fetch(`/notifications/mark-read/${notificationId}/`, {
                     method: 'POST',
@@ -777,48 +557,17 @@
                         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                     }
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.unreadCount = Math.max(0, this.unreadCount - 1);
-                            this.updateBadge();
-                            this.loadLatestNotification();
-
-                            if (window.location.pathname.includes('/notifications/all/')) {
-                                if (typeof loadNotifications === 'function') {
-                                    loadNotifications(1, 20);
-                                } else {
-                                    location.reload();
-                                }
-                            }
-
-                            this.showToast('Notification marked as read', 'success');
-                        }
-                    })
-                    .catch(error => console.error('Error marking as read:', error));
-            },
-
-            markAllAsRead() {
-                fetch('/notifications/mark-all-read/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': this.getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.unreadCount = Math.max(0, this.unreadCount - 1);
+                        this.updateBadge();
+                        this.loadLatestNotification();
+                        this.showToast('Notification marked as read', 'success');
                     }
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.unreadCount = 0;
-                            this.updateBadge();
-                            this.loadLatestNotification();
-                            this.showToast(data.message, 'success');
-                        }
-                    })
-                    .catch(error => console.error('Error marking all as read:', error));
+                .catch(error => console.error('Error:', error));
             },
-
             updateBadge() {
                 const badge = document.getElementById('notificationBadge');
                 if (badge) {
@@ -829,24 +578,12 @@
                         badge.style.display = 'none';
                     }
                 }
-
-                const title = document.title;
-                // Don't override chat unread count in title - combine them
-                if (this.unreadCount > 0 && !title.startsWith('(')) {
-                    document.title = `(${this.unreadCount}) ${title.replace(/^\(\d+\)\s/, '')}`;
-                } else if (this.unreadCount === 0 && title.match(/^\(\d+\)\s/)) {
-                    document.title = title.replace(/^\(\d+\)\s/, '');
-                }
             },
-
             startPolling() {
                 this.pollInterval = setInterval(() => {
-                    if (!document.hidden) {
-                        this.checkForNewNotifications();
-                    }
-                }, 30000);
+                    if (!document.hidden) this.checkForNewNotifications();
+                }, 50000);
             },
-
             checkForNewNotifications() {
                 fetch('/notifications/all/?page=1&page_size=1', {
                     headers: {
@@ -854,26 +591,22 @@
                         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                     }
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.unread_count > this.unreadCount) {
-                            const newCount = data.unread_count - this.unreadCount;
-                            this.unreadCount = data.unread_count;
-                            this.updateBadge();
-                            this.showToast(`📬 ${newCount} new notification${newCount > 1 ? 's' : ''}`, 'info');
-
-                            const dropdown = document.getElementById('notificationDropdown');
-                            if (dropdown && !dropdown.classList.contains('hidden')) {
-                                this.loadLatestNotification();
-                            }
-                        } else if (data.success) {
-                            this.unreadCount = data.unread_count;
-                            this.updateBadge();
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.unread_count > this.unreadCount) {
+                        this.unreadCount = data.unread_count;
+                        this.updateBadge();
+                        this.showToast(`📬 New notification`, 'info');
+                        if (document.getElementById('notificationDropdown') && !document.getElementById('notificationDropdown').classList.contains('hidden')) {
+                            this.loadLatestNotification();
                         }
-                    })
-                    .catch(error => console.error('Error checking notifications:', error));
+                    } else if (data.success) {
+                        this.unreadCount = data.unread_count;
+                        this.updateBadge();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
             },
-
             getCsrfToken() {
                 let cookieValue = null;
                 if (document.cookie && document.cookie !== '') {
@@ -888,148 +621,46 @@
                 }
                 return cookieValue;
             },
-
             formatDate(dateString) {
                 const date = new Date(dateString);
                 const now = new Date();
-                const diffMs = now - date;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
-
+                const diffMins = Math.floor((now - date) / 60000);
                 if (diffMins < 1) return 'Just now';
                 if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-                if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-                if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                if (diffMins < 1440) return `${Math.floor(diffMins / 60)} hour${Math.floor(diffMins / 60) !== 1 ? 's' : ''} ago`;
+                return date.toLocaleDateString();
             },
-
             escapeHtml(text) {
                 if (!text) return '';
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             },
-
             showToast(message, type = 'success') {
                 const existingToast = document.querySelector('.toast-notification');
                 if (existingToast) existingToast.remove();
-
                 const toast = document.createElement('div');
                 const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
-                toast.className = `toast-notification fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
-                toast.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <span>${message}</span>
-                        <button onclick="this.parentElement.parentElement.remove()" class="hover:text-gray-200 text-xl">&times;</button>
-                    </div>
-                `;
+                toast.className = `toast-notification fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full cursor-pointer`;
+                toast.innerHTML = `<div class="flex items-center space-x-3"><span>${message}</span><button onclick="this.parentElement.parentElement.remove()" class="hover:text-gray-200 text-xl">&times;</button></div>`;
                 document.body.appendChild(toast);
-
                 setTimeout(() => toast.classList.remove('translate-x-full'), 10);
                 setTimeout(() => {
                     toast.classList.add('translate-x-full');
                     setTimeout(() => toast.remove(), 300);
                 }, 3000);
             },
-
             checkDjangoMessages() {
                 {% if messages %}
                     {% for message in messages %}
-                        {% if "Access Denied" in message.message or "access_denied" in message.tags or message.tags == "error" %}
-                            this.showAccessDeniedModal("{{ message|escapejs }}");
-                        {% else %}
-                            this.showToast("{{ message|escapejs }}", "{{ message.tags }}");
-                        {% endif %}
+                        this.showToast("{{ message|escapejs }}", "{{ message.tags }}");
                     {% endfor %}
                 {% endif %}
-            },
-
-            setupGlobalAjaxHandler() {
-                // Intercept jQuery AJAX
-                $(document).ajaxError((event, jqXHR, ajaxSettings, thrownError) => {
-                    if (jqXHR.status === 403) {
-                        const response = jqXHR.responseJSON;
-                        const message = (response && response.message) || (response && response.error) || "Access denied. You do not have permission for this action.";
-                        this.showAccessDeniedModal(message);
-                    }
-                });
-
-                // Intercept native fetch
-                const originalFetch = window.fetch;
-                window.fetch = async (...args) => {
-                    const response = await originalFetch(...args);
-                    if (response.status === 403) {
-                        try {
-                            const clone = response.clone();
-                            const data = await clone.json();
-                            if (data.access_denied || data.error || data.message) {
-                                this.showAccessDeniedModal(data.message || data.error);
-                            } else {
-                                this.showAccessDeniedModal("Access denied. You do not have permission for this action.");
-                            }
-                        } catch (e) {
-                            this.showAccessDeniedModal("Access denied. You do not have permission for this action.");
-                        }
-                    }
-                    return response;
-                };
-            },
-
-            showAccessDeniedModal(message) {
-                const modal = document.getElementById('accessDeniedModal');
-                const messageEl = document.getElementById('accessDeniedMessage');
-                if (modal && messageEl) {
-                    messageEl.textContent = message;
-                    modal.classList.remove('hidden');
-                }
-            },
-
-            closeAccessDeniedModal() {
-                const modal = document.getElementById('accessDeniedModal');
-                if (modal) {
-                    modal.classList.add('hidden');
-                }
             }
         };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            NotificationManager.init();
-        });
-
+        document.addEventListener('DOMContentLoaded', () => NotificationManager.init());
         window.NotificationManager = NotificationManager;
     </script>
-
-    <!-- Access Denied Modal -->
-    <div id="accessDeniedModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="window.NotificationManager.closeAccessDeniedModal()"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-red-100">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <div class="sm:flex sm:items-start">
-                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                        </div>
-                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                            <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">Access Denied</h3>
-                            <div class="mt-2">
-                                <p class="text-sm text-gray-500" id="accessDeniedMessage">You do not have the required permissions to perform this action. Please contact your administrator if you believe this is an error.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" onclick="window.NotificationManager.closeAccessDeniedModal()" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200">
-                        Dismiss
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
 </body>
 

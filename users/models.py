@@ -96,7 +96,8 @@ class UserProfile(models.Model):
         related_name="profile"
     )
     ## basic details
-    employee_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
+    employee_id = models.CharField(max_length=20, unique=True, null=False, blank=False)
     phone = models.CharField(max_length=15, null=True, blank=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     designation = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True, blank=True)

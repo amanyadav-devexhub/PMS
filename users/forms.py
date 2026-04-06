@@ -8,10 +8,12 @@ from .models import User, Role, UserProfile
 
 class UserRegisterForm(UserCreationForm):
     role = forms.ChoiceField(choices=User.ROLE_CHOICES)
+    first_name = forms.CharField(max_length=150, required=False)
+    last_name = forms.CharField(max_length=150, required=False)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'role', 'password1', 'password2']
+        fields = ['username', 'email','first_name', 'last_name', 'role', 'password1', 'password2']
 
     # Remove password1 and password2 fields since we're not setting password
     # Or make them optional
@@ -90,6 +92,22 @@ class UserProfileForm(forms.ModelForm):
             'department': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
             'designation': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
         }
+
+         # Add validation for employee_id
+    def clean_employee_id(self):
+        employee_id = self.cleaned_data.get('employee_id')
+        if not employee_id or not employee_id.strip():
+            raise forms.ValidationError("Employee ID is required.")
+        
+        # Check uniqueness (excluding current instance if editing)
+        if self.instance and self.instance.pk:
+            if UserProfile.objects.exclude(pk=self.instance.pk).filter(employee_id=employee_id.strip()).exists():
+                raise forms.ValidationError("Employee ID already exists.")
+        else:
+            if UserProfile.objects.filter(employee_id=employee_id.strip()).exists():
+                raise forms.ValidationError("Employee ID already exists.")
+        
+        return employee_id.strip()
 
 
 from django.contrib.contenttypes.models import ContentType

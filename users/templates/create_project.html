@@ -163,13 +163,14 @@
                         </label>
                         <input type="date" name="start_date" id="start_date" 
                                value="{{ form.start_date.value|date:'Y-m-d'|default:'' }}"
+                               min="{% now 'Y-m-d' %}"
                                class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none
                                {% if date_error %}border-red-500 bg-red-50{% endif %}">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                         {% if date_error %}
                         <p class="text-red-500 text-xs mt-1 flex items-center date-error">
                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                             </svg>
                             {{ date_error }}
                         </p>
@@ -183,13 +184,14 @@
                         </label>
                         <input type="date" name="end_date" id="end_date" 
                                value="{{ form.end_date.value|date:'Y-m-d'|default:'' }}"
+                               min="{% now 'Y-m-d' %}"
                                class="w-full border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none
                                {% if date_error %}border-red-500 bg-red-50{% endif %}">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                         {% if date_error %}
                         <p class="text-red-500 text-xs mt-1 flex items-center date-error">
                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                             </svg>
                             {{ date_error }}
                         </p>
@@ -303,190 +305,9 @@
         const notificationContainer = document.getElementById('notificationContainer');
         const submitBtn = document.getElementById('submitBtn');
         
-        // ==================== SEARCHABLE DROPDOWN ====================
-        const selectedDisplay = document.getElementById('selectedItemsDisplay');
-        const customDropdown = document.getElementById('customDropdown');
-        const searchInput = document.getElementById('employeeSearchInput');
-        const dropdownOptions = document.getElementById('dropdownOptions');
-        const selectedValuesContainer = document.getElementById('selectedValuesContainer');
-        const placeholderText = document.getElementById('placeholderText');
+        // ==================== PAST DATE FREEZING ====================
+        const today = new Date().toISOString().split('T')[0];
         
-        let selectedValues = new Set(); // Store selected employee IDs
-        
-        // Function to update display
-        function updateDisplay() {
-            // Clear display
-            selectedDisplay.innerHTML = '';
-            
-            if (selectedValues.size === 0) {
-                // Show placeholder
-                const placeholder = document.createElement('span');
-                placeholder.className = 'text-gray-400 text-sm';
-                placeholder.innerText = 'Select employees...';
-                selectedDisplay.appendChild(placeholder);
-            } else {
-                // Show selected items as badges
-                selectedValues.forEach(value => {
-                    const option = document.querySelector(`.dropdown-option[data-value="${value}"]`);
-                    if (option) {
-                        const label = option.getAttribute('data-label');
-                        const badge = document.createElement('span');
-                        badge.className = 'bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs flex items-center gap-1';
-                        badge.innerHTML = `
-                            ${label}
-                            <button type="button" class="remove-badge ml-1 text-indigo-500 hover:text-indigo-700" data-value="${value}">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                                </svg>
-                            </button>
-                        `;
-                        selectedDisplay.appendChild(badge);
-                    }
-                });
-                
-                // Add hidden inputs for form submission
-                selectedValuesContainer.innerHTML = '';
-                selectedValues.forEach(value => {
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = 'assigned_to';
-                    hiddenInput.value = value;
-                    selectedValuesContainer.appendChild(hiddenInput);
-                });
-            }
-            
-            // Attach remove badge listeners
-            document.querySelectorAll('.remove-badge').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const value = this.getAttribute('data-value');
-                    selectedValues.delete(value);
-                    
-                    // Uncheck checkbox
-                    const checkbox = document.querySelector(`.option-checkbox[value="${value}"]`);
-                    if (checkbox) checkbox.checked = false;
-                    
-                    updateDisplay();
-                });
-            });
-        }
-        
-        // Toggle dropdown
-        function toggleDropdown(show) {
-            if (show) {
-                customDropdown.style.display = 'block';
-                customDropdown.classList.remove('hidden');
-                // Focus search input when opening
-                if (searchInput) setTimeout(() => searchInput.focus(), 100);
-            } else {
-                customDropdown.style.display = 'none';
-                customDropdown.classList.add('hidden');
-            }
-        }
-        
-        // Handle checkbox change
-        function handleCheckboxChange(checkbox, value) {
-            if (checkbox.checked) {
-                selectedValues.add(value);
-            } else {
-                selectedValues.delete(value);
-            }
-            updateDisplay();
-        }
-        
-        // Search filter
-        if (searchInput) {
-            searchInput.addEventListener('keyup', function() {
-                const searchTerm = this.value.toLowerCase();
-                const options = document.querySelectorAll('.dropdown-option');
-                
-                options.forEach(option => {
-                    const label = option.getAttribute('data-label').toLowerCase();
-                    const email = option.getAttribute('data-email').toLowerCase();
-                    
-                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                    }
-                });
-            });
-        }
-        
-        // Select All
-        const selectAllBtn = document.getElementById('selectAllOptions');
-        if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', function() {
-                document.querySelectorAll('.dropdown-option').forEach(option => {
-                    const checkbox = option.querySelector('.option-checkbox');
-                    const value = option.getAttribute('data-value');
-                    if (checkbox && !checkbox.checked) {
-                        checkbox.checked = true;
-                        selectedValues.add(value);
-                    }
-                });
-                updateDisplay();
-            });
-        }
-        
-        // Clear All
-        const clearAllBtn = document.getElementById('clearAllOptions');
-        if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', function() {
-                document.querySelectorAll('.option-checkbox').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-                selectedValues.clear();
-                updateDisplay();
-            });
-        }
-        
-        // Click on selected display to toggle dropdown
-        if (selectedDisplay) {
-            selectedDisplay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const isOpen = customDropdown.style.display === 'block';
-                toggleDropdown(!isOpen);
-            });
-        }
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!selectedDisplay?.contains(e.target) && !customDropdown?.contains(e.target)) {
-                toggleDropdown(false);
-            }
-        });
-        
-        // Attach checkbox listeners
-        function attachCheckboxListeners() {
-            document.querySelectorAll('.option-checkbox').forEach(checkbox => {
-                checkbox.removeEventListener('change', checkbox._listener);
-                const listener = function(e) {
-                    const value = this.value;
-                    handleCheckboxChange(this, value);
-                };
-                checkbox.addEventListener('change', listener);
-                checkbox._listener = listener;
-            });
-        }
-        
-        attachCheckboxListeners();
-        
-        // Pre-select existing values (for edit mode)
-        {% if form.assigned_to.value %}
-            const preSelectedIds = {{ form.assigned_to.value|safe }};
-            preSelectedIds.forEach(id => {
-                const idStr = id.toString();
-                selectedValues.add(idStr);
-                const checkbox = document.querySelector(`.option-checkbox[value="${idStr}"]`);
-                if (checkbox) checkbox.checked = true;
-            });
-            updateDisplay();
-        {% endif %}
-        
-        // ==================== END SEARCHABLE DROPDOWN ====================
-        
-        // Function to show notification
         function showNotification(message, type = 'success') {
             const notification = document.createElement('div');
             notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -514,7 +335,195 @@
             setTimeout(() => notification.remove(), 5000);
         }
         
-        // Function to clear errors
+        function preventPastDates() {
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            
+            if (startDateInput) {
+                startDateInput.setAttribute('min', today);
+                startDateInput.addEventListener('change', function() {
+                    if (this.value && this.value < today) {
+                        showNotification('Cannot select past dates for start date!', 'error');
+                        this.value = '';
+                    }
+                    validateDates();
+                });
+            }
+            
+            if (endDateInput) {
+                endDateInput.setAttribute('min', today);
+                endDateInput.addEventListener('change', function() {
+                    if (this.value && this.value < today) {
+                        showNotification('Cannot select past dates for end date!', 'error');
+                        this.value = '';
+                    }
+                    validateDates();
+                });
+            }
+        }
+        
+        // ==================== SEARCHABLE DROPDOWN ====================
+        const selectedDisplay = document.getElementById('selectedItemsDisplay');
+        const customDropdown = document.getElementById('customDropdown');
+        const searchInput = document.getElementById('employeeSearchInput');
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        const selectedValuesContainer = document.getElementById('selectedValuesContainer');
+        const placeholderText = document.getElementById('placeholderText');
+        
+        let selectedValues = new Set();
+        
+        function updateDisplay() {
+            selectedDisplay.innerHTML = '';
+            
+            if (selectedValues.size === 0) {
+                const placeholder = document.createElement('span');
+                placeholder.className = 'text-gray-400 text-sm';
+                placeholder.innerText = 'Select employees...';
+                selectedDisplay.appendChild(placeholder);
+            } else {
+                selectedValues.forEach(value => {
+                    const option = document.querySelector(`.dropdown-option[data-value="${value}"]`);
+                    if (option) {
+                        const label = option.getAttribute('data-label');
+                        const badge = document.createElement('span');
+                        badge.className = 'bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs flex items-center gap-1';
+                        badge.innerHTML = `
+                            ${label}
+                            <button type="button" class="remove-badge ml-1 text-indigo-500 hover:text-indigo-700" data-value="${value}">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        `;
+                        selectedDisplay.appendChild(badge);
+                    }
+                });
+                
+                selectedValuesContainer.innerHTML = '';
+                selectedValues.forEach(value => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'assigned_to';
+                    hiddenInput.value = value;
+                    selectedValuesContainer.appendChild(hiddenInput);
+                });
+            }
+            
+            document.querySelectorAll('.remove-badge').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const value = this.getAttribute('data-value');
+                    selectedValues.delete(value);
+                    const checkbox = document.querySelector(`.option-checkbox[value="${value}"]`);
+                    if (checkbox) checkbox.checked = false;
+                    updateDisplay();
+                });
+            });
+        }
+        
+        function toggleDropdown(show) {
+            if (show) {
+                customDropdown.style.display = 'block';
+                customDropdown.classList.remove('hidden');
+                if (searchInput) setTimeout(() => searchInput.focus(), 100);
+            } else {
+                customDropdown.style.display = 'none';
+                customDropdown.classList.add('hidden');
+            }
+        }
+        
+        function handleCheckboxChange(checkbox, value) {
+            if (checkbox.checked) {
+                selectedValues.add(value);
+            } else {
+                selectedValues.delete(value);
+            }
+            updateDisplay();
+        }
+        
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = document.querySelectorAll('.dropdown-option');
+                options.forEach(option => {
+                    const label = option.getAttribute('data-label').toLowerCase();
+                    const email = option.getAttribute('data-email').toLowerCase();
+                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
+                        option.style.display = '';
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        const selectAllBtn = document.getElementById('selectAllOptions');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.dropdown-option').forEach(option => {
+                    const checkbox = option.querySelector('.option-checkbox');
+                    const value = option.getAttribute('data-value');
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.checked = true;
+                        selectedValues.add(value);
+                    }
+                });
+                updateDisplay();
+            });
+        }
+        
+        const clearAllBtn = document.getElementById('clearAllOptions');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                selectedValues.clear();
+                updateDisplay();
+            });
+        }
+        
+        if (selectedDisplay) {
+            selectedDisplay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = customDropdown.style.display === 'block';
+                toggleDropdown(!isOpen);
+            });
+        }
+        
+        document.addEventListener('click', function(e) {
+            if (!selectedDisplay?.contains(e.target) && !customDropdown?.contains(e.target)) {
+                toggleDropdown(false);
+            }
+        });
+        
+        function attachCheckboxListeners() {
+            document.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                checkbox.removeEventListener('change', checkbox._listener);
+                const listener = function(e) {
+                    const value = this.value;
+                    handleCheckboxChange(this, value);
+                };
+                checkbox.addEventListener('change', listener);
+                checkbox._listener = listener;
+            });
+        }
+        
+        attachCheckboxListeners();
+        
+        {% if form.assigned_to.value %}
+            const preSelectedIds = {{ form.assigned_to.value|safe }};
+            preSelectedIds.forEach(id => {
+                const idStr = id.toString();
+                selectedValues.add(idStr);
+                const checkbox = document.querySelector(`.option-checkbox[value="${idStr}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            updateDisplay();
+        {% endif %}
+        
+        // ==================== END SEARCHABLE DROPDOWN ====================
+        
         function clearErrors() {
             document.querySelectorAll('.error-message').forEach(el => {
                 el.classList.add('hidden');
@@ -525,7 +534,6 @@
             });
         }
         
-        // Function to display errors
         function displayErrors(errors) {
             clearErrors();
             for (const [field, errorList] of Object.entries(errors)) {
@@ -557,7 +565,6 @@
             }
         }
         
-        // Date validation
         function validateDates() {
             const startDate = document.getElementById('start_date');
             const endDate = document.getElementById('end_date');
@@ -583,6 +590,9 @@
             startDate.addEventListener('change', validateDates);
             endDate.addEventListener('change', validateDates);
         }
+        
+        // Call preventPastDates
+        preventPastDates();
         
         // Resource formset
         const addBtn = document.getElementById('add-resource');

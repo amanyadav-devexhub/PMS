@@ -20,11 +20,9 @@
         </a>
         {% endif %}
 
-
-
         <!-- Search Section -->
         <div class="flex items-center space-x-2">
-            <input type="text" id="searchInput" name="search" placeholder="Search username or role..."
+            <input type="text" id="searchInput" name="search" placeholder="Search name or role..."
                 class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
 
             <button id="searchBtn" type="button" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
@@ -54,7 +52,7 @@
         <thead class="bg-gray-50 text-gray-600">
             <tr>
                 <th class="px-6 py-4">#</th>
-                <th class="px-6 py-4">Username</th>
+                <th class="px-6 py-4">Full Name</th>
                 <th class="px-6 py-4">Role</th>
                 <th class="px-6 py-4">Status</th>
                 <th class="px-6 py-4 text-right">Actions</th>
@@ -111,6 +109,7 @@
     // Permission flags from context processor
     const canDeleteUser = {{ can_delete_user|yesno:"true,false" }};
     const canChangeUser = {{ can_change_user|yesno:"true,false" }};
+    
     // Get CSRF token
     function getCookie(name) {
         let cookieValue = null;
@@ -268,13 +267,16 @@
                 ? '<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">Active</span>'
                 : '<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">Inactive</span>';
 
+            // Get full name or fallback to username
+            const fullName = user.full_name || user.username;
+
             html += `
             <tr class="hover:bg-gray-50" id="user-row-${user.id}">
                 <td class="px-6 py-4">
                     ${counter}
                 </td>
                 <td class="px-6 py-4 font-medium text-gray-800">
-                    ${escapeHtml(user.username)}
+                    ${escapeHtml(fullName)}
                 </td>
                 <td class="px-6 py-4">
                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${user.role_class}">
@@ -291,7 +293,7 @@
                     </a>
                     ${canDeleteUser ? `
                     <button type="button"
-                       onclick="deleteUser(${user.id}, '${escapeHtml(user.username)}')"
+                       onclick="deleteUser(${user.id}, '${escapeHtml(fullName)}')"
                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-xs shadow">
                         Delete
                     </button>
@@ -305,8 +307,8 @@
     }
 
     // Delete user function
-    function deleteUser(userId, username) {
-        if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+    function deleteUser(userId, fullName) {
+        if (!confirm(`Are you sure you want to delete user "${fullName}"?`)) return;
 
         loadingOverlay.classList.remove('hidden');
 

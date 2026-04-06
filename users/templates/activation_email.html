@@ -2,42 +2,38 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Activate Your Account</title>
+    <title>Account Created</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0;">
-    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); padding: 30px; border-radius: 10px; text-align: center;">
-            <h1 style="color: white; margin: 0;">Welcome to PMS</h1>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+        <h2 style="color: #4f46e5;">Welcome to PMS!</h2>
+        
+        <p>Hello <strong>{{ user.get_full_name|default:user.username }}</strong>,</p>
+        
+        <p>Your account has been created by the administrator. Here are your login credentials:</p>
+        
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Email:</strong> {{ user.email }}</p>
+            <p style="margin: 5px 0;"><strong>Password:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px;">{{ password }}</code></p>
         </div>
         
-        <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #333; margin-top: 0;">Hello {{ username }}!</h2>
-            
-            <p style="color: #555;">Your account has been created by the administrator. Please click the button below to set your password and activate your account:</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-                <a href="{{ activation_url }}" 
-                   style="background-color: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                    Set Password & Activate Account
-                </a>
-            </div>
-            
-            <p style="color: #555;">Or copy and paste this link in your browser:</p>
-            <p style="background-color: #f3f4f6; padding: 10px; border-radius: 5px; word-break: break-all; font-size: 12px;">
-                {{ activation_url }}
-            </p>
-            
-            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #92400e; font-size: 14px;">
-                    <strong>Note:</strong> This link will expire in 24 hours. If you didn't request this, please ignore this email.
-                </p>
-            </div>
-        </div>
+        <p>You can log in using the link below:</p>
         
-        <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
-            <p>This is an automated message from PMS. Please do not reply to this email.</p>
-            <p>&copy; {% now "Y" %} PMS. All rights reserved.</p>
-        </div>
+        <p style="text-align: center;">
+            <a href="{{ login_url }}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                Login to PMS
+            </a>
+        </p>
+        
+        <p style="font-size: 12px; color: #666; margin-top: 30px;">
+            <strong>Security Tip:</strong> Please change your password after your first login.
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        
+        <p style="font-size: 12px; color: #999;">
+            This is an automated message, please do not reply to this email.
+        </p>
     </div>
 </body>
 </html>

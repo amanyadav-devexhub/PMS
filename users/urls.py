@@ -1,8 +1,11 @@
 from django.urls import path,include
+
+from pms_system import settings
 from . import views
 from Tasks.models import Task
 from Tasks.forms import TaskForm
 from django.contrib.auth import views as auth_views
+from django.conf.urls.static import static
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -101,8 +104,11 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
+    path('my-profile/', views.my_profile, name='my_profile'),
+
     ## home page
     path('', views.home, name='home'),
+
 
 
 
@@ -165,6 +171,8 @@ urlpatterns = [
     
 ]
 
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 

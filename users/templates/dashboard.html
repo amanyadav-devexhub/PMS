@@ -121,9 +121,13 @@ function renderDashboard(data) {
                             ${data.users.map(user => `
                                 <tr>
                                     <td class="py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold mr-3">${user.username[0].toUpperCase()}</div>
-                                            <span class="text-sm font-medium text-gray-900">${escapeHtml(user.username)}</span>
+                                        <div class="w-8 h-8 rounded-full overflow-hidden mr-3">
+                                            ${user.profile_image 
+                                                ? `<img src="${user.profile_image}" class="w-full h-full object-cover" />`
+                                                : `<div class="w-full h-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                                                    ${user.username[0].toUpperCase()}
+                                                </div>`
+                                            }
                                         </div>
                                     </td>
                                     <td class="py-4 text-sm text-gray-500">${escapeHtml(user.email)}</td>

@@ -2,6 +2,9 @@
 
 # Create your views here.
 ## login & logout required libraries
+import profile
+from urllib import request
+
 from .decorators import allowed_roles, permission_required
 from users.decorators import jwt_or_session_required
 from django.contrib.auth import authenticate
@@ -729,11 +732,69 @@ def view_project_detail(request, project_id):
     
 
 ## View Users detail
+import re
 from users.models import UserProfile
+
 @jwt_or_session_required
 @permission_required('users.view_user')
 def view_user_details(request, user_id):
-    # Only allow GET requests for this view
+    # Handle POST request for self-edit (only for own profile)
+    if request.method == "POST" and request.user.id == user_id:
+        user_obj = get_object_or_404(User, id=user_id)
+        profile, created = UserProfile.objects.get_or_create(user=user_obj)
+        
+        errors = {}
+        
+        # Phone Number Validation (10 digits, numeric)
+        phone = request.POST.get('phone', '').strip()
+        if phone:
+            if not re.match(r'^[6-9]\d{9}$', phone):
+                errors['phone'] = 'Phone number must be 10 digits and start with 6,7,8, or 9'
+        
+        # Emergency Contact Validation (10 digits, numeric)
+        emergency_contact = request.POST.get('emergency_contact', '').strip()
+        if emergency_contact:
+            if not re.match(r'^[6-9]\d{9}$', emergency_contact):
+                errors['emergency_contact'] = 'Emergency contact must be 10 digits and start with 6,7,8, or 9'
+        
+        # Address Validation (not empty if provided)
+        address = request.POST.get('address', '').strip()
+        if address and len(address) < 5:
+            errors['address'] = 'Address must be at least 5 characters long'
+        
+        if errors:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': errors}, status=400)
+        
+        # Update only allowed fields (non-sensitive)
+        if request.FILES.get('profile_image'):
+            # Validate image file type and size
+            image_file = request.FILES['profile_image']
+            if image_file.size > 5 * 1024 * 1024:  # 5MB limit
+                errors['profile_image'] = 'Image size must be less than 5MB'
+            elif not image_file.content_type.startswith('image/'):
+                errors['profile_image'] = 'File must be an image (JPG, PNG, GIF)'
+            else:
+                profile.profile_image = image_file
+        
+        if phone:
+            profile.phone = phone
+        if emergency_contact:
+            profile.emergency_contact = emergency_contact
+        if address:
+            profile.address = address
+        
+        if errors:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': errors}, status=400)
+        
+        profile.save()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': 'Profile updated successfully!'})
+        return redirect(f"/user/{user_id}/")
+    
+    # Only allow GET requests for viewing
     if request.method != "GET":
         return redirect(f"/view_user_details/{user_id}/")
     
@@ -760,9 +821,11 @@ def view_user_details(request, user_id):
                 "role": user_obj.role,
                 "is_active": user_obj.is_active,
                 "full_name": user_obj.get_full_name() or user_obj.username,
-                "date_joined": user_obj.date_joined.strftime('%Y-%m-%d') if user_obj.date_joined else None
+                "date_joined": user_obj.date_joined.strftime('%Y-%m-%d') if user_obj.date_joined else None,
+                "profile_image": profile.profile_image.url if profile.profile_image else None
             },
             "profile": {
+                "profile_image": profile.profile_image.url if profile.profile_image else None,
                 "employee_id": profile.employee_id or "—",
                 "phone": profile.phone or "—",
                 "department": profile.department.name if profile.department else "—",
@@ -1486,6 +1549,8 @@ If you did not register on our site, please ignore this email.
     )
 
 ## Edit User - Admin only
+import re
+
 @jwt_or_session_required
 @permission_required('users.change_user')
 @csrf_exempt
@@ -1508,17 +1573,103 @@ def edit_user(request, user_id):
         # Get form data
         email = request.POST.get("email")
         username = request.POST.get("username")
+        user.first_name = request.POST.get("first_name", "")
+        user.last_name = request.POST.get("last_name", "")
         role_obj_id = request.POST.get("role_obj")
         is_active = request.POST.get("is_active")
+        employee_id = request.POST.get("employee_id", "").strip()
         
         # Validate required fields
         errors = {}
+        
+        # Email validation
         if not email:
             errors['email'] = ['Email is required']
+        elif not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+            errors['email'] = ['Please enter a valid email address']
+        
+        # Username validation
         if not username:
             errors['username'] = ['Username is required']
+        elif len(username) < 3:
+            errors['username'] = ['Username must be at least 3 characters long']
+        
+        # Role validation
         if not role_obj_id:
             errors['role_obj'] = ['Role is required']
+        
+        # Employee ID validation
+        if not employee_id:
+            errors['employee_id'] = ['Employee ID is required']
+        elif len(employee_id) < 2:
+            errors['employee_id'] = ['Employee ID must be at least 2 characters long']
+        else:
+            # Check uniqueness (excluding current user)
+            if UserProfile.objects.exclude(id=profile.id).filter(employee_id=employee_id).exists():
+                errors['employee_id'] = ['Employee ID already exists. Please use a unique ID.']
+        
+        # Phone number validation (10 digits, starts with 6-9)
+        phone = request.POST.get("phone", "").strip()
+        if phone:
+            if not re.match(r'^[6-9]\d{9}$', phone):
+                errors['phone'] = ['Phone number must be 10 digits and start with 6, 7, 8, or 9']
+        
+        # Emergency contact validation
+        emergency_contact = request.POST.get("emergency_contact", "").strip()
+        if emergency_contact:
+            if not re.match(r'^[6-9]\d{9}$', emergency_contact):
+                errors['emergency_contact'] = ['Emergency contact must be 10 digits and start with 6, 7, 8, or 9']
+        
+        # Aadhar number validation (12 digits)
+        aadhar_no = request.POST.get("aadhar_no", "").strip()
+        if aadhar_no:
+            if not re.match(r'^\d{12}$', aadhar_no):
+                errors['aadhar_no'] = ['Aadhar number must be exactly 12 digits']
+        
+        # PAN number validation (5 letters + 4 digits + 1 letter)
+        pan_no = request.POST.get("pan_no", "").strip()
+        if pan_no:
+            if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', pan_no.upper()):
+                errors['pan_no'] = ['PAN number must be in format: ABCDE1234F (5 letters, 4 digits, 1 letter)']
+        
+        # IFSC code validation (11 characters: 4 letters + 7 alphanumeric)
+        ifsc = request.POST.get("ifsc", "").strip()
+        if ifsc:
+            if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', ifsc.upper()):
+                errors['ifsc'] = ['IFSC code must be 11 characters (e.g., SBIN0123456)']
+        
+        # CTC validation (positive number)
+        ctc = request.POST.get("ctc", "").strip()
+        if ctc:
+            try:
+                ctc_val = float(ctc)
+                if ctc_val < 0:
+                    errors['ctc'] = ['CTC cannot be negative']
+            except ValueError:
+                errors['ctc'] = ['Please enter a valid number for CTC']
+        
+        # Salary validation (positive number)
+        salary_in_hand = request.POST.get("salary_in_hand", "").strip()
+        if salary_in_hand:
+            try:
+                salary_val = float(salary_in_hand)
+                if salary_val < 0:
+                    errors['salary_in_hand'] = ['Salary cannot be negative']
+            except ValueError:
+                errors['salary_in_hand'] = ['Please enter a valid number for salary']
+        
+        # Account number validation (at least 9 digits)
+        account_no = request.POST.get("account_no", "").strip()
+        if account_no:
+            if len(account_no) < 9 or len(account_no) > 18:
+                errors['account_no'] = ['Account number should be between 9 to 18 digits']
+            elif not account_no.isdigit():
+                errors['account_no'] = ['Account number should contain only digits']
+        
+        # Address validation
+        address = request.POST.get("address", "").strip()
+        if address and len(address) < 5:
+            errors['address'] = ['Address must be at least 5 characters long']
 
         selected_role = None
         if role_obj_id:
@@ -1551,12 +1702,44 @@ def edit_user(request, user_id):
         user.is_active = (is_active == "True")
         user.save()
 
-        # Update profile
-        profile.department_id = request.POST.get("department")
-        profile.designation_id = request.POST.get("designation")
-        profile.employee_id = request.POST.get("employee_id") or None
-        profile.phone = request.POST.get("phone") or None
+        # Update profile - Basic Details (Department & Designation are now OPTIONAL)
+        profile.department_id = request.POST.get("department") or None  # ✅ Can be empty
+        profile.designation_id = request.POST.get("designation") or None  # ✅ Can be empty
+        profile.employee_id = employee_id or None
+        profile.phone = phone or None
         profile.date_of_joining = request.POST.get("date_of_joining") or None
+        
+        # Handle profile image upload with validation
+        if request.FILES.get('profile_image'):
+            image_file = request.FILES['profile_image']
+            if image_file.size > 5 * 1024 * 1024:  # 5MB limit
+                if is_ajax:
+                    return JsonResponse({'success': False, 'errors': {'profile_image': ['Image size must be less than 5MB']}}, status=400)
+                messages.error(request, "Image size must be less than 5MB")
+            elif not image_file.content_type.startswith('image/'):
+                if is_ajax:
+                    return JsonResponse({'success': False, 'errors': {'profile_image': ['File must be an image (JPG, PNG, GIF)']}}, status=400)
+                messages.error(request, "File must be an image (JPG, PNG, GIF)")
+            else:
+                profile.profile_image = image_file
+        
+        # Salary Details
+        profile.ctc = ctc if ctc else None
+        profile.salary_in_hand = salary_in_hand if salary_in_hand else None
+        
+        # Bank Details
+        profile.bank_name = request.POST.get('bank_name') or None
+        profile.account_no = account_no or None
+        profile.ifsc = ifsc.upper() if ifsc else None
+        
+        # Verification Details
+        profile.aadhar_no = aadhar_no or None
+        profile.pan_no = pan_no.upper() if pan_no else None
+        
+        # Additional Details
+        profile.emergency_contact = emergency_contact or None
+        profile.address = address or None
+        
         profile.save()
 
         if is_ajax:
@@ -1926,9 +2109,22 @@ def activate_user(request, uidb64, token):
 
 ## Create new user with role and save to database
 from django.contrib.auth import get_user_model
-
 User = get_user_model()
-
+import re
+import secrets
+import string
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.urls import reverse
+from django.conf import settings
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from users.decorators import jwt_or_session_required, allowed_roles
+from .forms import UserRegisterForm, UserProfileForm
+from .models import User, UserProfile, Role, Department, Designation
 @jwt_or_session_required
 @csrf_exempt
 @allowed_roles(allowed_roles=["ADMIN"])
@@ -1941,65 +2137,106 @@ def create_user(request):
 
             errors = {}
             
+            # VALIDATION FOR EMPLOYEE ID
+            employee_id = request.POST.get('employee_id')
+            if not employee_id or not employee_id.strip():
+                errors['employee_id'] = ['Employee ID is required.']
+            else:
+                if UserProfile.objects.filter(employee_id=employee_id.strip()).exists():
+                    errors['employee_id'] = ['Employee ID already exists. Please use a unique ID.']
+            
+            # PHONE VALIDATION
+            phone = request.POST.get('phone', '').strip()
+            if phone:
+                if not re.match(r'^[6-9]\d{9}$', phone):
+                    errors['phone'] = ['Phone number must be 10 digits and start with 6, 7, 8, or 9']
+            
+            # EMAIL VALIDATION
+            email = request.POST.get('email', '').strip()
+            if not email:
+                errors['email'] = ['Email is required']
+            elif not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                errors['email'] = ['Please enter a valid email address']
+            
+            # USERNAME VALIDATION
+            username = request.POST.get('username', '').strip()
+            if not username:
+                errors['username'] = ['Username is required']
+            elif len(username) < 3:
+                errors['username'] = ['Username must be at least 3 characters long']
+            
+            # ✅ FIXED: ROLE VALIDATION - match the form field name 'role_obj'
+            role_id = request.POST.get('role_obj')
+            if not role_id:
+                errors['role_obj'] = ['Role is required']
+            
+            # FIRST NAME & LAST NAME VALIDATION
+            first_name = request.POST.get('first_name', '').strip()
+            last_name = request.POST.get('last_name', '').strip()
+            if not first_name:
+                errors['first_name'] = ['First name is required']
+            if not last_name:
+                errors['last_name'] = ['Last name is required']
+            
+            # DEPARTMENT VALIDATION (REQUIRED)
+            department_id = request.POST.get('department')
+            if not department_id:
+                errors['department'] = ['Department is required']
+            
+            # DESIGNATION VALIDATION (REQUIRED)
+            designation_id = request.POST.get('designation')
+            if not designation_id:
+                errors['designation'] = ['Designation is required']
+            
             # Validate forms
             if not user_form.is_valid():
                 for field, error_list in user_form.errors.items():
-                    errors[f'user_{field}'] = error_list
+                    errors[field] = error_list
             
             if not profile_form.is_valid():
                 for field, error_list in profile_form.errors.items():
-                    errors[f'profile_{field}'] = error_list
+                    errors[field] = error_list
             
-            # If there are validation errors
             if errors:
                 return JsonResponse({
                     'success': False,
                     'errors': errors
                 }, status=400)
             
-            # Forms are valid, proceed with user creation
+            # GENERATE RANDOM PASSWORD
+            def generate_random_password(length=12):
+                alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+                password = ''.join(secrets.choice(alphabet) for i in range(length))
+                return password
+            
+            random_password = generate_random_password()
+            
+            # Create user object
+            user = user_form.save(commit=False)
+            user.set_password(random_password)
+            user.is_active = True
+            user.first_name = first_name
+            user.last_name = last_name
+            user.email = email
+            user.username = username
+            
+            # ✅ FIXED: Set role using role_id
+            if role_id:
+                try:
+                    role_obj = Role.objects.get(id=role_id)
+                    user.role_obj = role_obj
+                    user.role = role_obj.name
+                except Role.DoesNotExist:
+                    pass
+            
+            # SEND EMAIL FIRST
             try:
-                # Step 1: Save the User (but don't commit to DB yet)
-                user = user_form.save(commit=False)
-                # Don't set password! User will set it via activation link
-                user.set_unusable_password()  # This sets a unusable password
-                user.is_active = False  # User is inactive until they activate
-                user.save()  # Save user to database
-                
-                # Step 2: The SIGNAL automatically creates a UserProfile here
-                
-                # Step 3: Get the existing profile created by the signal
-                profile = user.profile
-                
-                # Step 4: Update the existing profile with form data
-                profile.employee_id = profile_form.cleaned_data.get('employee_id')
-                profile.phone = profile_form.cleaned_data.get('phone')
-                profile.department = profile_form.cleaned_data.get('department')
-                profile.designation = profile_form.cleaned_data.get('designation')
-                profile.date_of_joining = profile_form.cleaned_data.get('date_of_joining')
-                profile.save()
-                
-                # Step 5: Generate activation token and send email
-                from django.utils.http import urlsafe_base64_encode
-                from django.utils.encoding import force_bytes
-                from django.contrib.auth.tokens import default_token_generator
-                from django.core.mail import send_mail
-                from django.template.loader import render_to_string
-                from django.utils.html import strip_tags
-                
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = default_token_generator.make_token(user)
-                activation_url = request.build_absolute_uri(
-                    reverse('activate', kwargs={'uidb64': uid, 'token': token})
-                )
-                
-                # Send email
-                subject = 'Activate Your Account - Set Your Password'
+                subject = 'Your Account Has Been Created - Login Credentials'
                 html_message = render_to_string('activation_email.html', {
                     'user': user,
-                    'activation_url': activation_url,
+                    'password': random_password,
                     'site_name': 'PMS',
-                    'username': user.username
+                    'login_url': request.build_absolute_uri(reverse('login_page'))
                 })
                 plain_message = strip_tags(html_message)
                 
@@ -2011,15 +2248,30 @@ def create_user(request):
                     html_message=html_message,
                     fail_silently=False,
                 )
+                
+            except Exception as email_err:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {
+                        'email_error': [f'Failed to send email: {str(email_err)}. User was not created.']
+                    }
+                }, status=400)
+            
+            # SAVE USER
+            try:
+                user.save()
+                
+                profile = user.profile
+                profile.employee_id = employee_id.strip()
+                profile.phone = phone or None
+                profile.department_id = department_id
+                profile.designation_id = designation_id
+                profile.date_of_joining = request.POST.get('date_of_joining') or None
+                profile.save()
 
-                # Convert department and designation to strings for JSON
-                department_name = profile.department.name if profile.department else None
-                designation_name = profile.designation.name if profile.designation else None
-
-                # Return success response with user data
                 return JsonResponse({
                     'success': True,
-                    'message': f"User '{user.username}' created successfully! An activation email has been sent to {user.email}",
+                    'message': f"User '{user.username}' created successfully! Login credentials sent to {user.email}",
                     'redirect_url': request.POST.get('redirect_url', '/admin_dashboard/'),
                     'user': {
                         'id': user.id,
@@ -2028,14 +2280,12 @@ def create_user(request):
                         'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
                         'role': user.role,
                         'employee_id': profile.employee_id,
-                        'department': department_name,
-                        'designation': designation_name
+                        'department': profile.department.name if profile.department else None,
+                        'designation': profile.designation.name if profile.designation else None,
                     }
                 })
                 
             except Exception as e:
-                import traceback
-                traceback.print_exc()
                 return JsonResponse({
                     'success': False,
                     'errors': {
@@ -2043,114 +2293,39 @@ def create_user(request):
                     }
                 }, status=500)
         
-        # GET request - return form structure if needed
+        # GET request - return form structure
         elif request.method == "GET":
-            user_form = UserRegisterForm()
-            profile_form = UserProfileForm()
+            # Get all roles from Role model
+            roles = Role.objects.all().values('id', 'name')
+            departments = Department.objects.all().values('id', 'name')
+            designations = Designation.objects.all().values('id', 'name')
             
-            # Get field definitions for dynamic form rendering
-            user_fields = {}
-            for field_name, field in user_form.fields.items():
-                user_fields[field_name] = {
-                    'label': str(field.label),
-                    'required': field.required,
-                    'help_text': field.help_text,
-                    'type': field.widget.__class__.__name__
-                }
+            # User form fields structure - uses 'role_obj' to match POST
+            user_fields = {
+                'first_name': {'label': 'First Name', 'required': True, 'type': 'text', 'minlength': 2},
+                'last_name': {'label': 'Last Name', 'required': True, 'type': 'text', 'minlength': 2},
+                'email': {'label': 'Email', 'required': True, 'type': 'email', 'pattern': '[^@]+@[^@]+\\.[a-zA-Z]{2,}'},
+                'username': {'label': 'Username', 'required': True, 'type': 'text', 'minlength': 3, 'pattern': '[A-Za-z0-9_]{3,}'},
+                'role_obj': {'label': 'Role', 'required': True, 'type': 'select', 'options': list(roles)},
+            }
             
-            profile_fields = {}
-            for field_name, field in profile_form.fields.items():
-                profile_fields[field_name] = {
-                    'label': str(field.label),
-                    'required': field.required,
-                    'help_text': field.help_text,
-                    'type': field.widget.__class__.__name__
-                }
+            # Profile form fields structure
+            profile_fields = {
+                'employee_id': {'label': 'Employee ID', 'required': True, 'type': 'text', 'minlength': 2},
+                'phone': {'label': 'Phone', 'required': False, 'type': 'tel', 'pattern': '[6-9][0-9]{9}', 'maxlength': 10, 'help_text': '10 digits, starts with 6/7/8/9'},
+                'department': {'label': 'Department', 'required': True, 'type': 'select', 'options': list(departments)},
+                'designation': {'label': 'Designation', 'required': True, 'type': 'select', 'options': list(designations)},
+                'date_of_joining': {'label': 'Date of Joining', 'required': False, 'type': 'date'},
+            }
             
             return JsonResponse({
                 'success': True,
                 'user_fields': user_fields,
-                'profile_fields': profile_fields
+                'profile_fields': profile_fields,
             })
     
     # Handle regular (non-AJAX) request
-    if request.method == "POST":
-        user_form = UserRegisterForm(request.POST)
-        profile_form = UserProfileForm(request.POST)
-
-        if user_form.is_valid() and profile_form.is_valid():
-            try:
-                user = user_form.save(commit=False)
-                user.set_unusable_password()  # Don't set password
-                user.is_active = False  # User is inactive
-                user.save()
-                
-                profile = user.profile
-                profile.employee_id = profile_form.cleaned_data.get('employee_id')
-                profile.phone = profile_form.cleaned_data.get('phone')
-                profile.department = profile_form.cleaned_data.get('department')
-                profile.designation = profile_form.cleaned_data.get('designation')
-                profile.date_of_joining = profile_form.cleaned_data.get('date_of_joining')
-                profile.save()
-                
-                # Send activation email
-                from django.utils.http import urlsafe_base64_encode
-                from django.utils.encoding import force_bytes
-                from django.contrib.auth.tokens import default_token_generator
-                from django.core.mail import send_mail
-                from django.template.loader import render_to_string
-                from django.utils.html import strip_tags
-                
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = default_token_generator.make_token(user)
-                activation_url = request.build_absolute_uri(
-                    reverse('activate', kwargs={'uidb64': uid, 'token': token})
-                )
-                
-                subject = 'Activate Your Account - Set Your Password'
-                html_message = render_to_string('activation_email.html', {
-                    'user': user,
-                    'activation_url': activation_url,
-                    'site_name': 'PMS',
-                    'username': user.username
-                })
-                plain_message = strip_tags(html_message)
-                
-                send_mail(
-                    subject,
-                    plain_message,
-                    DEFAULT_FROM_EMAIL,
-                    [user.email],
-                    html_message=html_message,
-                    fail_silently=False,
-                )
-
-                messages.success(request, f"User '{user.username}' created! An activation email has been sent to {user.email}")
-                return redirect("admin_dashboard")
-                
-            except Exception as e:
-                print(f"ERROR: {str(e)}")
-                messages.error(request, f"Error creating user: {str(e)}")
-        else:
-            # Form validation failed
-            if not user_form.is_valid():
-                for field, errors in user_form.errors.items():
-                    for error in errors:
-                        messages.error(request, f"User Form - {field}: {error}")
-            
-            if not profile_form.is_valid():
-                for field, errors in profile_form.errors.items():
-                    for error in errors:
-                        messages.error(request, f"Profile Form - {field}: {error}")
-    else:
-        user_form = UserRegisterForm()
-        profile_form = UserProfileForm()
-
-    return render(request, "create_user.html", {
-        "user_form": user_form,
-        "profile_form": profile_form
-    })
-
+    return render(request, "create_user.html")
 
 ## delete user
 from django.shortcuts import get_object_or_404
@@ -2335,6 +2510,9 @@ def assign_task(request):
 from projects.forms import  ProjectResourceFormSet
 from users.forms import ProjectForm
 ## Create Project
+from notifications.models import Notification
+from django.urls import reverse
+
 @jwt_or_session_required
 @permission_required('projects.add_projects')
 @csrf_exempt
@@ -2396,8 +2574,11 @@ def create_project(request):
                 project.created_by = request.user
                 project.save()
                 
+                assigned_users = []
                 if project_form.cleaned_data.get('assigned_to'):
-                    project.assigned_to.set(project_form.cleaned_data['assigned_to'])
+                    assigned_users = list(project_form.cleaned_data['assigned_to'])
+                    project.assigned_to.set(assigned_users)
+                
                 # Save resources
                 resource_count = 0
                 for resource_form in resource_formset:
@@ -2406,6 +2587,20 @@ def create_project(request):
                         resource.project = project
                         resource.save()
                         resource_count += 1
+                
+                # ✅ SEND NOTIFICATIONS TO ASSIGNED EMPLOYEES
+                if assigned_users:
+                    for user in assigned_users:
+                        # Avoid duplicate notifications
+                        if not Notification.objects.filter(
+                            user=user,
+                            message__icontains=f'project "{project.name}"'
+                        ).exists():
+                            Notification.objects.create(
+                                user=user,
+                                message=f'📁 You have been assigned to project "{project.name}" by {request.user.get_full_name() or request.user.username}.',
+                                is_read=False
+                            )
                 
                 # Determine redirect URL based on user role
                 redirect_url = request.POST.get('redirect_url', '')
@@ -2508,14 +2703,30 @@ def create_project(request):
             project.created_by = request.user
             project.save()
             
+            assigned_users = []
             if project_form.cleaned_data.get('assigned_to'):
-                project.assigned_to.set(project_form.cleaned_data['assigned_to'])
+                assigned_users = list(project_form.cleaned_data['assigned_to'])
+                project.assigned_to.set(assigned_users)
             
             for resource_form in resource_formset:
                 if resource_form.cleaned_data and not resource_form.cleaned_data.get('DELETE', False):
                     resource = resource_form.save(commit=False)
                     resource.project = project
                     resource.save()
+            
+            # ✅ SEND NOTIFICATIONS TO ASSIGNED EMPLOYEES (Regular POST)
+            if assigned_users:
+                for user in assigned_users:
+                    # Avoid duplicate notifications
+                    if not Notification.objects.filter(
+                        user=user,
+                        message__icontains=f'project "{project.name}"'
+                    ).exists():
+                        Notification.objects.create(
+                            user=user,
+                            message=f'📁 You have been assigned to project "{project.name}" by {request.user.get_full_name() or request.user.username}.',
+                            is_read=False
+                        )
 
             messages.success(request, "✅ Project created successfully!")
             if can_view_all_projects(request.user):
@@ -3803,6 +4014,31 @@ def check_email_exists(request):
         
     except Exception as e:
         return JsonResponse({'exists': False, 'error': str(e)}, status=500)
+
+
+@jwt_or_session_required
+def my_profile(request):
+    """View for logged-in user to see their own profile and upload image"""
+    user = request.user
+    profile = user.profile
+    
+    if request.method == "POST" and request.FILES.get('profile_image'):
+        # Only allow image upload, nothing else
+        profile.profile_image = request.FILES['profile_image']
+        profile.save()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Profile picture updated successfully!',
+                'image_url': profile.profile_image.url if profile.profile_image else None
+            })
+    
+    # For GET request - return template with user data
+    return render(request, 'my_profile.html', {
+        'user': user,
+        'profile': profile
+    })
 
 ## Permission Management Views
 @jwt_or_session_required
