@@ -17,6 +17,7 @@ from .permissions import (
     can_view_all_tasks,
     can_view_projects,
     can_view_task,
+    can_view_user,
     dashboard_url_for,
     is_manager_like,
 )
@@ -63,6 +64,7 @@ def permission_flags(request):
             'can_change_task': False,
             'can_delete_task': False,
             'can_view_task': False,
+            'can_view_user': False,
             'can_view_all_tasks': False,
             'is_manager_like': False,
             'dashboard_url': '/dashboard/',
@@ -85,6 +87,7 @@ def permission_flags(request):
         'can_change_task': can_change_task(user),
         'can_delete_task': can_delete_task(user),
         'can_view_task': can_view_task(user),
+        'can_view_user': can_view_user(user),
         'can_view_all_tasks': can_view_all_tasks(user),
         'is_manager_like': is_manager_like(user),
         'dashboard_url': dashboard_url_for(user),

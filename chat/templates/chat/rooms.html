@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Chats - ReadyTask Messenger{% endblock %}
+{% block title %}Chats - PMS Messenger{% endblock %}
 
 {% block page_title %}Chat Rooms{% endblock %}
 
@@ -125,7 +125,7 @@
     <div class="bg-white dark:bg-[#111827] rounded-xl shadow-2xl w-full max-w-md mx-4">
         <div class="bg-[#4a9d7e] px-6 py-4 rounded-t-xl">
             <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold text-white">New Chat</h3>
+                <h3 class="text-lg font-bold text-white">Create Group Chat</h3>
                 <button id="closeModal" class="text-white hover:text-gray-200">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -136,16 +136,16 @@
         
         <div class="p-4">
             <div class="flex gap-2 mb-4 border-b border-slate-200 dark:border-white/10">
-                <button id="newChatTab" class="flex-1 py-2 text-center font-medium text-[#4a9d7e] border-b-2 border-[#4a9d7e]">New Chat</button>
-                <button id="newGroupTab" class="flex-1 py-2 text-center font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300">New Group</button>
+                <button id="newGroupTab" class="flex-1 py-2 text-center font-bold text-[#4a9d7e] border-b-2 border-[#4a9d7e]">Create Group</button>
+                <button id="newChatTab" class="flex-1 py-2 text-center font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300">Invite Members</button>
             </div>
             
             <!-- New Chat Tab -->
             <div id="newChatPanel">
-                <input type="text" id="userSearchInput" placeholder="Search users..."
+                <input type="text" id="userSearchInput" placeholder="Search members..."
                        class="w-full border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b] rounded-lg px-4 py-2 mb-3 focus:ring-2 focus:ring-[#4a9d7e] focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400">
                 <div id="userSearchResults" class="max-h-96 overflow-y-auto space-y-1">
-                    <p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">Type to search for users</p>
+                    <p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">Loading members...</p>
                 </div>
             </div>
             
@@ -196,7 +196,9 @@ const closeModal = document.getElementById('closeModal');
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
         modal.classList.remove('hidden');
-        document.getElementById('userSearchInput').focus();
+        // Default to Group creation
+        newGroupTab.click();
+        document.getElementById('groupNameInput').focus();
     });
 }
 
@@ -241,6 +243,7 @@ if (newChatTab && newGroupTab) {
         newGroupTab.classList.add('text-slate-500', 'dark:text-slate-400');
         newChatPanel.classList.remove('hidden');
         newGroupPanel.classList.add('hidden');
+        loadAllUsersForDirect(); // Load users for direct chat panel
     });
 
     newGroupTab.addEventListener('click', () => {
@@ -326,6 +329,33 @@ function loadAllUsers() {
         }
     })
     .catch(err => console.error('Load users error:', err));
+}
+
+function loadAllUsersForDirect() {
+    fetch('/chat/api/users/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        const container = document.getElementById('userSearchResults');
+        if (data.users && data.users.length > 0) {
+            container.innerHTML = data.users.map(user => `
+                <button onclick="startChat(${user.id})"
+                        class="w-full text-left px-4 py-3 rounded-lg hover:bg-[#eef6f2] dark:hover:bg-white/5 transition flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white font-bold">
+                        ${escapeHtml(user.avatar_initial)}
+                    </div>
+                    <div>
+                        <div class="font-medium text-slate-800 dark:text-white">${escapeHtml(user.full_name)}</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(user.role)}</div>
+                    </div>
+                </button>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm text-center py-4">No users found</p>';
+        }
+    })
+    .catch(err => console.error('Load users for direct error:', err));
 }
 
 const groupSearchInput = document.getElementById('groupSearchInput');
@@ -460,27 +490,34 @@ function updateUnreadCounts() {
     })
     .then(res => res.json())
     .then(data => {
-        if (data.success && data.unread_counts) {
-            for (const [roomId, newCount] of Object.entries(data.unread_counts)) {
-                const chatItem = document.querySelector(`.chat-item[data-room-id="${roomId}"]`);
-                if (chatItem) {
-                    let badge = chatItem.querySelector('.unread-badge');
-                    const infoDiv = chatItem.querySelector('.flex.justify-between.items-center');
-                    
-                    if (newCount > 0) {
-                        if (badge) {
-                            badge.textContent = newCount > 99 ? '99+' : newCount;
-                        } else if (infoDiv) {
-                            badge = document.createElement('span');
-                            badge.className = 'bg-[#4a9d7e] text-white text-[10px] font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center shadow-lg shadow-[#4a9d7e]/20 unread-badge ml-2';
-                            badge.textContent = newCount > 99 ? '99+' : newCount;
-                            infoDiv.appendChild(badge);
-                        }
-                    } else if (badge) {
-                        badge.remove();
+        if (data.success) {
+            const unreadCounts = data.unread_counts || {};
+            
+            // Update per-room badges
+            document.querySelectorAll('.chat-item').forEach(chatItem => {
+                const roomId = chatItem.dataset.roomId;
+                const newCount = unreadCounts[roomId] || 0;
+                let badge = chatItem.querySelector('.unread-badge');
+                const infoDiv = chatItem.querySelector('.flex.justify-between.items-center');
+                
+                if (newCount > 0) {
+                    if (badge) {
+                        badge.textContent = newCount > 99 ? '99+' : newCount;
+                    } else if (infoDiv) {
+                        badge = document.createElement('span');
+                        badge.className = 'bg-[#4a9d7e] text-white text-[10px] font-bold rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center shadow-lg shadow-[#4a9d7e]/20 unread-badge ml-2';
+                        badge.textContent = newCount > 99 ? '99+' : newCount;
+                        infoDiv.appendChild(badge);
                     }
+                } else if (badge) {
+                    badge.remove();
                 }
-            }
+            });
+
+            // Sync sidebar/topbar badge via ChatBadgeManager
+            window.dispatchEvent(new CustomEvent('chatBadgeUpdate', {
+                detail: { action: 'set', count: data.total_unread || 0 }
+            }));
         }
     })
     .catch(err => console.error('Unread count error:', err));
@@ -512,11 +549,7 @@ if (searchChats) {
             const nameEl = item.querySelector('h3');
             if (nameEl) {
                 const name = nameEl.textContent.toLowerCase();
-                if (name.includes(query)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
+                item.style.display = name.includes(query) ? 'block' : 'none';
             }
         });
     });
@@ -524,7 +557,7 @@ if (searchChats) {
 
 // Initialize
 sortChats();
-setInterval(updateUnreadCounts, 5000);
 updateUnreadCounts();
+setInterval(updateUnreadCounts, 15000);
 </script>
 {% endblock %}

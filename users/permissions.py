@@ -39,6 +39,10 @@ def can_manage_roles(user):
         'users.delete_role',
     ])
 
+def can_view_user(user):
+    """Check if user can view other users"""
+    return has_any(user, ['users.view_user'])
+
 
 def can_manage_departments(user):
     return has_any(user, [
@@ -94,7 +98,7 @@ def can_delete_task(user):
 
 
 def can_view_task(user):
-    return has_any(user, ['Tasks.view_task', 'tasks.view_task']) or can_change_task(user)
+    return has_any(user, ['Tasks.view_task', 'tasks.view_task'])
 
 
 def can_manage_all_tasks(user):

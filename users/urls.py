@@ -1,8 +1,11 @@
 from django.urls import path,include
+
+from pms_system import settings
 from . import views
 from Tasks.models import Task
 from Tasks.forms import TaskForm
 from django.contrib.auth import views as auth_views
+from django.conf.urls.static import static
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -13,7 +16,7 @@ from .views import (
 #    admin_dashboard,
 #    teamlead_dashboard,
 #    employee_dashboard,
-    login_page,
+     login_page,
 )
 
 urlpatterns = [
@@ -93,12 +96,19 @@ urlpatterns = [
     # Notifications
     path("notifications/", include('notifications.urls')),
 
+    ## email verification and activation
+    path('check-email-exists/', views.check_email_exists, name='check_email_exists'),
+    path("activate/<uidb64>/<token>/", views.activate_user, name="activate"),
+
     ## Api tokens
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
+    path('my-profile/', views.my_profile, name='my_profile'),
+
     ## home page
     path('', views.home, name='home'),
+
 
 
 
@@ -122,7 +132,7 @@ urlpatterns = [
     # path('password_reset_done/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
     # path('reset/<uidb64>/<token>/',auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),
     # path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'),
-    path('check-email-exists/', views.check_email_exists, name='check_email_exists'),
+    # path('check-email-exists/', views.check_email_exists, name='check_email_exists'),
     # path("activate/<uidb64>/<token>/", views.activate_user, name="activate"),
 
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -161,6 +171,8 @@ urlpatterns = [
     
 ]
 
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 

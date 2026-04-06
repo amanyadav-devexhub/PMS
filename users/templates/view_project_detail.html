@@ -9,14 +9,14 @@
     <!-- Back Navigation -->
     <div class="mb-6">
         <button onclick="goBack()" 
-                class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition">
+                class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-[#4a9d7e] transition font-medium">
             <i class="fa-solid fa-arrow-left text-xs"></i>
             Back to Projects
         </button>
     </div>
 
     <!-- Project Header Card -->
-    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden mb-8">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-8">
         <!-- Colored Top Bar -->
         <div class="h-1.5 w-full 
             {% if project.status == 'PENDING' %}bg-amber-500
@@ -29,14 +29,14 @@
             <!-- Title and Status -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
-                    <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-white">{{ project.name }}</h1>
-                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ project.description }}</p>
+                    <h1 class="text-xl md:text-2xl font-bold text-gray-800">{{ project.name }}</h1>
+                    <p class="text-sm text-gray-500 mt-1">{{ project.description }}</p>
                 </div>
                 <div>
                     <span class="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold
-                        {% if project.status == 'PENDING' %} bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
-                        {% elif project.status == 'ONGOING' %} bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
-                        {% elif project.status == 'COMPLETED' %} bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
+                        {% if project.status == 'PENDING' %} bg-amber-100 text-amber-700
+                        {% elif project.status == 'ONGOING' %} bg-blue-100 text-blue-700
+                        {% elif project.status == 'COMPLETED' %} bg-emerald-100 text-emerald-700
                         {% endif %}">
                         {{ project.get_status_display }}
                     </span>
@@ -46,71 +46,87 @@
             <!-- Info Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Assigned To -->
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4">
+                <div class="bg-gray-50 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
-                        <i class="fa-solid fa-users text-slate-400 text-xs"></i>
-                        <p class="text-[10px] text-slate-400 uppercase tracking-wider">Team Members</p>
+                        <i class="fa-solid fa-users text-gray-400 text-xs"></i>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wider">Team Members</p>
                     </div>
                     <div class="flex flex-wrap gap-1.5">
                         {% for user in project.assigned_to.all %}
-                        <span class="bg-white dark:bg-[#1e293b] px-2.5 py-1 rounded-lg text-xs text-slate-700 dark:text-slate-300 shadow-sm">
+                        <span class="bg-white px-2.5 py-1 rounded-lg text-xs text-gray-700 shadow-sm border border-gray-100">
                             {{ user.get_full_name|default:user.username }}
                         </span>
                         {% empty %}
-                        <span class="text-xs text-slate-400">Not assigned</span>
+                        <span class="text-xs text-gray-400">Not assigned</span>
                         {% endfor %}
                     </div>
                 </div>
 
                 <!-- Timeline -->
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4">
+                <div class="bg-gray-50 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
-                        <i class="fa-regular fa-calendar text-slate-400 text-xs"></i>
-                        <p class="text-[10px] text-slate-400 uppercase tracking-wider">Timeline</p>
+                        <i class="fa-regular fa-calendar text-gray-400 text-xs"></i>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wider">Timeline</p>
                     </div>
                     <div class="flex items-center text-sm">
-                        <span class="font-medium text-slate-700 dark:text-slate-300">{{ project.start_date|date:"M d, Y" }}</span>
-                        <i class="fa-solid fa-arrow-right text-slate-400 text-[10px] mx-2"></i>
-                        <span class="font-medium text-slate-700 dark:text-slate-300">{{ project.end_date|date:"M d, Y" }}</span>
+                        <span class="font-medium text-gray-700">{{ project.start_date|date:"M d, Y" }}</span>
+                        <i class="fa-solid fa-arrow-right text-gray-400 text-[10px] mx-2"></i>
+                        <span class="font-medium text-gray-700">{{ project.end_date|date:"M d, Y" }}</span>
                     </div>
                 </div>
 
                 <!-- Duration -->
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4">
+                <div class="bg-gray-50 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
-                        <i class="fa-regular fa-clock text-slate-400 text-xs"></i>
-                        <p class="text-[10px] text-slate-400 uppercase tracking-wider">Duration</p>
+                        <i class="fa-regular fa-clock text-gray-400 text-xs"></i>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wider">Duration</p>
                     </div>
                     <div class="flex items-center text-sm">
-                        <span class="font-medium text-slate-700 dark:text-slate-300">{{ project.start_date|timesince:project.end_date }}</span>
+                        <span class="font-medium text-gray-700">{{ project.start_date|timesince:project.end_date }}</span>
                     </div>
                 </div>
 
                 <!-- Project ID -->
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4">
+                <div class="bg-gray-50 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
-                        <i class="fa-solid fa-hashtag text-slate-400 text-xs"></i>
-                        <p class="text-[10px] text-slate-400 uppercase tracking-wider">Project ID</p>
+                        <i class="fa-solid fa-hashtag text-gray-400 text-xs"></i>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wider">Project ID</p>
                     </div>
                     <div class="flex items-center text-sm">
-                        <span class="font-medium text-slate-700 dark:text-slate-300">#{{ project.id }}</span>
+                        <span class="font-medium text-gray-700">#{{ project.id }}</span>
                     </div>
                 </div>
             </div>
 
             <!-- Action Buttons - Edit Project -->
-            {% if can_manage_projects and can_manage_users or can_manage_projects and project.created_by == request.user %}
-            <div class="flex gap-3 mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
+            {% if can_manage_projects and can_manage_users %}
+            <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200">
                 <a href="{% url 'edit_projects' project.id %}"
-                    class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
-                    <i class="fa-solid fa-pen text-xs"></i>
+                    class="inline-flex items-center bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-5 py-2.5 rounded-lg shadow hover:shadow-md transition font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                        </path>
+                    </svg>
+                    Edit Project
+                </a>
+            </div>
+            {% elif can_manage_projects and project.created_by == request.user %}
+            <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200">
+                <a href="{% url 'edit_projects' project.id %}"
+                    class="inline-flex items-center bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                        </path>
+                    </svg>
                     Edit Project
                 </a>
             </div>
             {% elif can_manage_projects and request.user in project.assigned_to.all %}
-            <div class="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
-                <p class="text-xs text-slate-500 dark:text-slate-400 italic bg-slate-50 dark:bg-white/5 p-3 rounded-lg">
-                    <i class="fa-solid fa-circle-info mr-1 text-slate-400"></i>
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <p class="text-xs text-gray-500 italic bg-gray-50 p-3 rounded-lg">
+                    <i class="fa-solid fa-circle-info mr-1 text-gray-400"></i>
                     {% if project.created_by %}
                     You can view this project but cannot edit it (created by {{ project.created_by.get_full_name|default:project.created_by.username }})
                     {% else %}
@@ -124,21 +140,21 @@
 
     <!-- Tasks Section - Only for Managers/Admins -->
     {% if is_manager_like %}
-    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="p-6">
             <!-- Section Header -->
             <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
                 <div>
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-list-check text-[#4a9d7e] text-sm"></i>
-                        <h2 class="text-base font-semibold text-slate-800 dark:text-white">Project Tasks</h2>
+                        <h2 class="text-base font-semibold text-gray-800">Project Tasks</h2>
                     </div>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage all tasks under this project</p>
+                    <p class="text-xs text-gray-500 mt-1">Manage all tasks under this project</p>
                 </div>
                 <div>
                     {% if can_add_task %}
                     <a href="{% url 'assign_task' %}?project={{ project.id }}"
-                        class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
+                        class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition">
                         <i class="fa-solid fa-plus text-xs"></i>
                         Create Task
                     </a>
@@ -148,53 +164,63 @@
 
             <!-- Task Stats Cards -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center">
+                <div class="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
                     <span id="statTotalTasks" class="text-2xl font-bold text-[#4a9d7e]">{{ total_tasks|default:0 }}</span>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Tasks</p>
+                    <p class="text-xs text-gray-500 mt-1">Total Tasks</p>
                 </div>
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center">
-                    <span id="statPendingTasks" class="text-2xl font-bold text-amber-600 dark:text-amber-400">{{ pending_tasks|default:0 }}</span>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pending</p>
+                <div class="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+                    <span id="statPendingTasks" class="text-2xl font-bold text-amber-600">{{ pending_tasks|default:0 }}</span>
+                    <p class="text-xs text-gray-500 mt-1">Pending</p>
                 </div>
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center">
-                    <span id="statOngoingTasks" class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ ongoing_tasks|default:0 }}</span>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">In Progress</p>
+                <div class="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+                    <span id="statOngoingTasks" class="text-2xl font-bold text-blue-600">{{ ongoing_tasks|default:0 }}</span>
+                    <p class="text-xs text-gray-500 mt-1">In Progress</p>
                 </div>
-                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center">
-                    <span id="statCompletedTasks" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ completed_tasks|default:0 }}</span>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Completed</p>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center border border-green-200">
+                    <span id="statCompletedTasks" class="text-2xl font-bold text-green-600">
+                        {{ completed_tasks|default:0 }}
+                    </span>
+                    <p class="text-xs font-medium text-green-700 mt-1">Completed</p>
+                </div>
+            </div>
+
+            <!-- Loading Overlay for Tasks -->
+            <div id="tasksLoadingOverlay" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div class="bg-white dark:bg-[#111827] rounded-xl p-6 shadow-xl flex items-center gap-3 border border-slate-200 dark:border-white/10">
+                    <div class="animate-spin rounded-full h-6 w-6 border-2 border-[#4a9d7e] border-t-transparent"></div>
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">Loading tasks...</span>
                 </div>
             </div>
 
             <!-- Tasks Table -->
             <div id="tasksTableContainer" class="overflow-x-auto">
                 <table class="min-w-full">
-                    <thead class="bg-slate-50 dark:bg-white/5 rounded-lg">
+                    <thead class="bg-gray-50 rounded-lg">
                         <tr>
-                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Task</th>
-                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Assigned To</th>
-                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Deadline</th>
-                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Time</th>
-                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Task</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned To</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Deadline</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-white/5">
+                    <tbody class="divide-y divide-gray-100">
                         {% for task in tasks %}
-                        <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition">
-                            <td class="px-4 py-3">
-                                <div class="text-sm font-medium text-slate-800 dark:text-white">{{ task.name }}</div>
-                                <div class="text-[10px] text-slate-400 mt-0.5">ID: {{ task.id }}</div>
+                        <tr class="hover:bg-gray-50 transition-all duration-150" id="task-row-{{ task.id }}">
+                            <td class="px-6 py-4">
+                                <div class="font-medium text-gray-900">{{ task.name }}</div>
+                                <div class="text-xs text-gray-400 mt-0.5">ID: {{ task.id }}</div>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-1">
                                     {% for assignee in task.assigned_to.all|slice:":2" %}
-                                    <span class="bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-lg text-[10px] font-medium">
+                                    <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-lg text-[10px] font-medium">
                                         {{ assignee.get_full_name|default:assignee.username }}
                                     </span>
                                     {% endfor %}
                                     {% if task.assigned_to.count > 2 %}
-                                    <span class="bg-slate-100 dark:bg-white/10 text-slate-500 px-2 py-0.5 rounded-lg text-[10px] font-medium">
+                                    <span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg text-[10px] font-medium">
                                         +{{ task.assigned_to.count|add:"-2" }}
                                     </span>
                                     {% endif %}
@@ -202,39 +228,39 @@
                             </td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full 
-                                {% if task.status == 'PENDING' %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
-                                {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
-                                {% else %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400{% endif %}">
+                                {% if task.status == 'PENDING' %}bg-amber-100 text-amber-700
+                                {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700
+                                {% else %}bg-emerald-100 text-emerald-700{% endif %}">
                                     {{ task.get_status_display }}
                                 </span>
                             </td>
                             <td class="px-4 py-3">
                                 {% if task.deadline %}
-                                <span class="text-xs text-slate-600 dark:text-slate-400 font-mono">{{ task.deadline|date:"M d, H:i" }}</span>
+                                <span class="text-xs text-gray-600 font-mono">{{ task.deadline|date:"M d, H:i" }}</span>
                                 {% else %}
-                                <span class="text-xs text-slate-400 italic">No deadline</span>
+                                <span class="text-xs text-gray-400 italic">No deadline</span>
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
-                                <span class="text-xs text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded">
+                                <span class="text-xs text-gray-600 font-mono bg-gray-100 px-2 py-0.5 rounded">
                                     {{ task.time_display|default:"00:00" }}
                                 </span>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-1.5">
                                     <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}"
-                                        class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition">
+                                        class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg text-[10px] font-medium transition">
                                         <i class="fa-regular fa-eye text-[10px]"></i>
                                         View
                                     </a>
                                     <a href="{% url 'edit_task' task.id %}"
-                                        class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition">
+                                        class="inline-flex items-center gap-1 text-[#4a9d7e] hover:text-[#3d8a6d] bg-[#eef6f2] hover:bg-[#d5e9df] px-2 py-1 rounded-lg text-[10px] font-medium transition">
                                         <i class="fa-solid fa-pen text-[10px]"></i>
                                         Edit
                                     </a>
                                     <button type="button"
                                             onclick="deleteTask({{ task.id }}, '{{ task.name|escapejs }}')"
-                                            class="inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition">
+                                            class="inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg text-[10px] font-medium transition">
                                         <i class="fa-solid fa-trash text-[10px]"></i>
                                         Delete
                                     </button>
@@ -245,15 +271,37 @@
                         <tr>
                             <td colspan="6" class="px-4 py-12 text-center">
                                 <div class="flex flex-col items-center justify-center">
-                                    <i class="fa-regular fa-clipboard text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
-                                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No tasks yet</p>
-                                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Click "Create Task" to add your first task</p>
+                                    <svg class="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                                        </path>
+                                    </svg>
+                                    <p class="text-lg font-medium text-gray-500">No tasks yet</p>
+                                    <p class="text-sm text-gray-400 mt-1">Click "Create Task" to add your first task</p>
                                 </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div class="mt-6 flex justify-between items-center">
+                <div class="text-sm text-gray-600" id="tasksShowingInfo">
+                    Showing <span id="tasksStartCount">0</span> - <span id="tasksEndCount">0</span> of <span id="tasksTotalCount">0</span> tasks
+                </div>
+                <div class="flex gap-2 items-center">
+                    <select id="tasksPageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                        <option value="10">10 per page</option>
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                    <button id="tasksPrevPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>← Prev</button>
+                    <span id="tasksPageIndicator" class="text-sm text-gray-600 mx-2">Page 1 of 1</span>
+                    <button id="tasksNextPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>Next →</button>
+                </div>
             </div>
         </div>
     </div>
@@ -262,75 +310,52 @@
 
 <!-- Delete Task JavaScript -->
 <script>
-function deleteTask(taskId, taskName) {
-    if (!confirm(`Are you sure you want to delete task "${taskName}"?`)) return;
+    function deleteTask(taskId, taskName, projectId) {
+        if (!confirm(`Are you sure you want to delete task "${taskName}"?`)) return;
 
-    fetch(`/task/${taskId}/delete/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showNotification(data.error || 'Something went wrong', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Network error. Please try again.', 'error');
-    });
-}
+        const row = document.getElementById(`task-row-${taskId}`);
+        const loadingOverlay = document.getElementById('tasksLoadingOverlay');
+        
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
-function showNotification(message, type = 'success') {
-    const container = document.getElementById('notificationContainer');
-    if (!container) return;
-    
-    const notification = document.createElement('div');
-    notification.className = `mb-3 p-3 rounded-lg shadow-lg transform transition-all duration-300 toast-notification ${
-        type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
-    } text-white`;
-    notification.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
-                <span class="text-sm">${escapeHtml(message)}</span>
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-    `;
-    container.appendChild(notification);
-    setTimeout(() => notification.remove(), 5000);
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+        fetch(`/task/${taskId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            
+            if (data.success) {
+                alert('✅ ' + data.message);
+                location.reload();
+            } else {
+                alert('❌ ' + (data.message || 'Something went wrong'));
+            }
+        })
+        .catch(error => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            alert('Network error. Please try again.');
+            console.error('Error:', error);
+        });
+    }
 </script>
 
 <style>
-    .toast-notification {
-        animation: slideIn 0.3s ease-out;
-    }
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
+    @keyframes spin {
         to {
-            transform: translateX(0);
-            opacity: 1;
+            transform: rotate(360deg);
         }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    #tasksLoadingOverlay {
+        transition: all 0.3s ease;
     }
 </style>
 

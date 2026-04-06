@@ -104,27 +104,48 @@ class TaskForm(forms.ModelForm):
             # You can set this to current user in the view instead
             pass
 
-    def clean(self):
-        """Custom validation"""
-        cleaned_data = super().clean()
-        start_date = cleaned_data.get('start_date')
-        end_date = cleaned_data.get('end_date')
-        deadline = cleaned_data.get('deadline')
-        
-        # Validate that end_date is after start_date
-        if start_date and end_date and end_date < start_date:
-            raise forms.ValidationError("End date cannot be before start date")
-        
-        # Validate that deadline is after start_date (if provided)
-        if deadline and start_date:
-            # Convert start_date to datetime with timezone awareness
-            start_datetime = datetime.datetime.combine(start_date, datetime.time.min)
-            
-            # Make it timezone-aware using Django's timezone
-            if timezone.is_naive(start_datetime):
-                start_datetime = timezone.make_aware(start_datetime)
-            
-            if deadline < start_datetime:
-                raise forms.ValidationError("Deadline cannot be before start date")
-        
-        return cleaned_data
+        def clean(self):
+            cleaned_data = super().clean()
+            start_date = cleaned_data.get('start_date')
+            end_date = cleaned_data.get('end_date')
+            deadline = cleaned_data.get('deadline')
+
+            now = timezone.now()
+
+            # ❌ Prevent past start date
+            if start_date and start_date < now.date():
+                raise forms.ValidationError("Start date cannot be in the past.")
+
+            # ❌ Prevent past end date
+            if end_date and end_date < now.date():
+                raise forms.ValidationError("End date cannot be in the past.")
+
+            # ❌ End date < Start date
+            if start_date and end_date and end_date < start_date:
+                raise forms.ValidationError("End date cannot be before start date.")
+
+            # ❌ Deadline validation
+            if deadline:
+                # Convert start_date to datetime
+                if start_date:
+                    start_datetime = datetime.datetime.combine(start_date, datetime.time.min)
+                    if timezone.is_naive(start_datetime):
+                        start_datetime = timezone.make_aware(start_datetime)
+
+                    if deadline < start_datetime:
+                        raise forms.ValidationError("Deadline cannot be before start date.")
+
+                # ❌ Deadline in past
+                if deadline < now:
+                    raise forms.ValidationError("Deadline cannot be in the past.")
+
+                # ❌ Deadline after end_date
+                if end_date:
+                    end_datetime = datetime.datetime.combine(end_date, datetime.time.max)
+                    if timezone.is_naive(end_datetime):
+                        end_datetime = timezone.make_aware(end_datetime)
+
+                    if deadline > end_datetime:
+                        raise forms.ValidationError("Deadline cannot be after end date.")
+
+            return cleaned_data

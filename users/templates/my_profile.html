@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+
+<!-- Back Button -->
+<div class="max-w-4xl mx-auto mb-4">
+    <button onclick="goBack()"
+            class="flex items-center gap-2 bg-gray-100 hover:bg-[#4a9d7e] text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition duration-300 transform hover:-translate-y-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Back
+    </button>
+</div>
+
+<div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- ================= TOP PROFILE CARD ================= -->
+    <div class="bg-white shadow rounded-lg p-6 flex gap-6 items-center">
+
+        <!-- Profile Image with Upload Button -->
+        <div class="relative group">
+            {% if user.profile.profile_image %}
+                <img src="{{ user.profile.profile_image.url }}" 
+                     id="profileImage"
+                     alt="Profile Image"
+                     class="w-28 h-28 rounded-full object-cover border-4 border-[#4a9d7e]/30">
+            {% else %}
+                <div id="profileInitial" class="w-28 h-28 bg-[#eef6f2] rounded-full flex items-center justify-center text-4xl font-bold text-[#4a9d7e] border-4 border-[#4a9d7e]/30">
+                    {{ user.username|first|upper }}
+                </div>
+            {% endif %}
+            
+            <!-- Upload Button Overlay -->
+            <label for="imageUpload" class="absolute bottom-0 right-0 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white p-2 rounded-full cursor-pointer shadow-lg transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+            </label>
+        </div>
+
+        <!-- Basic Info -->
+        <div class="bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] px-6 py-4">
+            <h3 class="text-xl font-bold text-white">Set Your Password</h3>
+            <p class="text-[#eef6f2] text-sm">Hello {{ user.username }}, please set your password to activate your account</p>
+        </div>
+        <div class="flex-1">
+            <h2 class="text-2xl font-semibold text-gray-800">
+                {{ user.get_full_name|default:user.username }}
+            </h2>
+            <p class="text-gray-500 mt-1">
+                {{ profile.designation.name|default:'No Designation' }} · {{ profile.department.name|default:'No Department' }}
+            </p>
+            <div class="flex gap-6 mt-3 text-sm text-gray-600">
+                <span>📧 {{ user.email }}</span>
+                <span>📅 {{ profile.date_of_joining|date:'Y-m-d'|default:'Not set' }}</span>
+            </div>
+            <div class="mt-2">
+                {% if user.is_active %}
+                    <span class="inline-blfocus:ring-[#4a9d7e]/30 text-green-700 px-3 py-1 rounded-full text-xs">Active</span>
+                {% else %}
+                    <span class="inline-block bg-[#eef6f2] text-[#4a9d7e] px-3 py-1 rounded-full text-xs">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Image Upload Form -->
+    <form id="imageUploadForm" method="POST" enctype="multipart/form-data" style="display:none;">
+        {% csrf_token %}
+        <input type="file" name="profile_image" id="imageUpload" accept="image/*">
+    </form>
+
+    <!-- ================= BASIC DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Basic Details</h3>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-gray-500">Employee ID</p>
+                <p class="font-medium">{{ profile.employee_id|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Phone</p>
+                <p class="font-medium">{{ profile.phone|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Department</p>
+                <p class="font-medium">{{ profile.department.name|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Designation</p>
+                <p class="font-medium">{{ profile.designation.name|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Role</p>
+                <p class="font-medium">{{ user.role|default:'—' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SALARY DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Salary Details</h3>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-gray-500">CTC</p>
+                <p class="font-medium">{{ profile.ctc|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Salary In Hand</p>
+                <p class="font-medium">{{ profile.salary_in_hand|default:'—' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= BANK DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Bank Details</h3>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-gray-500">Bank Name</p>
+                <p class="font-medium">{{ profile.bank_name|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Account Number</p>
+                <p class="font-medium">{{ profile.account_no|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">IFSC Code</p>
+                <p class="font-medium">{{ profile.ifsc|default:'—' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= VERIFICATION DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Verification Details</h3>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-gray-500">Aadhar Number</p>
+                <p class="font-medium">{{ profile.aadhar_no|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">PAN Number</p>
+                <p class="font-medium">{{ profile.pan_no|default:'—' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ADDITIONAL DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Additional Details</h3>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-gray-500">Emergency Contact</p>
+                <p class="font-medium">{{ profile.emergency_contact|default:'—' }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Address</p>
+                <p class="font-medium">{{ profile.address|default:'—' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Container -->
+<div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
+
+<script>
+    function goBack() {
+        window.history.back();
+    }
+    
+    function showNotification(message, type = 'success') {
+        const notificationContainer = document.getElementById('notificationContainer');
+        const notification = document.createElement('div');
+        notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white`;
+        notification.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        ${type === 'success' ? 
+                            '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                            '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                        }
+                    </svg>
+                    <span>${message}</span>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+        notificationContainer.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+    }
+    
+    // Handle image upload with AJAX
+    document.getElementById('imageUpload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const formData = new FormData();
+        formData.append('profile_image', file);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name="csrfmiddlewaretoken"]').value);
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                // Update image on page
+                const profileImage = document.getElementById('profileImage');
+                if (profileImage) {
+                    profileImage.src = data.image_url + '?t=' + new Date().getTime();
+                } else {
+                    // Replace initial with image
+                    const profileInitial = document.getElementById('profileInitial');
+                    if (profileInitial) {
+                        const newImg = document.createElement('img');
+                        newImg.id = 'profileImage';
+                        newImg.src = data.image_url + '?t=' + new Date().getTime();
+                        newImg.alt = 'Profile Image';
+                        newImg.className = 'w-28 h-28 rounded-full object-cover border-4 border-[#4a9d7e]/30';
+                        profileInitial.parentNode.replaceChild(newImg, profileInitial);
+                    }
+                }
+            } else {
+                showNotification(data.message || 'Error uploading image', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Network error. Please try again.', 'error');
+        });
+    });
+</script>
+
+{% endblock %}

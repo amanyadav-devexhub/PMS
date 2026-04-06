@@ -6,7 +6,7 @@
 <div class="container mt-5" style="max-width: 500px;">
     <!-- Card Wrapper -->
     <div class="card shadow p-4">
-        <h2 class="text-center mb-4 text-primary">Update Status: {{ task.name }}</h2>
+        <h2 class="text-center mb-4 text-[#4a9d7e] font-bold">Update Status: {{ task.name }}</h2>
 
         <form method="POST" action="{% url 'update_task_status' task.id %}">
             {% csrf_token %}
@@ -20,10 +20,10 @@
             </div>
              <button type="submit"
                 class="inline-flex items-center gap-2
-                    bg-orange-500 hover:bg-orange-600
+                    bg-[#4a9d7e] hover:bg-[#3d8a6d]
                     text-white font-semibold
                     px-6 py-2 rounded-md
-                    shadow-md transition">
+                    shadow transition">
             ✓ Update Status
             </button>
             <a href="{% url 'employee_tasks' %}"

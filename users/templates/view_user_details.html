@@ -22,16 +22,85 @@
         <span class="ml-4 text-slate-500 dark:text-slate-400">Loading user details...</span>
     </div>
 
-    <!-- Main Content Container -->
-    <div id="contentContainer" class="hidden space-y-6">
+<!-- Content Container - Hidden until loaded -->
+<div id="contentContainer" class="max-w-6xl mx-auto space-y-6 hidden"></div>
 
-        <!-- ================= TOP PROFILE CARD ================= -->
-        <div class="bg-white dark:bg-[#1e2937] rounded-2xl shadow-sm border border-slate-200 dark:border-white/10 p-8 flex flex-col md:flex-row gap-8 items-start">
-
-            <!-- Avatar -->
-            <div id="avatar" 
-                 class="w-32 h-32 rounded-2xl bg-[#4a9d7e] flex items-center justify-center text-white text-6xl font-semibold shadow-inner flex-shrink-0">
+<!-- Edit Profile Modal (Only for own profile) -->
+<div id="editProfileModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto z-50">
+    <div class="relative top-20 mx-auto max-w-md bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Edit My Information</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        
+        <form id="editProfileForm" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="self_edit" value="1">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
+                <input type="file" name="profile_image" accept="image/*" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <p class="text-xs text-gray-400 mt-1">Upload JPG, PNG, or GIF</p>
             </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input type="text" name="phone" id="modal_phone" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
+                <input type="text" name="emergency_contact" id="modal_emergency" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <textarea name="address" id="modal_address" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2"></textarea>
+            </div>
+            
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeEditModal()" 
+                        class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition">Cancel</button>
+                <button type="submit" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Store current user ID for comparison
+const currentLoggedInUserId = {{ request.user.id }};
+const viewingUserId = {{ user_id|default:0 }};
+const isOwnProfile = (currentLoggedInUserId === viewingUserId);
+
+// Template for user details
+function createUserTemplate(data) {
+    // Show Edit button only if viewing own profile
+    const editButtonHtml = isOwnProfile ? 
+        `<button onclick="openEditModalWithData('${escapeHtml(data.profile.phone)}', '${escapeHtml(data.profile.emergency_contact)}', '${escapeHtml(data.profile.address)}')" 
+            class="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded shadow transition">
+            ✏️ Edit My Info
+        </button>` : 
+        `<a href="/user/${data.user.id}/edit/" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded shadow edit-link">
+            Edit
+        </a>`;
+    
+    // Avatar with profile image support
+    const avatarHtml = data.profile.profile_image ? 
+        `<img src="${escapeHtml(data.profile.profile_image)}" alt="Profile Image" class="w-28 h-28 rounded-full object-cover border-4 border-indigo-300">` :
+        `<div class="w-28 h-28 bg-indigo-100 rounded-full flex items-center justify-center text-4xl font-bold text-indigo-600 border-4 border-indigo-300">
+            ${data.user.username.charAt(0).toUpperCase()}
+        </div>`;
+    
+    return `
+    <!-- ================= TOP PROFILE CARD ================= -->
+    <div class="bg-white shadow rounded-lg p-6 flex gap-6 items-center">
+
+        <!-- Avatar -->
+        <div>
+            ${avatarHtml}
+        </div>
 
             <!-- Basic Info -->
             <div class="flex-1 min-w-0">
@@ -62,41 +131,43 @@
             </div>
         </div>
 
-        <!-- ================= DETAIL SECTIONS ================= -->
+        <!-- Edit Button -->
+        ${editButtonHtml}
+    </div>
 
-        <!-- Basic Details -->
-        <div class="bg-white dark:bg-[#1e2937] rounded-2xl shadow-sm border border-slate-200 dark:border-white/10 p-8">
-            <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-                <i class="fa-solid fa-user text-[#4a9d7e]"></i>
-                Basic Details
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400">Employee ID</p>
-                    <p id="employeeId" class="font-medium text-slate-700 dark:text-slate-200 mt-1"></p>
-                </div>
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400">Phone Number</p>
-                    <p id="phone" class="font-medium text-slate-700 dark:text-slate-200 mt-1"></p>
-                </div>
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400">Department</p>
-                    <p id="department" class="font-medium text-slate-700 dark:text-slate-200 mt-1"></p>
-                </div>
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400">Designation</p>
-                    <p id="designation" class="font-medium text-slate-700 dark:text-slate-200 mt-1"></p>
-                </div>
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400">Role</p>
-                    <p id="role" class="font-medium text-slate-700 dark:text-slate-200 mt-1"></p>
-                </div>
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400">Status</p>
-                    <div id="statusBadge" class="mt-1"></div>
-                </div>
+    <!-- ================= BASIC DETAILS ================= -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Basic Details</h3>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-gray-500">Employee ID</p>
+                <p class="font-medium">${escapeHtml(data.profile.employee_id)}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Phone</p>
+                <p class="font-medium">${escapeHtml(data.profile.phone)}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Department</p>
+                <p class="font-medium">${escapeHtml(data.profile.department)}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Designation</p>
+                <p class="font-medium">${escapeHtml(data.profile.designation)}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Role</p>
+                <p class="font-medium">${escapeHtml(data.user.role)}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Status</p>
+                ${data.user.is_active ? 
+                    '<span class="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">Active</span>' : 
+                    '<span class="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs">Inactive</span>'
+                }
             </div>
         </div>
+    </div>
 
         <!-- Salary Details -->
         <div class="bg-white dark:bg-[#1e2937] rounded-2xl shadow-sm border border-slate-200 dark:border-white/10 p-8">
@@ -185,9 +256,53 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function goBack() {
-    window.history.back();
+// Store current data for modal
+let currentPhone = '';
+let currentEmergency = '';
+let currentAddress = '';
+
+function openEditModalWithData(phone, emergency, address) {
+    currentPhone = phone === '—' ? '' : phone;
+    currentEmergency = emergency === '—' ? '' : emergency;
+    currentAddress = address === '—' ? '' : address;
+    
+    document.getElementById('modal_phone').value = currentPhone;
+    document.getElementById('modal_emergency').value = currentEmergency;
+    document.getElementById('modal_address').value = currentAddress;
+    
+    document.getElementById('editProfileModal').classList.remove('hidden');
 }
+
+function closeEditModal() {
+    document.getElementById('editProfileModal').classList.add('hidden');
+}
+
+// Handle self-edit form submission via AJAX
+document.getElementById('editProfileForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.error || 'Error updating profile');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error. Please try again.');
+    });
+});
 
 function loadUserDetails() {
     const loadingState = document.getElementById('loadingState');
@@ -201,62 +316,55 @@ function loadUserDetails() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const u = data.user;
-            const p = data.profile;
-
-            // Avatar
-            document.getElementById('avatar').innerHTML = u.username.charAt(0).toUpperCase();
-
-            // Basic Info
-            document.getElementById('fullName').textContent = u.full_name || u.username;
-            document.getElementById('designationDept').textContent = 
-                `${p.designation || '—'} · ${p.department || '—'}`;
-            document.getElementById('email').textContent = u.email || '—';
-            document.getElementById('dateJoined').textContent = p.date_of_joining || '—';
-
-            // Basic Details
-            document.getElementById('employeeId').textContent = p.employee_id || '—';
-            document.getElementById('phone').textContent = p.phone || '—';
-            document.getElementById('department').textContent = p.department || '—';
-            document.getElementById('designation').textContent = p.designation || '—';
-            document.getElementById('role').textContent = u.role || '—';
-
-            // Status Badge
-            const statusHTML = u.is_active 
-                ? `<span class="inline-flex items-center gap-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-4 py-1 rounded-full text-xs font-medium">
-                     <i class="fa-solid fa-circle text-[10px]"></i> Active
-                   </span>`
-                : `<span class="inline-flex items-center gap-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-4 py-1 rounded-full text-xs font-medium">
-                     <i class="fa-solid fa-circle text-[10px]"></i> Inactive
-                   </span>`;
-            document.getElementById('statusBadge').innerHTML = statusHTML;
-
-            // Salary
-            document.getElementById('ctc').textContent = p.ctc || '—';
-            document.getElementById('salaryInHand').textContent = p.salary_in_hand || '—';
-
-            // Bank
-            document.getElementById('bankName').textContent = p.bank_name || '—';
-            document.getElementById('accountNo').textContent = p.account_no || '—';
-            document.getElementById('ifsc').textContent = p.ifsc || '—';
-
-            // Verification
-            document.getElementById('aadharNo').textContent = p.aadhar_no || '—';
-            document.getElementById('panNo').textContent = p.pan_no || '—';
-
-            // Additional
-            document.getElementById('emergencyContact').textContent = p.emergency_contact || '—';
-            document.getElementById('address').textContent = p.address || '—';
-
-            // Edit Button
-            const editBtn = document.getElementById('editBtn');
-            editBtn.href = `/user/${u.id}/edit/`;
-
-            // Show content
             loadingState.classList.add('hidden');
             contentContainer.classList.remove('hidden');
+            contentContainer.innerHTML = createUserTemplate(data);
+            
+            // Handle edit link clicks with AJAX (for admin edit button)
+            document.querySelectorAll('.edit-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    loadPage(this.getAttribute('href'));
+                });
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingState.innerHTML = '<div class="text-center text-red-500">Error loading user details. Please try again.</div>';
+    });
+}
+
+function loadPage(url) {
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json().then(data => {
+                if (data.success) {
+                    document.body.innerHTML = `
+                        <div class="container mx-auto p-8">
+                            <button onclick="window.location.reload()" class="mb-4 bg-gray-500 text-white px-4 py-2 rounded">Back</button>
+                            <div class="bg-white shadow rounded-lg p-6">
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
         } else {
-            throw new Error('Failed to load user data');
+            return response.text().then(html => {
+                document.body.innerHTML = html;
+                const scripts = document.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    newScript.textContent = script.textContent;
+                    document.body.appendChild(newScript);
+                });
+            });
         }
     })
     .catch(error => {

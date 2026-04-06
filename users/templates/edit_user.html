@@ -8,9 +8,10 @@
 <!-- Back Button -->
 <div class="max-w-4xl mx-auto mb-4">
     <button onclick="goBack()"
-            class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+        class="flex items-center gap-2 bg-gray-100 hover:bg-[#4a9d7e] text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition duration-300 transform hover:-translate-y-1">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+            </path>
         </svg>
         Back
     </button>
@@ -19,7 +20,7 @@
 <!-- Loading Overlay -->
 <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
     <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#4a9d7e]"></div>
     </div>
 </div>
 
@@ -32,15 +33,15 @@
     <div class="bg-white shadow-lg rounded-lg p-8">
 
         <h2 class="text-2xl font-semibold text-gray-700 mb-6">
-            Edit User: <span class="text-indigo-600">{{ user.username }}</span>
+            Edit User: <span class="text-[#4a9d7e]">{{ user.username }}</span>
         </h2>
 
         <!-- User Info Banner -->
-        <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="mb-6 p-4 bg-[#eef6f2] rounded-lg border border-[#4a9d7e]/20">
             <p class="text-sm text-gray-600">
-                <span class="font-medium">User ID:</span> {{ user.id }} | 
+                <span class="font-medium">User ID:</span> {{ user.id }} |
                 <span class="font-medium">Email:</span> {{ user.email }} |
-                <span class="font-medium">Current Status:</span> 
+                <span class="font-medium">Current Status:</span>
                 <span class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs
                     {% if user.is_active %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
                     {{ user.is_active|yesno:"Active,Inactive" }}
@@ -48,25 +49,28 @@
             </p>
         </div>
 
-        <form method="POST" id="editUserForm" action="{% url 'edit_user' user.id %}" class="space-y-6">
+        <form method="POST" id="editUserForm" action="{% url 'edit_user' user.id %}" enctype="multipart/form-data"
+            class="space-y-6">
             {% csrf_token %}
 
             <!-- Account Information Section -->
             <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                    <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">1</span>
+                    <span
+                        class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">1</span>
                     Account Information
                 </h3>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Email -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Email <span class="text-red-500">*</span>
                         </label>
-                        <input type="email" name="email" value="{{ user.email }}" required
-                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                      focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <input type="email" name="email" value="{{ user.email }}" required 
+                               pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                               title="Please enter a valid email address (e.g., name@example.com)"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
 
@@ -75,9 +79,35 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Username <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" name="username" value="{{ user.username }}" required
-                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                      focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <input type="text" name="username" value="{{ user.username }}" required 
+                               minlength="3"
+                               pattern="[A-Za-z0-9_]{3,}"
+                               title="Username must be at least 3 characters (letters, numbers, underscore only)"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    </div>
+
+                    <!-- First Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            First Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="first_name" value="{{ user.first_name|default:'' }}" required
+                               minlength="2"
+                               title="First name is required"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    </div>
+
+                    <!-- Last Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            Last Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="last_name" value="{{ user.last_name|default:'' }}" required
+                               minlength="2"
+                               title="Last name is required"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
 
@@ -86,15 +116,12 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Role <span class="text-red-500">*</span>
                         </label>
-                        <select name="role_obj" required
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                       focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <select name="role_obj" required class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                             <option value="">Select Role</option>
                             {% for role in roles %}
-                                <option value="{{ role.id }}"
-                                    {% if user.role_obj_id == role.id or user.role == role.name %}selected{% endif %}>
-                                    {{ role.name }}
-                                </option>
+                            <option value="{{ role.id }}" {% if user.role_obj_id == role.id or user.role == role.name %}selected{% endif %}>
+                                {{ role.name }}
+                            </option>
                             {% endfor %}
                         </select>
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
@@ -105,9 +132,8 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Status <span class="text-red-500">*</span>
                         </label>
-                        <select name="is_active"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                       focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <select name="is_active" class="w-full border border-gray-300 rounded-lg px-4 py-2.5
+                           focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                             <option value="True" {% if user.is_active %}selected{% endif %}>Active</option>
                             <option value="False" {% if not user.is_active %}selected{% endif %}>Inactive</option>
                         </select>
@@ -119,25 +145,56 @@
             <!-- Profile Information Section -->
             <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                    <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">2</span>
+                    <span
+                        class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">2</span>
                     Profile Information
                 </h3>
-                
+
+                <!-- Profile Image Upload -->
+                <div class="md:col-span-2 mb-4">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">
+                        Profile Image
+                    </label>
+
+                    <!-- Show current image if exists -->
+                    {% if profile.profile_image %}
+                    <div class="mb-3">
+                        <img src="{{ profile.profile_image.url }}" alt="Profile Image"
+                            class="w-20 h-20 rounded-full object-cover border-2 border-[#4a9d7e]/30">
+                        <p class="text-xs text-gray-400 mt-1">Current profile image</p>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <div
+                            class="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-[#4a9d7e]/30">
+                            <span class="text-2xl font-bold text-[#4a9d7e]">
+                                {{ user.username|first|upper }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">No profile image set</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- File input for new image -->
+                    <input type="file" name="profile_image" accept="image/jpeg,image/png,image/gif"
+                           title="Upload JPG, PNG, or GIF (Max 5MB)"
+                           class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
+                    <p class="text-xs text-gray-400 mt-1">Upload JPG, PNG, or GIF (Max 5MB)</p>
+                    <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Department -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Department <span class="text-red-500">*</span>
                         </label>
-                        <select name="department" required
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                       focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <select name="department" required class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                             <option value="">Select Department</option>
                             {% for dept in departments %}
-                                <option value="{{ dept.id }}"
-                                    {% if profile.department_id == dept.id %}selected{% endif %}>
-                                    {{ dept.name }}
-                                </option>
+                            <option value="{{ dept.id }}" {% if profile.department_id == dept.id %}selected{% endif %}>
+                                {{ dept.name }}
+                            </option>
                             {% endfor %}
                         </select>
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
@@ -148,15 +205,12 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Designation <span class="text-red-500">*</span>
                         </label>
-                        <select name="designation" required
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                       focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <select name="designation" required class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                             <option value="">Select Designation</option>
                             {% for des in designations %}
-                                <option value="{{ des.id }}"
-                                    {% if profile.designation_id == des.id %}selected{% endif %}>
-                                    {{ des.name }}
-                                </option>
+                            <option value="{{ des.id }}" {% if profile.designation_id == des.id %}selected{% endif %}>
+                                {{ des.name }}
+                            </option>
                             {% endfor %}
                         </select>
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
@@ -165,14 +219,16 @@
                     <!-- Employee ID -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">
-                            Employee ID
+                            Employee ID <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" name="employee_id" value="{{ profile.employee_id|default:'' }}"
-                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                      focus:ring-2 focus:ring-indigo-400 focus:outline-none transition"
+                        <input type="text" name="employee_id" value="{{ profile.employee_id|default:'' }}" required
+                               minlength="2"
+                               pattern="[A-Za-z0-9\-_]+"
+                               title="Employee ID must be at least 2 characters (letters, numbers, hyphens, underscores)"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
                                placeholder="Enter employee ID">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                        <p class="text-xs text-gray-400 mt-1">Leave empty if not applicable</p>
+                        <p class="text-xs text-gray-400 mt-1">Employee ID is required</p>
                     </div>
 
                     <!-- Phone -->
@@ -180,12 +236,14 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Phone
                         </label>
-                        <input type="text" name="phone" value="{{ profile.phone|default:'' }}"
-                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                      focus:ring-2 focus:ring-indigo-400 focus:outline-none transition"
-                               placeholder="Enter phone number">
+                        <input type="tel" name="phone" value="{{ profile.phone|default:'' }}" 
+                               pattern="[6-9][0-9]{9}"
+                               maxlength="10"
+                               title="Phone number must be 10 digits and start with 6, 7, 8, or 9"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="Enter 10-digit phone number">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                        <p class="text-xs text-gray-400 mt-1">Leave empty if not applicable</p>
+                        <p class="text-xs text-gray-400 mt-1">10 digits, starts with 6/7/8/9</p>
                     </div>
 
                     <!-- Date of Joining -->
@@ -193,12 +251,144 @@
                         <label class="block text-sm font-medium text-gray-600 mb-1">
                             Date of Joining
                         </label>
-                        <input type="date" name="date_of_joining" 
-                               value="{{ profile.date_of_joining|date:'Y-m-d'|default:'' }}"
-                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5
-                                      focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+                        <input type="date" name="date_of_joining"
+                            value="{{ profile.date_of_joining|date:'Y-m-d'|default:'' }}" 
+                            max="{% now 'Y-m-d' %}"
+                            title="Date of joining cannot be in the future"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-                        <p class="text-xs text-gray-400 mt-1">Leave empty if not applicable</p>
+                        <p class="text-xs text-gray-400 mt-1">Cannot be a future date</p>
+                    </div>
+                    
+                    <!-- Emergency Contact -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            Emergency Contact
+                        </label>
+                        <input type="tel" name="emergency_contact" value="{{ profile.emergency_contact|default:'' }}"
+                               pattern="[6-9][0-9]{9}"
+                               maxlength="10"
+                               title="Emergency contact must be 10 digits and start with 6, 7, 8, or 9"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="Enter 10-digit emergency contact number">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">10 digits, starts with 6/7/8/9</p>
+                    </div>
+                    
+                    <!-- Address -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            Address
+                        </label>
+                        <textarea name="address" rows="2" 
+                                  minlength="5"
+                                  title="Address must be at least 5 characters"
+                                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                                  placeholder="Enter full address (minimum 5 characters)">{{ profile.address|default:'' }}</textarea>
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">Minimum 5 characters</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= SALARY DETAILS ================= -->
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">3</span>
+                    Salary Details
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">CTC (Annual)</label>
+                        <input type="number" name="ctc" value="{{ profile.ctc|default:'' }}" step="0.01" min="0"
+                               title="CTC must be a positive number"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="e.g., 500000.00">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">Must be a positive number</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Salary In Hand (Monthly)</label>
+                        <input type="number" name="salary_in_hand" value="{{ profile.salary_in_hand|default:'' }}" step="0.01" min="0"
+                               title="Salary must be a positive number"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="e.g., 35000.00">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">Must be a positive number</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= BANK DETAILS ================= -->
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">4</span>
+                    Bank Details
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Bank Name</label>
+                        <input type="text" name="bank_name" value="{{ profile.bank_name|default:'' }}"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="Enter bank name">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Account Number</label>
+                        <input type="text" name="account_no" value="{{ profile.account_no|default:'' }}"
+                               pattern="[0-9]{9,18}"
+                               minlength="9"
+                               maxlength="18"
+                               title="Account number must be 9-18 digits only"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="Enter 9-18 digit account number">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">9-18 digits only</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">IFSC Code</label>
+                        <input type="text" name="ifsc" value="{{ profile.ifsc|default:'' }}"
+                               pattern="[A-Z]{4}0[A-Z0-9]{6}"
+                               maxlength="11"
+                               title="IFSC code format: 4 letters, then 0, then 6 alphanumeric (e.g., SBIN0123456)"
+                               style="text-transform: uppercase"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="e.g., SBIN0123456">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">11 characters: 4 letters + 0 + 6 alphanumeric</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VERIFICATION DETAILS ================= -->
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">5</span>
+                    Verification Details
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Aadhar Number</label>
+                        <input type="text" name="aadhar_no" value="{{ profile.aadhar_no|default:'' }}"
+                               pattern="[0-9]{12}"
+                               maxlength="12"
+                               title="Aadhar number must be exactly 12 digits"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="Enter 12-digit Aadhar number">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">Exactly 12 digits</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">PAN Number</label>
+                        <input type="text" name="pan_no" value="{{ profile.pan_no|default:'' }}"
+                               pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
+                               maxlength="10"
+                               title="PAN number format: ABCDE1234F (5 letters, 4 digits, 1 letter)"
+                               style="text-transform: uppercase"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                               placeholder="e.g., ABCDE1234F">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        <p class="text-xs text-gray-400 mt-1">Format: 5 letters + 4 digits + 1 letter</p>
                     </div>
                 </div>
             </div>
@@ -206,11 +396,11 @@
             <!-- Form Actions -->
             <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
                 <a href="{% url 'admin_view_users' %}"
-                   class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2.5 rounded-lg shadow transition font-medium">
+                    class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2.5 rounded-lg shadow transition font-medium">
                     Cancel
                 </a>
                 <button type="submit" id="submitBtn"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition font-medium flex items-center gap-2">
+                    class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-8 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition font-medium flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
@@ -221,20 +411,24 @@
     </div>
 
     <!-- Info Card -->
-    <div class="mt-6 bg-blue-50 rounded-lg border border-blue-200 p-4">
+    <div class="mt-6 bg-[#eef6f2] rounded-lg border border-[#4a9d7e]/20 p-4">
         <div class="flex items-start gap-3">
-            <div class="bg-blue-100 p-2 rounded-full">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <div class="bg-[#d5e9df] p-2 rounded-full">
+                <svg class="w-5 h-5 text-[#4a9d7e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
             <div>
-                <p class="text-sm font-medium text-blue-800">Editing Guidelines</p>
-                <ul class="text-xs text-blue-600 mt-2 space-y-1 list-disc list-inside">
+                <p class="text-sm font-medium text-gray-600">Editing Guidelines</p>
+                <ul class="text-xs text-[#4a9d7e] mt-2 space-y-1 list-disc list-inside">
                     <li>Changes to user information will take effect immediately</li>
                     <li>Inactive users cannot log in to the system</li>
                     <li>Fields marked with <span class="text-red-500">*</span> are required</li>
                     <li>Optional fields can be left empty</li>
+                    <li>Phone & Emergency Contact: 10 digits starting with 6/7/8/9</li>
+                    <li>Aadhar: 12 digits | PAN: 5 letters + 4 digits + 1 letter</li>
+                    <li>IFSC: 4 letters + 0 + 6 alphanumeric</li>
                 </ul>
             </div>
         </div>
@@ -243,39 +437,38 @@
 </div>
 
 <script>
-// Get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
     }
-    return cookieValue;
-}
 
-const csrftoken = getCookie('csrftoken');
-const loadingOverlay = document.getElementById('loadingOverlay');
-const notificationContainer = document.getElementById('notificationContainer');
+    const csrftoken = getCookie('csrftoken');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const notificationContainer = document.getElementById('notificationContainer');
 
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-    } text-white`;
-    notification.innerHTML = `
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white`;
+        notification.innerHTML = `
         <div class="flex items-center justify-between">
             <div class="flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    ${type === 'success' ? 
-                        '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
-                        '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
-                    }
+                    ${type === 'success' ?
+                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+            }
                 </svg>
                 <span>${message}</span>
             </div>
@@ -286,106 +479,114 @@ function showNotification(message, type = 'success') {
             </button>
         </div>
     `;
-    notificationContainer.appendChild(notification);
-    setTimeout(() => notification.remove(), 5000);
-}
+        notificationContainer.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+    }
 
-function clearErrors() {
-    document.querySelectorAll('.error-message').forEach(el => {
-        el.classList.add('hidden');
-        el.innerHTML = '';
-    });
-    document.querySelectorAll('input, select').forEach(el => {
-        el.classList.remove('border-red-500', 'bg-red-50');
-    });
-}
+    function clearErrors() {
+        document.querySelectorAll('.error-message').forEach(el => {
+            el.classList.add('hidden');
+            el.innerHTML = '';
+        });
+        document.querySelectorAll('input, select').forEach(el => {
+            el.classList.remove('border-red-500', 'bg-red-50');
+        });
+    }
 
-function displayErrors(errors) {
-    clearErrors();
-    
-    for (const [field, errorList] of Object.entries(errors)) {
-        const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
-        
-        const fieldElement = document.querySelector(`[name="${field}"]`);
-        if (fieldElement) {
-            fieldElement.classList.add('border-red-500', 'bg-red-50');
-            const parentDiv = fieldElement.closest('div');
-            const errorDiv = parentDiv ? parentDiv.querySelector('.error-message') : null;
-            if (errorDiv) {
-                errorDiv.innerHTML = errorMessage;
-                errorDiv.classList.remove('hidden');
+    function displayErrors(errors) {
+        clearErrors();
+
+        for (const [field, errorList] of Object.entries(errors)) {
+            const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
+
+            const fieldElement = document.querySelector(`[name="${field}"]`);
+            if (fieldElement) {
+                fieldElement.classList.add('border-red-500', 'bg-red-50');
+                const parentDiv = fieldElement.closest('div');
+                const errorDiv = parentDiv ? parentDiv.querySelector('.error-message') : null;
+                if (errorDiv) {
+                    errorDiv.innerHTML = errorMessage;
+                    errorDiv.classList.remove('hidden');
+                }
             }
         }
     }
-}
 
-// Form submission
-const form = document.getElementById('editUserForm');
-const submitBtn = document.getElementById('submitBtn');
-
-if (form) {
-    // Log the form action to debug
-    console.log('Form action URL:', form.action);
-    
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        console.log('Form submitted to:', form.action);
-        
-        clearErrors();
-        
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="loading-text">Updating...</span>';
-        loadingOverlay.classList.remove('hidden');
-        
-        const formData = new FormData(this);
-        
-        // Log all form data
-        console.log('Form Data being sent:');
-        for (let pair of formData.entries()) {
-            console.log(`  ${pair[0]}: ${pair[1]}`);
-        }
-        
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            
-            if (data.success) {
-                showNotification(data.message, 'success');
-                setTimeout(() => {
-                    const userId = {{ user.id }};
-                    window.location.href = `/user/${userId}/`;;
-                }, 1500);
-            } else {
-                if (data.errors) {
-                    displayErrors(data.errors);
-                }
-                showNotification(data.message || 'Error updating user', 'error');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Update User';
-            }
-            loadingOverlay.classList.add('hidden');
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            showNotification('Network error. Please try again.', 'error');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = 'Update User';
-            loadingOverlay.classList.add('hidden');
+    // Auto-uppercase for PAN and IFSC fields
+    document.querySelectorAll('input[name="pan_no"], input[name="ifsc"]').forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
         });
     });
-}
+
+    // Real-time phone number validation
+    document.querySelectorAll('input[name="phone"], input[name="emergency_contact"]').forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+        });
+    });
+
+    // Real-time account number validation (digits only)
+    document.querySelector('input[name="account_no"]')?.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 18);
+    });
+
+    // Real-time aadhar validation (digits only)
+    document.querySelector('input[name="aadhar_no"]')?.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 12);
+    });
+
+    // Form submission
+    const form = document.getElementById('editUserForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            clearErrors();
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading-text">Updating...</span>';
+            loadingOverlay.classList.remove('hidden');
+
+            const formData = new FormData(this);
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(() => {
+                        const userId = {{ user.id }};
+                        window.location.href = `/user/${userId}/`;
+                    }, 1500);
+                } else {
+                    if (data.errors) {
+                        displayErrors(data.errors);
+                    }
+                    showNotification(data.message || 'Error updating user', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Update User';
+                }
+                loadingOverlay.classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('Fetch Error:', error);
+                showNotification('Network error. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Update User';
+                loadingOverlay.classList.add('hidden');
+            });
+        });
+    }
 </script>
 
 <style>
@@ -394,37 +595,47 @@ if (form) {
             transform: rotate(360deg);
         }
     }
-    
+
     .animate-spin {
         animation: spin 1s linear infinite;
     }
-    
+
     #loadingOverlay {
         transition: all 0.3s ease;
     }
-    
+
     @keyframes slideIn {
         from {
             transform: translateX(100%);
             opacity: 0;
         }
+
         to {
             transform: translateX(0);
             opacity: 1;
         }
     }
-    
-    #notificationContainer > div {
+
+    #notificationContainer>div {
         animation: slideIn 0.3s ease-out;
     }
-    
+
     button:disabled {
         opacity: 0.7;
         cursor: not-allowed;
     }
-    
+
     .loading-text {
         display: inline-block;
+    }
+    
+    /* Style for input validation */
+    input:invalid, select:invalid {
+        border-color: #ef4444;
+    }
+    
+    input:valid, select:valid {
+        border-color: #10b981;
     }
 </style>
 

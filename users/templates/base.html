@@ -644,10 +644,40 @@
         // ========== Chat Badge Manager ==========
         const ChatBadgeManager = {
             totalUnread: 0,
+            previousUnread: 0,
+            pollInterval: null,
+
             init() {
                 this.fetchUnreadCount();
-                setInterval(() => this.fetchUnreadCount(), 5000);
+                // Poll every 15 seconds (not 5s — reduces server load)
+                this.pollInterval = setInterval(() => {
+                    if (!document.hidden) this.fetchUnreadCount();
+                }, 15000);
+
+                // Listen for real-time updates from chat room pages
+                window.addEventListener('chatBadgeUpdate', (e) => {
+                    if (e.detail && typeof e.detail.action === 'string') {
+                        if (e.detail.action === 'increment') {
+                            this.totalUnread = Math.max(0, this.totalUnread + (e.detail.count || 1));
+                            this.updateBadges(true);
+                        } else if (e.detail.action === 'decrement') {
+                            this.totalUnread = Math.max(0, this.totalUnread - (e.detail.count || 1));
+                            this.updateBadges(true);
+                        } else if (e.detail.action === 'refresh') {
+                            this.fetchUnreadCount();
+                        } else if (e.detail.action === 'set') {
+                            this.totalUnread = Math.max(0, e.detail.count || 0);
+                            this.updateBadges(true);
+                        }
+                    }
+                });
+
+                // Refresh badge when tab regains focus
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) this.fetchUnreadCount();
+                });
             },
+
             fetchUnreadCount() {
                 fetch('/chat/api/unread-count/', {
                     headers: {
@@ -658,35 +688,48 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        this.previousUnread = this.totalUnread;
                         this.totalUnread = data.total_unread || 0;
-                        this.updateBadges();
+                        const changed = this.totalUnread !== this.previousUnread;
+                        this.updateBadges(changed);
                     }
                 })
                 .catch(console.error);
             },
-            updateBadges() {
+
+            updateBadges(animate = false) {
                 const displayCount = this.totalUnread > 99 ? '99+' : (this.totalUnread || '');
                 const hasUnread = this.totalUnread > 0;
-                const topbarBadge = document.getElementById('topbarChatBadge');
-                if (topbarBadge) {
+
+                ['topbarChatBadge', 'sidebarChatBadge'].forEach(id => {
+                    const badge = document.getElementById(id);
+                    if (!badge) return;
                     if (hasUnread) {
-                        topbarBadge.textContent = displayCount;
-                        topbarBadge.classList.remove('hidden');
+                        badge.textContent = displayCount;
+                        badge.classList.remove('hidden');
+                        // Pulse animation when count changes
+                        if (animate) {
+                            badge.classList.remove('chat-badge-pulse');
+                            void badge.offsetWidth; // force reflow
+                            badge.classList.add('chat-badge-pulse');
+                            setTimeout(() => badge.classList.remove('chat-badge-pulse'), 2000);
+                        }
                     } else {
-                        topbarBadge.classList.add('hidden');
+                        badge.classList.add('hidden');
+                        badge.classList.remove('chat-badge-pulse');
                     }
-                }
-                const sidebarBadge = document.getElementById('sidebarChatBadge');
-                if (sidebarBadge) {
-                    if (hasUnread) {
-                        sidebarBadge.textContent = displayCount;
-                        sidebarBadge.classList.remove('hidden');
-                    } else {
-                        sidebarBadge.classList.add('hidden');
-                    }
-                }
+                });
             }
         };
+
+        // ========== Navigation Helper ==========
+        function goBack() {
+            if (document.referrer && document.referrer !== window.location.href) {
+                window.history.back();
+            } else {
+                window.location.href = '{% url "dashboard" %}';
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             NotificationManager.init();
@@ -694,6 +737,7 @@
         });
 
         window.NotificationManager = NotificationManager;
+        window.ChatBadgeManager = ChatBadgeManager;
         window.showAccessDeniedModal = showAccessDeniedModal;
     </script>
     {% block extra_js %}{% endblock %}

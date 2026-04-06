@@ -183,6 +183,10 @@
     
     // Show/hide buttons based on permission flags
     function updateButtonVisibility() {
+        const canAdd = canAddProjects;
+        const canDelete = canDeleteProjects;
+        
+        // Show/hide Add Project button (visible for ADMIN and TEAM_LEAD)
         const addButtonContainer = document.getElementById('addProjectButtonContainer');
         if (addButtonContainer) {
             addButtonContainer.style.display = canAddProjects ? 'block' : 'none';

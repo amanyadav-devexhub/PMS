@@ -438,7 +438,12 @@ function markAllMessagesRead() {
         return response.json();
     })
     .then(data => {
-        if (data && data.success) console.log('Messages marked as read');
+        if (data && data.success) {
+            // Instantly refresh the badge counts in sidebar/topbar
+            window.dispatchEvent(new CustomEvent('chatBadgeUpdate', {
+                detail: { action: 'refresh' }
+            }));
+        }
     })
     .catch(err => console.error('Error marking messages read:', err));
 }
@@ -459,9 +464,18 @@ function connectWebSocket() {
         const data = JSON.parse(e.data);
         if (data.type === 'chat_message') {
             appendMessage(data, true);
-            if (data.sender_id !== currentUserId) markAllMessagesRead();
+            if (data.sender_id !== currentUserId) {
+                // Mark as read & instantly update badge
+                markAllMessagesRead();
+            }
         } else if (data.type === 'typing') {
             showTypingIndicator(data.user_name, data.is_typing);
+        } else if (data.type === 'read_receipt') {
+            // Update read status visually
+            (data.message_ids || []).forEach(id => {
+                const el = document.querySelector(`[data-message-id="${id}"] .read-status`);
+                if (el) el.innerHTML = getReadIcon(true);
+            });
         }
     };
 

@@ -138,11 +138,15 @@ function renderDashboard(data) {
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-white/5">
                             ${data.users.map(user => `
-                                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition">
-                                    <td class="px-5 py-3">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-7 h-7 rounded-full bg-[#eef6f2] text-[#4a9d7e] flex items-center justify-center text-xs font-bold">${user.username[0].toUpperCase()}</div>
-                                            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">${escapeHtml(user.username)}</span>
+                                <tr>
+                                    <td class="py-4 whitespace-nowrap">
+                                        <div class="w-8 h-8 rounded-full overflow-hidden mr-3">
+                                            ${user.profile_image 
+                                                ? `<img src="${user.profile_image}" class="w-full h-full object-cover" />`
+                                                : `<div class="w-full h-full bg-[#eef6f2] text-[#4a9d7e] flex items-center justify-center font-bold text-xs">
+                                                    ${user.username[0].toUpperCase()}
+                                                </div>`
+                                            }
                                         </div>
                                     </td>
                                     <td class="px-5 py-3 text-xs text-slate-500">${escapeHtml(user.email)}</td>
@@ -253,32 +257,32 @@ function renderDashboard(data) {
 
 function renderStatCard(title, value, color, key, icon) {
     return `
-        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
             <div class="flex items-center justify-between mb-2">
-                <div class="w-8 h-8 rounded-lg" style="background: ${color}15;">
+                <div class="w-8 h-8 rounded-lg group-hover:scale-110 transition-transform duration-300" style="background: ${color}15;">
                     <i class="fa-solid ${icon} text-sm flex items-center justify-center h-full" style="color: ${color};"></i>
                 </div>
-                <span class="text-[10px] text-slate-400 uppercase tracking-wider">${key}</span>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">${key}</span>
             </div>
             <div class="text-2xl font-bold text-slate-800 dark:text-white">${value}</div>
-            <div class="text-[11px] text-slate-400 mt-1">${title}</div>
+            <div class="text-[11px] text-slate-400 mt-1 font-medium group-hover:text-slate-500 transition-colors">${title}</div>
         </div>
     `;
 }
 
 function renderChatCard() {
     return `
-        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
             <div class="flex items-center justify-between mb-2">
-                <div class="w-8 h-8 rounded-lg bg-[#4a9d7e]15">
+                <div class="w-8 h-8 rounded-lg bg-[#4a9d7e]15 group-hover:scale-110 transition-transform duration-300">
                     <i class="fa-regular fa-message text-sm flex items-center justify-center h-full text-[#4a9d7e]"></i>
                 </div>
-                <span class="text-[10px] text-slate-400 uppercase tracking-wider">chat</span>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">chat</span>
             </div>
             <div class="text-2xl font-bold text-slate-800 dark:text-white" id="statUnreadCount">0</div>
-            <div class="text-[11px] text-slate-400 mt-1">Unread Messages</div>
-            <a href="{% url 'chat_rooms' %}" class="mt-3 text-[11px] text-[#4a9d7e] hover:text-[#3d8a6d] font-medium inline-flex items-center gap-1">
-                Open Chat <i class="fa-solid fa-arrow-right text-[8px]"></i>
+            <div class="text-[11px] text-slate-400 mt-1 font-medium">Unread Messages</div>
+            <a href="{% url 'chat_rooms' %}" class="mt-3 text-[11px] text-[#4a9d7e] hover:text-[#3d8a6d] font-bold inline-flex items-center gap-1 group/link">
+                Open Chat <i class="fa-solid fa-arrow-right text-[8px] group-hover/link:translate-x-1 transition-transform"></i>
             </a>
         </div>
     `;
