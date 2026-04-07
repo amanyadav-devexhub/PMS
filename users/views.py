@@ -1000,15 +1000,16 @@ def dashboard(request):
                 'completed_tasks': Task.objects.filter(status='COMPLETED').count(),
             }
             
-            # Users list for admin with pagination
+            # Users list for admin with pagination - 5 per page
             from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
             
             users_qs = User.objects.all().order_by('-date_joined')
             try:
-                page_size = int(request.GET.get("page_size", 10))
+                # Changed default page_size from 10 to 5
+                page_size = int(request.GET.get("page_size", 5))
                 page = int(request.GET.get("page", 1))
             except ValueError:
-                page_size = 10
+                page_size = 5
                 page = 1
                 
             paginator = Paginator(users_qs, page_size)
@@ -1028,6 +1029,11 @@ def dashboard(request):
                 elif can_view_task(u): role_tier = 'contributor'
                 else: role_tier = 'custom'
 
+                # Get profile image if exists
+                profile_image = None
+                if hasattr(u, 'profile') and u.profile.profile_image:
+                    profile_image = u.profile.profile_image.url
+                
                 users_data.append({
                     'id': u.id,
                     'username': u.username,
@@ -1035,6 +1041,7 @@ def dashboard(request):
                     'role': role_label,
                     'role_tier': role_tier,
                     'is_active': u.is_active,
+                    'profile_image': profile_image,
                 })
             data['users'] = users_data
             
@@ -1043,7 +1050,10 @@ def dashboard(request):
                 'total_pages': paginator.num_pages,
                 'current_page': users_page.number,
                 'has_previous': users_page.has_previous(),
-                'has_next': users_page.has_next()
+                'has_next': users_page.has_next(),
+                'previous_page_number': users_page.previous_page_number() if users_page.has_previous() else None,
+                'next_page_number': users_page.next_page_number() if users_page.has_next() else None,
+                'page_size': page_size,
             }
 
         # 2. Team Lead / Task Manager Data
@@ -3121,11 +3131,17 @@ def add_task_summary(request, task_id):
 
 import math
 ## employee task
+import math
+## employee task
 @jwt_or_session_required
 @permission_required('Tasks.view_task')
 def employee_tasks(request):
     task_id = request.GET.get('task_id')
     employee_id = request.GET.get('employee_id')
+    
+    # Helper function to check view_all_tasks permission
+    def has_view_all_tasks(user):
+        return has_any(user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks'])
     
     # Handle AJAX request - return JSON
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -3150,9 +3166,17 @@ def employee_tasks(request):
                 'total_tasks': len(tasks_data)
             })
         
-        # Case 2: Viewing single task by ID
+        # Case 2: Viewing single task by ID - FIXED PERMISSION CHECK
         elif task_id:
             task = get_object_or_404(Task, id=task_id)
+            
+            # Check permission: view_all_tasks OR assigned to task OR can_manage_all_tasks
+            if not (has_view_all_tasks(request.user) or task.assigned_to.filter(id=request.user.id).exists() or can_manage_all_tasks(request.user)):
+                return JsonResponse({
+                    'success': False, 
+                    'error': "You don't have permission to view this task."
+                }, status=403)
+            
             return JsonResponse({
                 'success': True,
                 'task': {
@@ -3217,11 +3241,10 @@ def employee_tasks(request):
     elif task_id:
         task = get_object_or_404(Task, id=task_id)
         
-        # Scoped contributors can only open their own tasks.
-        if not can_manage_all_tasks(request.user):
-            if not task.assigned_to.filter(id=request.user.id).exists():
-                messages.error(request, "You don't have permission to view this task.")
-                return redirect('task_dashboard')
+        # Check permission: view_all_tasks OR assigned to task OR can_manage_all_tasks
+        if not (has_view_all_tasks(request.user) or task.assigned_to.filter(id=request.user.id).exists() or can_manage_all_tasks(request.user)):
+            messages.error(request, "You don't have permission to view this task.")
+            return redirect('task_dashboard')
         
         tasks = [task]
         
@@ -3269,7 +3292,6 @@ def employee_tasks(request):
         'tasks': tasks,
         'current_time': timezone.now()
     })
-
 
 ## update task status
 # @jwt_or_session_required

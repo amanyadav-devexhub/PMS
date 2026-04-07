@@ -6,7 +6,8 @@
 {% block content %}
 
 <!-- Loading Overlay -->
-<div id="loadingOverlay" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+<div id="loadingOverlay"
+    class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
     <div class="bg-white dark:bg-[#111827] rounded-xl p-6 shadow-xl flex items-center gap-3">
         <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#4a9d7e]"></div>
         <span class="text-sm text-slate-600 dark:text-slate-300">Loading dashboard...</span>
@@ -21,108 +22,104 @@
 </div>
 
 <script>
-const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingOverlay = document.getElementById('loadingOverlay');
 
-function getAccessToken() {
-    return localStorage.getItem('access_token');
-}
-
-function loadDashboard(page = 1) {
-    loadingOverlay.classList.remove('hidden');
-    
-    const url = new URL(window.location.href);
-    if (page > 1) {
-        url.searchParams.set('page', page);
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
     }
-    
-    fetch(url, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Authorization': `Bearer ${getAccessToken()}`
+
+    function loadDashboard(page = 1) {
+        loadingOverlay.classList.remove('hidden');
+
+        const url = new URL(window.location.href);
+        if (page > 1) {
+            url.searchParams.set('page', page);
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderDashboard(data);
-        }
-        loadingOverlay.classList.add('hidden');
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('dashboardContent').innerHTML = `
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Authorization': `Bearer ${getAccessToken()}`
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderDashboard(data);
+                }
+                loadingOverlay.classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('dashboardContent').innerHTML = `
             <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
                 <i class="fa-solid fa-circle-exclamation text-red-500 text-2xl mb-2"></i>
                 <p class="text-red-600 dark:text-red-400">Error loading dashboard. Please refresh the page.</p>
             </div>
         `;
-        loadingOverlay.classList.add('hidden');
-    });
-}
+                loadingOverlay.classList.add('hidden');
+            });
+    }
 
-function renderDashboard(data) {
-    const container = document.getElementById('dashboardContent');
-    const userRole = data.role || 'User';
-    const userName = "{{ request.user.get_full_name|default:request.user.username }}";
-    
-    // Welcome Header
-    let html = `
-        <div class="bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] text-white p-6 md:p-8 rounded-2xl shadow-lg mb-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="fa-regular fa-hand-peace text-2xl"></i>
-                        <h1 class="text-xl md:text-2xl font-bold">Welcome back, ${escapeHtml(userName)}!</h1>
-                    </div>
-                    <p class="text-white/80 text-sm">${userRole} Dashboard • Manage your projects and tasks efficiently</p>
+    function renderDashboard(data) {
+        const container = document.getElementById('dashboardContent');
+        const userRole = data.role || 'User';
+        const userName = "{{ request.user.get_full_name|default:request.user.username }}";
+
+        // Welcome Header
+        let html = `
+    <div class="bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] text-white p-6 md:p-8 rounded-2xl shadow-lg mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-regular fa-hand-peace text-2xl"></i>
+                    <h1 class="text-xl md:text-2xl font-bold">Welcome back, ${escapeHtml(userName)}!</h1>
                 </div>
-                <div class="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl">
-                    <p class="text-xs opacity-90">Last login: {{ request.user.last_login|date:"M d, Y H:i" }}</p>
-                    <p class="text-xs opacity-75">{{ request.user.email }}</p>
-                </div>
+                <p class="text-white/80 text-sm">${userRole} Dashboard • Manage your projects and tasks efficiently</p>
             </div>
         </div>
-    `;
+    </div>
+`;
 
-    // Statistics Grid
-    html += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">`;
-    
-    if (data.dashboard_variant === 'owner') {
-        html += `
+        // Statistics Grid
+        html += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">`;
+
+        if (data.dashboard_variant === 'owner') {
+            html += `
             ${renderStatCard('Total Users', data.stats.total_users, '#4a9d7e', 'users', 'fa-users')}
             ${renderStatCard('Active Users', data.stats.active_users, '#60a5fa', 'user-check', 'fa-user-check')}
             ${renderStatCard('Total Projects', data.stats.total_projects, '#f59e0b', 'folder', 'fa-folder')}
             ${renderStatCard('Total Tasks', data.stats.total_tasks, '#8b5cf6', 'clipboard', 'fa-clipboard-list')}
             ${renderChatCard()}
         `;
-    } else if (data.dashboard_variant === 'manager') {
-        html += `
+        } else if (data.dashboard_variant === 'manager') {
+            html += `
             ${renderStatCard('My Projects', data.stats.total_projects, '#60a5fa', 'folder', 'fa-folder')}
             ${renderStatCard('Active Tasks', data.stats.active_tasks, '#f59e0b', 'clock', 'fa-clock')}
             ${renderStatCard('Completed', data.stats.completed_tasks, '#4a9d7e', 'check', 'fa-check-circle')}
             ${renderStatCard('Team Members', data.stats.team_members, '#8b5cf6', 'users', 'fa-users')}
             ${renderChatCard()}
         `;
-    } else {
-        html += `
+        } else {
+            html += `
             ${renderStatCard('Assigned Tasks', data.stats.tasks_count, '#60a5fa', 'tasks', 'fa-clipboard-list')}
             ${renderStatCard('Ongoing', data.stats.ongoing_tasks, '#f59e0b', 'play', 'fa-play-circle')}
             ${renderStatCard('Completed', data.stats.completed_tasks, '#4a9d7e', 'check', 'fa-check-circle')}
             ${renderStatCard('My Projects', data.stats.projects_count, '#8b5cf6', 'projects', 'fa-folder-open')}
             ${renderChatCard()}
         `;
-    }
-    html += `</div>`;
+        }
+        html += `</div>`;
 
-    // Main Content - 2 column layout
-    html += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">`;
+        // Main Content - 2 column layout
+        html += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">`;
 
-    // Left column (spans 2 columns on xl)
-    html += `<div class="xl:col-span-2 space-y-6">`;
+        // Left column (spans 2 columns on xl)
+        html += `<div class="xl:col-span-2 space-y-6">`;
 
-    // Admin: User Management
-    if (data.dashboard_variant === 'owner' && data.users) {
-        html += `
+        // Admin: User Management
+        if (data.dashboard_variant === 'owner' && data.users) {
+            html += `
             <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
                     <div class="flex items-center gap-2">
@@ -146,12 +143,12 @@ function renderDashboard(data) {
                                 <tr>
                                     <td class="py-4 whitespace-nowrap">
                                         <div class="w-8 h-8 rounded-full overflow-hidden mr-3">
-                                            ${user.profile_image 
-                                                ? `<img src="${user.profile_image}" class="w-full h-full object-cover" />`
-                                                : `<div class="w-full h-full bg-[#eef6f2] text-[#4a9d7e] flex items-center justify-center font-bold text-xs">
+                                            ${user.profile_image
+                    ? `<img src="${user.profile_image}" class="w-full h-full object-cover" />`
+                    : `<div class="w-full h-full bg-[#eef6f2] text-[#4a9d7e] flex items-center justify-center font-bold text-xs">
                                                     ${user.username[0].toUpperCase()}
                                                 </div>`
-                                            }
+                }
                                         </div>
                                     </td>
                                     <td class="px-5 py-3 text-xs text-slate-500">${escapeHtml(user.email)}</td>
@@ -184,11 +181,11 @@ function renderDashboard(data) {
                 ` : ''}
             </div>
         `;
-    }
+        }
 
-    // Manager: Recent Projects
-    if (data.dashboard_variant === 'manager' && data.recent_projects) {
-        html += `
+        // Manager: Recent Projects
+        if (data.dashboard_variant === 'manager' && data.recent_projects) {
+            html += `
             <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
                 <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5">
                     <div class="flex items-center gap-2">
@@ -214,11 +211,11 @@ function renderDashboard(data) {
                 </div>
             </div>
         `;
-    }
+        }
 
-    // Contributor: Recent Tasks
-    if (data.dashboard_variant === 'contributor' && data.recent_tasks) {
-        html += `
+        // Contributor: Recent Tasks
+        if (data.dashboard_variant === 'contributor' && data.recent_tasks) {
+            html += `
             <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
                 <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5">
                     <div class="flex items-center gap-2">
@@ -244,12 +241,12 @@ function renderDashboard(data) {
                 </div>
             </div>
         `;
-    }
+        }
 
-    html += `</div>`; // Close left column
+        html += `</div>`; // Close left column
 
-    // Right column (Recent Chats)
-    html += `
+        // Right column (Recent Chats)
+        html += `
         <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
                 <div class="flex items-center gap-2">
@@ -267,14 +264,14 @@ function renderDashboard(data) {
         </div>
     `;
 
-    html += `</div>`; // Close grid
-    container.innerHTML = html;
-    
-    loadRecentChats();
-}
+        html += `</div>`; // Close grid
+        container.innerHTML = html;
 
-function renderStatCard(title, value, color, key, icon) {
-    return `
+        loadRecentChats();
+    }
+
+    function renderStatCard(title, value, color, key, icon) {
+        return `
         <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
             <div class="flex items-center justify-between mb-2">
                 <div class="w-8 h-8 rounded-lg group-hover:scale-110 transition-transform duration-300" style="background: ${color}15;">
@@ -286,10 +283,10 @@ function renderStatCard(title, value, color, key, icon) {
             <div class="text-[11px] text-slate-400 mt-1 font-medium group-hover:text-slate-500 transition-colors">${title}</div>
         </div>
     `;
-}
+    }
 
-function renderChatCard() {
-    return `
+    function renderChatCard() {
+        return `
         <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
             <div class="flex items-center justify-between mb-2">
                 <div class="w-8 h-8 rounded-lg bg-[#4a9d7e]15 group-hover:scale-110 transition-transform duration-300">
@@ -304,26 +301,26 @@ function renderChatCard() {
             </a>
         </div>
     `;
-}
+    }
 
-function loadRecentChats() {
-    fetch('/chat/api/unread-count/', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Authorization': `Bearer ${getAccessToken()}`
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            const totalUnread = data.total_unread || 0;
-            const statUnreadElement = document.getElementById('statUnreadCount');
-            if (statUnreadElement) statUnreadElement.innerText = totalUnread;
-            
-            const recentChatsContainer = document.getElementById('recentChatsContainer');
-            if (recentChatsContainer) {
-                if (totalUnread > 0) {
-                    recentChatsContainer.innerHTML = `
+    function loadRecentChats() {
+        fetch('/chat/api/unread-count/', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Authorization': `Bearer ${getAccessToken()}`
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const totalUnread = data.total_unread || 0;
+                    const statUnreadElement = document.getElementById('statUnreadCount');
+                    if (statUnreadElement) statUnreadElement.innerText = totalUnread;
+
+                    const recentChatsContainer = document.getElementById('recentChatsContainer');
+                    if (recentChatsContainer) {
+                        if (totalUnread > 0) {
+                            recentChatsContainer.innerHTML = `
                         <div class="bg-[#eef6f2] dark:bg-[#1a3a2a] rounded-lg p-4">
                             <div class="flex items-center justify-between">
                                 <div>
@@ -337,66 +334,66 @@ function loadRecentChats() {
                             </div>
                         </div>
                     `;
-                } else {
-                    recentChatsContainer.innerHTML = `
+                        } else {
+                            recentChatsContainer.innerHTML = `
                         <div class="text-center py-6">
                             <i class="fa-regular fa-comment-dots text-3xl text-slate-300 mb-2"></i>
                             <p class="text-sm text-slate-500">No new messages</p>
                             <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Start a conversation →</a>
                         </div>
                     `;
+                        }
+                    }
                 }
-            }
-        }
-    })
-    .catch(err => {
-        console.error('Error loading chats:', err);
-        const recentChatsContainer = document.getElementById('recentChatsContainer');
-        if (recentChatsContainer) {
-            recentChatsContainer.innerHTML = `
+            })
+            .catch(err => {
+                console.error('Error loading chats:', err);
+                const recentChatsContainer = document.getElementById('recentChatsContainer');
+                if (recentChatsContainer) {
+                    recentChatsContainer.innerHTML = `
                 <div class="text-center py-6">
                     <p class="text-xs text-slate-400">Unable to load messages</p>
                     <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Open Chat →</a>
                 </div>
             `;
+                }
+            });
+    }
+
+    function getRoleBadgeClass(tier) {
+        switch (tier) {
+            case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+            case 'manager': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'contributor': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
         }
-    });
-}
-
-function getRoleBadgeClass(tier) {
-    switch(tier) {
-        case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
-        case 'manager': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-        case 'contributor': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-        default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
     }
-}
 
-function getStatusBadgeClass(status) {
-    switch(status) {
-        case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-        case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-        case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-        default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+    function getStatusBadgeClass(status) {
+        switch (status) {
+            case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+        }
     }
-}
 
-function getTaskStatusBadgeClass(status) {
-    switch(status) {
-        case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-        case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-        case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-        default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+    function getTaskStatusBadgeClass(status) {
+        switch (status) {
+            case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+        }
     }
-}
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-loadDashboard();
+    loadDashboard();
 </script>
 {% endblock %}
