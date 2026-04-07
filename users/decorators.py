@@ -23,39 +23,41 @@ def jwt_required(view_func):
         if auth_header.startswith('Bearer '):
             token = auth_header.split(' ', 1)[1].strip()
 
+        if token == 'null' or token == 'undefined':
+            token = None
+
         if not token:
             token = request.COOKIES.get('access_token')
 
-        if not token:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Authentication required. Please login again.'
-                }, status=401)
-            return redirect(reverse('login_page'))
+        # First, try JWT if token is present
+        if token:
+            try:
+                auth = JWTAuthentication()
+                validated_token = auth.get_validated_token(token)
+                user = auth.get_user(validated_token)
+                if user and user.is_active:
+                    request.user = user
+                    return view_func(request, *args, **kwargs)
+            except Exception:
+                # If JWT fails (expired, invalid), gracefully fall through to check session
+                pass
 
-        auth = JWTAuthentication()
-        try:
-            validated_token = auth.get_validated_token(token)
-            user = auth.get_user(validated_token)
+        # Second, fallback to Django Session Authentication
+        if request.user.is_authenticated:
+            return view_func(request, *args, **kwargs)
+            
+        # Authentication totally failed
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Authentication required. Please login again.'
+            }, status=401)
+        
+        response = redirect(reverse('login_page'))
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        return response
 
-            if user is None or not user.is_active:
-                raise AuthenticationFailed('Invalid or inactive user.')
-
-            request.user = user
-        except (InvalidToken, AuthenticationFailed, Exception):
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid or expired token. Please login again.'
-                }, status=401)
-            response = redirect(reverse('login_page'))
-            response.delete_cookie('access_token')
-            response.delete_cookie('refresh_token')
-            return response
-
-        return view_func(request, *args, **kwargs)
-    
     return wrapped_view
 
 

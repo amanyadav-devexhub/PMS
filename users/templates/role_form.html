@@ -105,22 +105,30 @@
                     <span class="text-xs text-slate-400 dark:text-slate-500">Select capabilities for this role</span>
                 </div>
                 
-                <div class="bg-slate-50 dark:bg-[#1e293b] rounded-lg p-4 border border-slate-200 dark:border-white/10 max-h-96 overflow-y-auto">
-                    {% if form.permissions.field.queryset %}
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
-                            {% for perm in form.permissions.field.queryset %}
-                            <div class="permission-item flex items-center gap-3 p-2 rounded-md transition border border-transparent hover:border-slate-200 dark:hover:border-white/10">
-                                <input type="checkbox" name="permissions" value="{{ perm.id }}" id="id_permissions_{{ perm.id }}"
-                                       class="permission-checkbox w-4 h-4 rounded border-slate-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e] focus:ring-offset-0"
-                                       {% if perm in form.permissions.value %}checked{% endif %}>
-                                <label for="id_permissions_{{ perm.id }}" class="text-xs text-slate-700 dark:text-slate-300 cursor-pointer flex-1">
-                                    <span class="font-mono text-[11px] text-[#4a9d7e]">{{ perm.content_type.app_label }}</span>
-                                    <span class="mx-1">·</span>
-                                    <span>{{ perm.name|default:perm.codename }}</span>
-                                </label>
+                <div class="bg-slate-50 dark:bg-[#1e293b] rounded-lg p-4 border border-slate-200 dark:border-white/10 max-h-[500px] overflow-y-auto space-y-6">
+                    {% if permission_groups %}
+                        {% for group_name, group_perms in permission_groups.items %}
+                        <div class="permission-group">
+                            <h3 class="text-[11px] font-bold text-[#4a9d7e] uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#4a9d7e]"></span>
+                                {{ group_name }} Module
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                                {% for perm in group_perms %}
+                                <div class="permission-item flex items-center gap-3 p-2 rounded-md transition border border-transparent hover:border-slate-200 dark:hover:border-white/10">
+                                    <input type="checkbox" name="permissions" value="{{ perm.id }}" id="id_permissions_{{ perm.id }}"
+                                           class="permission-checkbox w-4 h-4 rounded border-slate-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e] focus:ring-offset-0"
+                                           {% if perm.id|stringformat:"s" in selected_permission_ids %}checked{% endif %}>
+                                    <label for="id_permissions_{{ perm.id }}" class="text-xs text-slate-700 dark:text-slate-300 cursor-pointer flex-1">
+                                        <span class="font-mono text-[10px] opacity-70">{{ group_name }}</span>
+                                        <span class="mx-1 text-slate-300">·</span>
+                                        <span class="font-medium">{{ perm.name|default:perm.codename }}</span>
+                                    </label>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
+                        {% endfor %}
                     {% else %}
                         <p class="text-center text-slate-500 dark:text-slate-400 py-8 text-sm">
                             <i class="fa-solid fa-key text-2xl mb-2 block"></i>

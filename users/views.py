@@ -55,6 +55,7 @@ from users.permissions import (
     can_complete_task,
     dashboard_url_for,
     is_manager_like,
+    has_any,
 )
 from .forms import RoleForm, PermissionForm
 from Tasks.models import Task
@@ -736,8 +737,19 @@ import re
 from users.models import UserProfile
 
 @jwt_or_session_required
-@permission_required('users.view_user')
 def view_user_details(request, user_id):
+    # Allow users to always view their own profile
+    # For viewing OTHER users, require 'users.view_user' permission
+    if request.user.id != user_id and not request.user.is_superuser and not request.user.has_perm('users.view_user'):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'access_denied': True,
+                'message': 'Access denied. You can only view your own profile.'
+            }, status=403)
+        messages.error(request, "Access Denied: You don't have permission to view other users' profiles.")
+        return redirect('dashboard')
+
     # Handle POST request for self-edit (only for own profile)
     if request.method == "POST" and request.user.id == user_id:
         user_obj = get_object_or_404(User, id=user_id)
@@ -988,10 +1000,28 @@ def dashboard(request):
                 'completed_tasks': Task.objects.filter(status='COMPLETED').count(),
             }
             
-            # Users list for admin
-            users = User.objects.all().order_by('-date_joined')[:10]
+            # Users list for admin with pagination
+            from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+            
+            users_qs = User.objects.all().order_by('-date_joined')
+            try:
+                page_size = int(request.GET.get("page_size", 10))
+                page = int(request.GET.get("page", 1))
+            except ValueError:
+                page_size = 10
+                page = 1
+                
+            paginator = Paginator(users_qs, page_size)
+            
+            try:
+                users_page = paginator.page(page)
+            except PageNotAnInteger:
+                users_page = paginator.page(1)
+            except EmptyPage:
+                users_page = paginator.page(paginator.num_pages)
+
             users_data = []
-            for u in users:
+            for u in users_page:
                 role_label = u.role_obj.name if u.role_obj else (u.role or 'UNASSIGNED')
                 if can_manage_users(u): role_tier = 'owner'
                 elif is_manager_like(u): role_tier = 'manager'
@@ -1007,6 +1037,14 @@ def dashboard(request):
                     'is_active': u.is_active,
                 })
             data['users'] = users_data
+            
+            data['pagination'] = {
+                'total': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': users_page.number,
+                'has_previous': users_page.has_previous(),
+                'has_next': users_page.has_next()
+            }
 
         # 2. Team Lead / Task Manager Data
         elif can_add_task(user):
@@ -2781,13 +2819,23 @@ def task_dashboard(request):
         page = request.GET.get("page", 1)
         page_size = request.GET.get("page_size", 10)
         
-        if can_view_all_tasks(request.user):
+        if has_any(request.user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']):
             tasks = Task.objects.all().order_by('-created_at')
-        elif can_add_task(request.user):
+        elif can_manage_users(request.user):
+            # Admin gets all tasks
+            tasks = Task.objects.all().order_by('-created_at')
+        elif can_manage_projects(request.user):
+            # Team leads / Managers can view tasks from their projects
             my_projects = Projects.objects.filter(assigned_to=request.user)
             my_project_ids = my_projects.values_list('id', flat=True)
-            tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
+            
+            # They also see tasks explicitly assigned to them in other projects
+            tasks = Task.objects.filter(
+                models.Q(project_id__in=my_project_ids) | 
+                models.Q(assigned_to=request.user)
+            ).distinct().order_by('-created_at')
         else:
+            # Regular employee / contributor explicitly only sees tasks assigned to them
             tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
         
         # Statistics (using full queryset for stats)
@@ -2879,12 +2927,17 @@ def task_dashboard(request):
         })
     
     # Regular request - return full template with data
-    if can_view_all_tasks(request.user):
+    if has_any(request.user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']):
         tasks = Task.objects.all().order_by('-created_at')
-    elif can_add_task(request.user):
+    elif can_manage_users(request.user):
+        tasks = Task.objects.all().order_by('-created_at')
+    elif can_manage_projects(request.user):
         my_projects = Projects.objects.filter(assigned_to=request.user)
         my_project_ids = my_projects.values_list('id', flat=True)
-        tasks = Task.objects.filter(project_id__in=my_project_ids).order_by('-created_at')
+        tasks = Task.objects.filter(
+            models.Q(project_id__in=my_project_ids) | 
+            models.Q(assigned_to=request.user)
+        ).distinct().order_by('-created_at')
     else:
         tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
 

@@ -37,14 +37,18 @@ def chat_rooms(request):
             'participant_count': room.get_participant_count()
         })
     
-    # Sort by last message time (most recent first), putting None at the end
-    rooms_list.sort(key=lambda x: x['last_message_time'] or timezone.now(), reverse=True)
+    rooms_list.sort(key=lambda x: x['last_message_time'] if x['last_message_time'] else timezone.now() - timezone.timedelta(days=36500), reverse=True)
     
-    # Alternative: sort None values to the end
-    # rooms_list.sort(key=lambda x: (x['last_message_time'] is None, x['last_message_time']), reverse=True)
-    
-    # Get all users for new chat (excluding current user)
-    users = User.objects.exclude(id=request.user.id).exclude(is_superuser=True)[:100]
+    # Get users we already have DMs with to exclude them from the new chat list
+    has_dm_user_ids = set()
+    for room in rooms:
+        if not room.is_group:
+            for p in room.participants.all():
+                if p.id != request.user.id:
+                    has_dm_user_ids.add(p.id)
+                    
+    # Get all users for new chat, excluding those we already have a DM with
+    users = User.objects.exclude(id=request.user.id).exclude(id__in=has_dm_user_ids)[:100]
     
     return render(request, 'chat/rooms.html', {
         'rooms': rooms_list,
@@ -88,7 +92,7 @@ def create_direct_room(request, user_id):
         room.participants.add(request.user, other_user)
 
     return JsonResponse({'room_id': room.id})
-
+@csrf_exempt
 @jwt_or_session_required
 @require_http_methods(["POST"])
 def create_group_room(request):
@@ -231,7 +235,7 @@ def search_users(request):
     if exclude_list:
         users = users.exclude(id__in=exclude_list)
     
-    users = users.exclude(is_superuser=True)[:20]
+    users = users.filter(is_active=True)[:20]
     
     users_data = []
     for user in users:
@@ -286,7 +290,7 @@ def get_unread_counts(request):
 @jwt_or_session_required
 def get_all_users(request):
     """Get all users for group creation"""
-    users = User.objects.exclude(id=request.user.id).exclude(is_superuser=True)
+    users = User.objects.exclude(id=request.user.id).filter(is_active=True)
     
     users_data = []
     for user in users:

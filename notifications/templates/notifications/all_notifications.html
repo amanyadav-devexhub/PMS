@@ -157,11 +157,13 @@ function loadNotifications(page = 1, pageSize = 20) {
     url.searchParams.set('page_size', pageSize);
     
     fetch(url, {
+        credentials: 'same-origin',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`
         }
     })
-    .then(response => response.json())
+    .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
     .then(data => {
         if (data.success) {
             currentPage = data.current_page;
@@ -263,12 +265,14 @@ function updatePagination(data) {
 function markAsRead(notificationId) {
     fetch(`/notifications/mark-read/${notificationId}/`, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
             'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`
         }
     })
-    .then(response => response.json())
+    .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
     .then(data => {
         if (data.success) {
             loadNotifications(currentPage, currentPageSize);

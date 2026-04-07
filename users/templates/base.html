@@ -20,6 +20,12 @@
             }
         }
     </script>
+    <script>
+        // Apply theme early to prevent flickering
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -125,7 +131,7 @@
                     <span class="text-base font-semibold text-slate-800 dark:text-white tracking-tight">ReadyTask PMS</span>
                 </div>
 
-                <!-- User Info -->
+                {% comment %} <!-- User Info -->
                 <div class="mx-4 mb-4 px-3 py-2 bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg">
                     <div class="flex items-center gap-3">
                         <img src="https://ui-avatars.com/api/?name={{ request.user.username|default:'U' }}&background=4a9d7e&color=fff&size=32&bold=true"
@@ -137,14 +143,14 @@
                             <div class="text-[10px] text-slate-400 truncate">{{ request.user.email }}</div>
                         </div>
                     </div>
-                </div>
+                </div> {% endcomment %}
 
                 <!-- Search -->
-                <div class="mx-4 mb-3 relative">
+                {% comment %} <div class="mx-4 mb-3 relative">
                     <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
                     <input type="text" id="sidebarSearch" placeholder="Search..."
                         class="w-full pl-7 pr-3 py-[7px] bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-[13px] outline-none focus:border-slate-300 transition">
-                </div>
+                </div> {% endcomment %}
 
                 <!-- Navigation -->
                 <nav class="px-3 space-y-[2px]" id="main-nav">
@@ -249,7 +255,7 @@
             </div>
 
             <!-- Upgrade/Info Card -->
-            <div class="px-4 py-3 border-t border-slate-100 dark:border-white/5">
+            {% comment %} <div class="px-4 py-3 border-t border-slate-100 dark:border-white/5">
                 <div class="bg-[#f6f7f9] dark:bg-white/5 rounded-xl p-3.5 border border-slate-100 dark:border-white/10">
                     <div class="text-[13px] font-semibold text-slate-800 dark:text-white mb-0.5">Need help?</div>
                     <p class="text-[11px] text-slate-400 leading-relaxed mb-2.5">Contact support or check documentation.</p>
@@ -258,7 +264,7 @@
                         <i class="fa-solid fa-headset text-[10px]"></i> Get Support
                     </button>
                 </div>
-            </div>
+            </div> {% endcomment %}
         </aside>
 
         <!-- ========== MAIN ========== -->
@@ -325,10 +331,11 @@
                     </button>
 
                     <!-- User Avatar -->
-                    <div class="w-8 h-8 rounded-full overflow-hidden ml-1.5 cursor-pointer">
+                    <a href="{% url 'view_user_details' request.user.id %}" class="w-8 h-8 rounded-full overflow-hidden ml-1.5 cursor-pointer block hover:ring-2 hover:ring-[#4a9d7e]/50 transition" title="My Profile">
                         <img src="https://ui-avatars.com/api/?name={{ request.user.username|default:'U' }}&background=4a9d7e&color=fff&size=32&bold=true&font-size=0.45"
                             class="w-full h-full object-cover" alt="avatar">
-                    </div>
+                    </a>
+
                 </div>
             </header>
 
@@ -424,8 +431,11 @@
             }
         }
         // Initialize tree states
-        document.getElementById('chat-tree-children').style.display = 'block';
-        document.getElementById('settings-tree-children').style.display = 'block';
+        const chatTree = document.getElementById('chat-tree-children');
+        if (chatTree) chatTree.style.display = 'block';
+        
+        const settingsTree = document.getElementById('settings-tree-children');
+        if (settingsTree) settingsTree.style.display = 'block';
 
         // ========== Theme ==========
         function toggleTheme() {
@@ -439,8 +449,7 @@
             }
             localStorage.setItem('theme', h.classList.contains('dark') ? 'dark' : 'light');
         }
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+        // Set initial icon based on theme
         const themeIcon = document.getElementById('themeIcon');
         if (document.documentElement.classList.contains('dark')) {
             themeIcon?.classList.replace('fa-sun', 'fa-moon');
@@ -530,11 +539,13 @@
             },
             loadLatestNotification() {
                 fetch('{% url "all_notifications" %}?page=1&page_size=5', {
+                    credentials: 'same-origin',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
+                .then(response => { if (!response.ok) throw new Error(response.status); return response; })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -577,13 +588,14 @@
             markAsRead(notificationId) {
                 fetch(`/notifications/mark-read/${notificationId}/`, {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'X-CSRFToken': getCSRFToken(),
                         'X-Requested-With': 'XMLHttpRequest',
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
-                .then(response => response.json())
+                .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
                 .then(data => {
                     if (data.success) {
                         this.loadLatestNotification();
@@ -594,13 +606,14 @@
             markAllAsRead() {
                 fetch('/notifications/mark-all-read/', {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'X-CSRFToken': getCSRFToken(),
                         'X-Requested-With': 'XMLHttpRequest',
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
-                .then(response => response.json())
+                .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
                 .then(data => {
                     if (data.success) {
                         this.loadLatestNotification();
@@ -680,12 +693,13 @@
 
             fetchUnreadCount() {
                 fetch('/chat/api/unread-count/', {
+                    credentials: 'same-origin',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
-                .then(response => response.json())
+                .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
                 .then(data => {
                     if (data.success) {
                         this.previousUnread = this.totalUnread;
