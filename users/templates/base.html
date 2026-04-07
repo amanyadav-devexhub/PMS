@@ -29,35 +29,42 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
         body {
             font-family: 'Outfit', sans-serif;
             font-weight: 400;
             background: #f6f7f9;
         }
+
         .dark body {
             background: #0f1117;
         }
+
         .nav-item {
             border-radius: 6px;
             transition: all 0.15s;
         }
+
         .nav-item:hover {
             background: #f0f1f3;
         }
+
         .nav-item.active {
             background: #eef6f2;
             color: #4a9d7e;
             font-weight: 500;
         }
+
         .dark .nav-item:hover {
             background: rgba(255, 255, 255, 0.05);
         }
+
         .dark .nav-item.active {
             background: rgba(0, 133, 77, 0.15);
             color: #34d399;
         }
+
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -65,41 +72,72 @@
             background: rgba(0, 0, 0, 0.3);
             z-index: 55;
         }
+
         .sidebar-overlay.active {
             display: block;
         }
+
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
+
         .animate-spin {
             animation: spin 1s linear infinite;
         }
+
         @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
+
         .toast-notification {
             animation: slideIn 0.3s ease-out;
         }
+
         @keyframes pulse-ring {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 157, 126, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 157, 126, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 157, 126, 0); }
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(74, 157, 126, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(74, 157, 126, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(74, 157, 126, 0);
+            }
         }
+
         .chat-badge-pulse {
             animation: pulse-ring 1.5s cubic-bezier(0.66, 0, 0, 1) infinite;
         }
+
         .sidebar-chat-active {
             background-color: #eef6f2;
             color: #4a9d7e;
         }
+
         .chat-badge {
             transition: all 0.2s ease;
         }
@@ -128,11 +166,13 @@
                     <div class="w-8 h-8 rounded-md bg-[#4a9d7e] flex items-center justify-center">
                         <i class="fa-solid fa-check-double text-white text-xs"></i>
                     </div>
-                    <span class="text-base font-semibold text-slate-800 dark:text-white tracking-tight">ReadyTask PMS</span>
+                    <span class="text-base font-semibold text-slate-800 dark:text-white tracking-tight">ReadyTask
+                        PMS</span>
                 </div>
 
                 {% comment %} <!-- User Info -->
-                <div class="mx-4 mb-4 px-3 py-2 bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg">
+                <div
+                    class="mx-4 mb-4 px-3 py-2 bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg">
                     <div class="flex items-center gap-3">
                         <img src="https://ui-avatars.com/api/?name={{ request.user.username|default:'U' }}&background=4a9d7e&color=fff&size=32&bold=true"
                             class="w-8 h-8 rounded-full object-cover">
@@ -147,70 +187,68 @@
 
                 <!-- Search -->
                 {% comment %} <div class="mx-4 mb-3 relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
+                    <i
+                        class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
                     <input type="text" id="sidebarSearch" placeholder="Search..."
                         class="w-full pl-7 pr-3 py-[7px] bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-[13px] outline-none focus:border-slate-300 transition">
                 </div> {% endcomment %}
 
                 <!-- Navigation -->
                 <nav class="px-3 space-y-[2px]" id="main-nav">
-                    <a href="{% url 'dashboard' %}" 
+                    <a href="{% url 'dashboard' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300 {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                         <i class="fa-solid fa-house text-slate-400 text-[12px] w-4 text-center"></i> Dashboard
                     </a>
-                    
-                    <a href="{% url 'task_dashboard' %}" 
+
+                    <!-- To this: -->
+                    {% if can_view_task %}
+                    <a href="{% url 'task_dashboard' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
                         <i class="fa-solid fa-list-check text-slate-400 text-[12px] w-4 text-center"></i> My Tasks
                     </a>
+                    {% endif %}
 
                     {% if can_view_projects %}
-                    <a href="{% url 'view_projects' %}" 
+                    <a href="{% url 'view_projects' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
-                        <i class="fa-solid fa-folder text-slate-400 text-[12px] w-4 text-center"></i> 
+                        <i class="fa-solid fa-folder text-slate-400 text-[12px] w-4 text-center"></i>
                         {% if can_view_all_projects %}Projects{% else %}My Projects{% endif %}
                     </a>
                     {% endif %}
 
                     {% if can_manage_users %}
-                    <a href="{% url 'admin_view_users' %}" 
+                    <a href="{% url 'admin_view_users' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
                         <i class="fa-solid fa-users text-slate-400 text-[12px] w-4 text-center"></i> Team Members
                     </a>
                     {% endif %}
 
                     {% if can_add_task %}
-                    <a href="{% url 'assign_task' %}" 
+                    <a href="{% url 'assign_task' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
                         <i class="fa-solid fa-plus-circle text-slate-400 text-[12px] w-4 text-center"></i> Assign Task
                     </a>
                     {% endif %}
 
                     {% if can_manage_projects %}
-                    <a href="{% url 'create_project' %}" 
+                    <a href="{% url 'create_project' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
-                        <i class="fa-solid fa-plus-square text-slate-400 text-[12px] w-4 text-center"></i> Create Project
+                        <i class="fa-solid fa-plus-square text-slate-400 text-[12px] w-4 text-center"></i> Create
+                        Project
                     </a>
                     {% endif %}
 
-                    <!-- Chat Section -->
+                    <!-- Chat Section - Simplified -->
                     <div class="mt-2">
-                        <button onclick="toggleChatTree()"
-                            class="w-full flex items-center gap-1.5 px-3 py-[7px] text-[13px] font-medium text-slate-700 dark:text-white rounded-md hover:bg-slate-50 dark:hover:bg-white/5 transition">
-                            <i class="fa-solid fa-chevron-down text-[8px] text-slate-400" id="chat-tree-icon"></i>
-                            <i class="fa-regular fa-message text-[#4a9d7e] text-[12px]"></i>
+                        <a href="{% url 'chat_rooms' %}"
+                            class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
+                            <i class="fa-regular fa-message text-[#4a9d7e] text-[12px] w-4 text-center"></i>
                             <span>Chat</span>
-                            <span id="sidebarChatBadge" 
+                            <span id="sidebarChatBadge"
                                 class="hidden ml-auto bg-[#4a9d7e] text-white text-[9px] font-bold rounded-full h-4 min-w-[1rem] px-1 flex items-center justify-center">
                                 0
                             </span>
-                        </button>
-                        <div id="chat-tree-children" class="ml-[30px] mt-[2px]">
-                            <a href="{% url 'chat_rooms' %}" 
-                                class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
-                                <i class="fa-regular fa-comment-dots text-[11px]"></i> Chat Rooms
-                            </a>
-                        </div>
+                        </a>
                     </div>
 
                     {% if can_manage_roles %}
@@ -222,16 +260,20 @@
                             <span>Settings</span>
                         </button>
                         <div id="settings-tree-children" class="ml-[30px] mt-[2px]">
-                            <a href="{% url 'role_list' %}" class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
+                            <a href="{% url 'role_list' %}"
+                                class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
                                 <i class="fa-solid fa-shield-haltered text-[11px]"></i> Roles
                             </a>
-                            <a href="{% url 'permission_list' %}" class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
+                            <a href="{% url 'permission_list' %}"
+                                class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
                                 <i class="fa-solid fa-key text-[11px]"></i> Permissions
                             </a>
-                            <a href="{% url 'departments' %}" class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
+                            <a href="{% url 'departments' %}"
+                                class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
                                 <i class="fa-solid fa-building text-[11px]"></i> Departments
                             </a>
-                            <a href="{% url 'designations' %}" class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
+                            <a href="{% url 'designations' %}"
+                                class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
                                 <i class="fa-solid fa-briefcase text-[11px]"></i> Designations
                             </a>
                         </div>
@@ -239,14 +281,14 @@
                     {% endif %}
 
                     {% if request.user.is_superuser %}
-                    <a href="{% url 'user_analytics' %}" 
+                    <a href="{% url 'user_analytics' %}"
                         class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
                         <i class="fa-solid fa-chart-line text-slate-400 text-[12px] w-4 text-center"></i> Analytics
                     </a>
                     {% endif %}
 
                     <div class="mt-3 pt-3 border-t border-slate-100 dark:border-white/5">
-                        <a href="#" onclick="logout()" 
+                        <a href="#" onclick="logout()"
                             class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-red-600 dark:text-red-400">
                             <i class="fa-solid fa-arrow-right-from-bracket text-[12px] w-4 text-center"></i> Logout
                         </a>
@@ -258,7 +300,8 @@
             {% comment %} <div class="px-4 py-3 border-t border-slate-100 dark:border-white/5">
                 <div class="bg-[#f6f7f9] dark:bg-white/5 rounded-xl p-3.5 border border-slate-100 dark:border-white/10">
                     <div class="text-[13px] font-semibold text-slate-800 dark:text-white mb-0.5">Need help?</div>
-                    <p class="text-[11px] text-slate-400 leading-relaxed mb-2.5">Contact support or check documentation.</p>
+                    <p class="text-[11px] text-slate-400 leading-relaxed mb-2.5">Contact support or check documentation.
+                    </p>
                     <button onclick="showSupportModal()"
                         class="w-full flex items-center justify-center gap-1.5 bg-[#4a9d7e] text-white text-[12px] font-medium py-[7px] rounded-lg hover:bg-[#3d8a6d] transition">
                         <i class="fa-solid fa-headset text-[10px]"></i> Get Support
@@ -271,7 +314,8 @@
         <main class="flex-1 lg:ml-[260px] flex flex-col min-w-0">
 
             <!-- Top bar -->
-            <header class="h-12 px-5 flex items-center justify-between border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-sm sticky top-0 z-50">
+            <header
+                class="h-12 px-5 flex items-center justify-between border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-sm sticky top-0 z-50">
                 <div class="flex items-center gap-2">
                     <button onclick="toggleSidebar()"
                         class="lg:hidden p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition">
@@ -284,7 +328,8 @@
                 <div class="flex items-center gap-1">
                     <!-- Notification Bell -->
                     <div class="relative" id="notificationBellContainer">
-                        <button id="notificationBellBtn" class="relative focus:outline-none w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition">
+                        <button id="notificationBellBtn"
+                            class="relative focus:outline-none w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition">
                             <i class="fa-regular fa-bell text-[13px]"></i>
                             <span id="notificationBadge"
                                 class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full h-4 min-w-[1rem] px-0.5 flex items-center justify-center"
@@ -295,12 +340,15 @@
                             <div class="p-3 border-b border-slate-200 dark:border-white/10">
                                 <div class="flex justify-between items-center">
                                     <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Notifications</h3>
-                                    <button id="markAllReadBtn" class="text-[10px] text-[#4a9d7e] hover:underline">Mark all read</button>
+                                    <!-- <button id="markAllReadBtn" class="text-[10px] text-[#4a9d7e] hover:underline">Mark
+                                        all read</button> -->
                                 </div>
                             </div>
                             <div id="notificationList" class="max-h-96 overflow-y-auto">
                                 <div class="p-4 text-center text-slate-500">
-                                    <div class="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+                                    <div
+                                        class="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#4a9d7e]">
+                                    </div>
                                     <p class="mt-2 text-xs">Loading...</p>
                                 </div>
                             </div>
@@ -315,7 +363,8 @@
 
                     <!-- Chat Button -->
                     <div class="relative">
-                        <a href="{% url 'chat_rooms' %}" id="topbarChatBtn" class="relative w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition">
+                        <a href="{% url 'chat_rooms' %}" id="topbarChatBtn"
+                            class="relative w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition">
                             <i class="fa-regular fa-message text-[13px]"></i>
                             <span id="topbarChatBadge"
                                 class="absolute -top-1 -right-1 bg-[#4a9d7e] text-white text-[9px] rounded-full h-4 min-w-[1rem] px-0.5 flex items-center justify-center hidden chat-badge">
@@ -331,7 +380,9 @@
                     </button>
 
                     <!-- User Avatar -->
-                    <a href="{% url 'view_user_details' request.user.id %}" class="w-8 h-8 rounded-full overflow-hidden ml-1.5 cursor-pointer block hover:ring-2 hover:ring-[#4a9d7e]/50 transition" title="My Profile">
+                    <a href="{% url 'view_user_details' request.user.id %}"
+                        class="w-8 h-8 rounded-full overflow-hidden ml-1.5 cursor-pointer block hover:ring-2 hover:ring-[#4a9d7e]/50 transition"
+                        title="My Profile">
                         <img src="https://ui-avatars.com/api/?name={{ request.user.username|default:'U' }}&background=4a9d7e&color=fff&size=32&bold=true&font-size=0.45"
                             class="w-full h-full object-cover" alt="avatar">
                     </a>
@@ -340,7 +391,8 @@
             </header>
 
             <!-- Content Area -->
-            <div class="{% block content_wrapper_class %}p-6 md:px-8 space-y-4 max-w-[1400px] w-full mx-auto{% endblock %}">
+            <div
+                class="{% block content_wrapper_class %}p-6 md:px-8 space-y-4 max-w-[1400px] w-full mx-auto{% endblock %}">
                 {% block content %}
                 <!-- Page Content Goes Here -->
                 {% endblock %}
@@ -350,8 +402,10 @@
     </div>
 
     <!-- Support Modal -->
-    <div id="supportModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-5 bg-black/30 backdrop-blur-sm">
-        <div class="bg-white dark:bg-[#111827] w-full max-w-md rounded-xl border border-slate-200 dark:border-white/10 p-5 shadow-xl">
+    <div id="supportModal"
+        class="fixed inset-0 z-[100] hidden flex items-center justify-center p-5 bg-black/30 backdrop-blur-sm">
+        <div
+            class="bg-white dark:bg-[#111827] w-full max-w-md rounded-xl border border-slate-200 dark:border-white/10 p-5 shadow-xl">
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h3 class="text-[15px] font-semibold text-slate-800 dark:text-white">Support Center</h3>
@@ -362,15 +416,18 @@
                 </button>
             </div>
             <div class="space-y-3">
-                <a href="#" class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                <a href="#"
+                    class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
                     <i class="fa-regular fa-file-lines text-[#4a9d7e] text-lg"></i>
                     <span class="text-sm">Documentation</span>
                 </a>
-                <a href="#" class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                <a href="#"
+                    class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
                     <i class="fa-regular fa-envelope text-[#4a9d7e] text-lg"></i>
                     <span class="text-sm">Email Support</span>
                 </a>
-                <a href="#" class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                <a href="#"
+                    class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
                     <i class="fa-brands fa-whatsapp text-[#4a9d7e] text-lg"></i>
                     <span class="text-sm">WhatsApp Support</span>
                 </a>
@@ -379,18 +436,22 @@
     </div>
 
     <!-- Access Denied Modal -->
-    <div id="accessDeniedModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-5 bg-black/30 backdrop-blur-sm">
-        <div class="bg-white dark:bg-[#111827] w-full max-w-md rounded-xl border border-red-200 dark:border-red-900/30 p-5 shadow-xl">
+    <div id="accessDeniedModal"
+        class="fixed inset-0 z-[100] hidden flex items-center justify-center p-5 bg-black/30 backdrop-blur-sm">
+        <div
+            class="bg-white dark:bg-[#111827] w-full max-w-md rounded-xl border border-red-200 dark:border-red-900/30 p-5 shadow-xl">
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                     <i class="fa-solid fa-triangle-exclamation text-red-500 text-lg"></i>
                 </div>
                 <div>
                     <h3 class="text-[15px] font-semibold text-slate-800 dark:text-white">Access Denied</h3>
-                    <p class="text-[12px] text-slate-500" id="accessDeniedMessage">You don't have permission for this action.</p>
+                    <p class="text-[12px] text-slate-500" id="accessDeniedMessage">You don't have permission for this
+                        action.</p>
                 </div>
             </div>
-            <button onclick="closeAccessDeniedModal()" class="w-full bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition">
+            <button onclick="closeAccessDeniedModal()"
+                class="w-full bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition">
                 Dismiss
             </button>
         </div>
@@ -433,7 +494,7 @@
         // Initialize tree states
         const chatTree = document.getElementById('chat-tree-children');
         if (chatTree) chatTree.style.display = 'block';
-        
+
         const settingsTree = document.getElementById('settings-tree-children');
         if (settingsTree) settingsTree.style.display = 'block';
 
@@ -545,16 +606,16 @@
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
-                .then(response => { if (!response.ok) throw new Error(response.status); return response; })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        this.renderNotifications(data.notifications || []);
-                        this.unreadCount = data.unread_count || 0;
-                        this.updateBadge();
-                    }
-                })
-                .catch(console.error);
+                    .then(response => { if (!response.ok) throw new Error(response.status); return response; })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.renderNotifications(data.notifications || []);
+                            this.unreadCount = data.unread_count || 0;
+                            this.updateBadge();
+                        }
+                    })
+                    .catch(console.error);
             },
             renderNotifications(notifications) {
                 const container = document.getElementById('notificationList');
@@ -595,13 +656,13 @@
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
-                .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
-                .then(data => {
-                    if (data.success) {
-                        this.loadLatestNotification();
-                    }
-                })
-                .catch(console.error);
+                    .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
+                    .then(data => {
+                        if (data.success) {
+                            this.loadLatestNotification();
+                        }
+                    })
+                    .catch(console.error);
             },
             markAllAsRead() {
                 fetch('/notifications/mark-all-read/', {
@@ -613,13 +674,13 @@
                         'Authorization': `Bearer ${getAccessToken()}`
                     }
                 })
-                .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
-                .then(data => {
-                    if (data.success) {
-                        this.loadLatestNotification();
-                    }
-                })
-                .catch(console.error);
+                    .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
+                    .then(data => {
+                        if (data.success) {
+                            this.loadLatestNotification();
+                        }
+                    })
+                    .catch(console.error);
             },
             updateBadge() {
                 const badge = document.getElementById('notificationBadge');

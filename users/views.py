@@ -4,6 +4,7 @@
 ## login & logout required libraries
 import profile
 from urllib import request
+from django.db import models
 
 from .decorators import allowed_roles, permission_required
 from users.decorators import jwt_or_session_required
@@ -40,6 +41,7 @@ from django.contrib.contenttypes.models import ContentType
 from users.models import Role, User
 from users.permissions import (
     can_add_task,
+    can_change_projects,
     can_change_task,
     can_delete_task,
     can_manage_all_tasks,
@@ -307,15 +309,15 @@ def edit_projects(request, project_id):
         manager_ids = [u.id for u in all_active_users if is_manager_like(u)]
         return all_active_users.exclude(id__in=manager_ids)
 
-    # Scoped managers can edit only projects they own.
-    if not can_view_all_projects(request.user) and project.created_by != request.user:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'error': "You don't have permission to edit this project."
-            }, status=403)
-        messages.error(request, "⛔ You don't have permission to edit this project.")
-        return redirect("view_projects")
+    # # Scoped managers can edit only projects they own OR if they have change_projects permission
+    # if not can_view_all_projects(request.user) and project.created_by != request.user and not can_change_projects(request.user):
+    #     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    #         return JsonResponse({
+    #             'success': False,
+    #             'error': "You don't have permission to edit this project."
+    #         }, status=403)
+    #     messages.error(request, "⛔ You don't have permission to edit this project.")
+    #     return redirect("view_projects")
 
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1000,15 +1002,16 @@ def dashboard(request):
                 'completed_tasks': Task.objects.filter(status='COMPLETED').count(),
             }
             
-            # Users list for admin with pagination
+            # Users list for admin with pagination - 5 per page
             from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
             
             users_qs = User.objects.all().order_by('-date_joined')
             try:
-                page_size = int(request.GET.get("page_size", 10))
+                # Changed default page_size from 10 to 5
+                page_size = int(request.GET.get("page_size", 5))
                 page = int(request.GET.get("page", 1))
             except ValueError:
-                page_size = 10
+                page_size = 5
                 page = 1
                 
             paginator = Paginator(users_qs, page_size)
@@ -1028,6 +1031,11 @@ def dashboard(request):
                 elif can_view_task(u): role_tier = 'contributor'
                 else: role_tier = 'custom'
 
+                # Get profile image if exists
+                profile_image = None
+                if hasattr(u, 'profile') and u.profile.profile_image:
+                    profile_image = u.profile.profile_image.url
+                
                 users_data.append({
                     'id': u.id,
                     'username': u.username,
@@ -1035,6 +1043,7 @@ def dashboard(request):
                     'role': role_label,
                     'role_tier': role_tier,
                     'is_active': u.is_active,
+                    'profile_image': profile_image,
                 })
             data['users'] = users_data
             
@@ -1043,7 +1052,10 @@ def dashboard(request):
                 'total_pages': paginator.num_pages,
                 'current_page': users_page.number,
                 'has_previous': users_page.has_previous(),
-                'has_next': users_page.has_next()
+                'has_next': users_page.has_next(),
+                'previous_page_number': users_page.previous_page_number() if users_page.has_previous() else None,
+                'next_page_number': users_page.next_page_number() if users_page.has_next() else None,
+                'page_size': page_size,
             }
 
         # 2. Team Lead / Task Manager Data
@@ -2165,7 +2177,7 @@ from .forms import UserRegisterForm, UserProfileForm
 from .models import User, UserProfile, Role, Department, Designation
 @jwt_or_session_required
 @csrf_exempt
-@allowed_roles(allowed_roles=["ADMIN"])
+@permission_required('users.add_user')
 def create_user(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -3121,11 +3133,17 @@ def add_task_summary(request, task_id):
 
 import math
 ## employee task
+import math
+## employee task
 @jwt_or_session_required
 @permission_required('Tasks.view_task')
 def employee_tasks(request):
     task_id = request.GET.get('task_id')
     employee_id = request.GET.get('employee_id')
+    
+    # Helper function to check view_all_tasks permission
+    def has_view_all_tasks(user):
+        return has_any(user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks'])
     
     # Handle AJAX request - return JSON
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -3150,9 +3168,17 @@ def employee_tasks(request):
                 'total_tasks': len(tasks_data)
             })
         
-        # Case 2: Viewing single task by ID
+        # Case 2: Viewing single task by ID - FIXED PERMISSION CHECK
         elif task_id:
             task = get_object_or_404(Task, id=task_id)
+            
+            # Check permission: view_all_tasks OR assigned to task OR can_manage_all_tasks
+            if not (has_view_all_tasks(request.user) or task.assigned_to.filter(id=request.user.id).exists() or can_manage_all_tasks(request.user)):
+                return JsonResponse({
+                    'success': False, 
+                    'error': "You don't have permission to view this task."
+                }, status=403)
+            
             return JsonResponse({
                 'success': True,
                 'task': {
@@ -3217,11 +3243,10 @@ def employee_tasks(request):
     elif task_id:
         task = get_object_or_404(Task, id=task_id)
         
-        # Scoped contributors can only open their own tasks.
-        if not can_manage_all_tasks(request.user):
-            if not task.assigned_to.filter(id=request.user.id).exists():
-                messages.error(request, "You don't have permission to view this task.")
-                return redirect('task_dashboard')
+        # Check permission: view_all_tasks OR assigned to task OR can_manage_all_tasks
+        if not (has_view_all_tasks(request.user) or task.assigned_to.filter(id=request.user.id).exists() or can_manage_all_tasks(request.user)):
+            messages.error(request, "You don't have permission to view this task.")
+            return redirect('task_dashboard')
         
         tasks = [task]
         
@@ -3269,7 +3294,6 @@ def employee_tasks(request):
         'tasks': tasks,
         'current_time': timezone.now()
     })
-
 
 ## update task status
 # @jwt_or_session_required
@@ -3333,7 +3357,12 @@ def start_task(request, task_id):
         'status', 'start_time', 'paused_time', 
         'total_paused_duration', 'total_time', 'end_time'
     ])
-    
+    if task.project and task.project.created_by:
+        Notification.objects.create(
+            user=task.project.created_by,
+            message=f"▶️ Task '{task.name}' has been started by {request.user.get_full_name() or request.user.username}"
+        )
+        
     return JsonResponse({
         'success': True,
         'message': f'Task "{task.name}" started successfully!',
@@ -3372,6 +3401,11 @@ def pause_task(request, task_id):
     # Pause the task
     task.paused_time = timezone.now()
     task.save()
+    if task.project and task.project.created_by:
+        Notification.objects.create(
+            user=task.project.created_by,
+            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}"
+        )
 
     return JsonResponse({
         'success': True,
@@ -3412,6 +3446,11 @@ def resume_task(request, task_id):
     # Clear paused time
     task.paused_time = None
     task.save()
+    if task.project and task.project.created_by:
+        Notification.objects.create(
+            user=task.project.created_by,
+            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}"
+        )
 
     return JsonResponse({
         'success': True,
@@ -3481,13 +3520,28 @@ def complete_task(request, task_id):
         seconds = total_seconds % 60
         time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    # Notify users that can manage/oversee tasks.
-    observer_candidates = User.objects.filter(is_active=True)
-    observers = [user for user in observer_candidates if is_manager_like(user)]
+    # ✅ UPDATED: Notify managers, admins, and project creator
     employee_name = request.user.get_full_name() or request.user.username
-    message = f"Task '{task.name}' has been completed by {employee_name}. Time spent: {time_display}"
+    message = f"✅ Task '{task.name}' has been completed by {employee_name}. Time spent: {time_display}"
     
-    for user in observers:
+    # Get all users to notify (managers + admins + project creator)
+    users_to_notify = set()
+    
+    # Add managers (users with manager-like permissions)
+    for user in User.objects.filter(is_active=True):
+        if is_manager_like(user):
+            users_to_notify.add(user)
+    
+    # Add admins
+    for admin in User.objects.filter(role='ADMIN', is_active=True):
+        users_to_notify.add(admin)
+    
+    # Add project creator if not already included
+    if task.project and task.project.created_by:
+        users_to_notify.add(task.project.created_by)
+    
+    # Create notifications for all users
+    for user in users_to_notify:
         Notification.objects.create(user=user, message=message)
 
     # Return JSON response instead of redirect
@@ -3498,7 +3552,6 @@ def complete_task(request, task_id):
         'time_display': time_display,
         'status': 'COMPLETED'
     })
-
 
 
 from .models import Department, Designation
