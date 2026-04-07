@@ -8,8 +8,8 @@
 
     <!-- Back Navigation -->
     <div class="mb-6">
-        <button onclick="goBack()" 
-                class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-[#4a9d7e] transition font-medium">
+        <button onclick="goBack()"
+            class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-[#4a9d7e] transition font-medium">
             <i class="fa-solid fa-arrow-left text-xs"></i>
             Back to Projects
         </button>
@@ -99,7 +99,7 @@
             </div>
 
             <!-- Action Buttons - Edit Project -->
-            {% if can_manage_projects and can_manage_users %}
+            {% if can_change_projects %}
             <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200">
                 <a href="{% url 'edit_projects' project.id %}"
                     class="inline-flex items-center bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-5 py-2.5 rounded-lg shadow hover:shadow-md transition font-medium">
@@ -111,19 +111,7 @@
                     Edit Project
                 </a>
             </div>
-            {% elif can_manage_projects and project.created_by == request.user %}
-            <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200">
-                <a href="{% url 'edit_projects' project.id %}"
-                    class="inline-flex items-center bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                        </path>
-                    </svg>
-                    Edit Project
-                </a>
-            </div>
-            {% elif can_manage_projects and request.user in project.assigned_to.all %}
+            {% elif request.user in project.assigned_to.all %}
             <div class="mt-6 pt-6 border-t border-gray-200">
                 <p class="text-xs text-gray-500 italic bg-gray-50 p-3 rounded-lg">
                     <i class="fa-solid fa-circle-info mr-1 text-gray-400"></i>
@@ -259,8 +247,8 @@
                                         Edit
                                     </a>
                                     <button type="button"
-                                            onclick="deleteTask({{ task.id }}, '{{ task.name|escapejs }}')"
-                                            class="inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg text-[10px] font-medium transition">
+                                        onclick="deleteTask({{ task.id }}, '{{ task.name|escapejs }}')"
+                                        class="inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg text-[10px] font-medium transition">
                                         <i class="fa-solid fa-trash text-[10px]"></i>
                                         Delete
                                     </button>
@@ -298,9 +286,13 @@
                         <option value="50">50 per page</option>
                         <option value="100">100 per page</option>
                     </select>
-                    <button id="tasksPrevPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>← Prev</button>
+                    <button id="tasksPrevPageBtn"
+                        class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        disabled>← Prev</button>
                     <span id="tasksPageIndicator" class="text-sm text-gray-600 mx-2">Page 1 of 1</span>
-                    <button id="tasksNextPageBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>Next →</button>
+                    <button id="tasksNextPageBtn"
+                        class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        disabled>Next →</button>
                 </div>
             </div>
         </div>
@@ -315,7 +307,7 @@
 
         const row = document.getElementById(`task-row-${taskId}`);
         const loadingOverlay = document.getElementById('tasksLoadingOverlay');
-        
+
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
         fetch(`/task/${taskId}/delete/`, {
@@ -329,7 +321,7 @@
         .then(response => response.json())
         .then(data => {
             if (loadingOverlay) loadingOverlay.classList.add('hidden');
-            
+
             if (data.success) {
                 alert('✅ ' + data.message);
                 location.reload();
@@ -351,9 +343,11 @@
             transform: rotate(360deg);
         }
     }
+
     .animate-spin {
         animation: spin 1s linear infinite;
     }
+
     #tasksLoadingOverlay {
         transition: all 0.3s ease;
     }
