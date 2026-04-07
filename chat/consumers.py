@@ -191,9 +191,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
         elif message_type == 'read_receipt':
             message_ids = data.get('message_ids', [])
+            if not message_ids:
+                # If no IDs provided, mark ALL unread messages for this user in the room as read
+                message_ids = await self.get_unread_message_ids_for_user()
+            
             if message_ids:
                 await self.mark_messages_read(message_ids)
-                # Use the helper to broadcast to both room and global sidebars
                 await self.handle_read_receipt_broadcast(message_ids)
 
     async def chat_message(self, event):
@@ -443,6 +446,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return result
         except ChatRoom.DoesNotExist:
             return []
+
+    @database_sync_to_async
+    def get_unread_message_ids_for_user(self):
+        try:
+            # Re-fetch room to avoid stale data
+            from .models import ChatRoom, Message
+            room = ChatRoom.objects.get(id=self.room_id)
+            # Find messages in this room NOT sent by current user that current user hasn't read yet
+            unread = Message.objects.filter(room=room).exclude(sender=self.user).exclude(read_by=self.user)
+            return list(unread.values_list('id', flat=True))
+        except Exception: return []
 
     @database_sync_to_async
     def mark_messages_read(self, message_ids):

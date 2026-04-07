@@ -82,11 +82,6 @@
             </div>
         </div>
 
-        <!-- Typing Indicator -->
-        <div id="typingIndicator" 
-             class="absolute bottom-28 left-8 px-4 py-2 bg-white/90 dark:bg-[#1e293b]/90 backdrop-blur-sm border border-[#4a9d7e]/20 rounded-2xl text-[11px] font-bold text-[#4a9d7e] shadow-xl hidden animate-pulse z-20">
-        </div>
-
         <!-- Message Input Area -->
         <div class="bg-white dark:bg-[#1e293b] px-4 sm:px-6 py-4 border-t border-slate-200 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-20">
             <div class="max-w-5xl mx-auto">
@@ -181,9 +176,19 @@ let isInitialLoad = true;
 let isOptimisticMode = true;
 
 // --- HELPERS ---
+function scrollToBottom(force = false) {
+    const container = document.getElementById('messagesContainer');
+    if (force || container.scrollHeight - container.scrollTop - container.clientHeight < 400) {
+        requestAnimationFrame(() => {
+            container.scrollTop = container.scrollHeight;
+            // Second pass for content that might still be rendering
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+        });
+    }
+}
+
 function formatTime(timestamp) {
     const date = new Date(timestamp);
-    const now = new Date();
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
@@ -226,9 +231,10 @@ function renderMessage(msg, direction = 'append') {
         }
     }
 
-    const isMe = msg.sender_id === currentUserId;
+    const isMe = Number(msg.sender_id) === Number(currentUserId);
     const msgDiv = document.createElement('div');
-    msgDiv.className = `flex ${isMe ? 'justify-end' : 'justify-start'} group transition-opacity duration-300 ${msg.temp_id ? 'opacity-60 animate-pulse' : ''}`;
+    const isPending = isMe && msg.temp_id && !msg.message_id;
+    msgDiv.className = `flex ${isMe ? 'justify-end' : 'justify-start'} group transition-opacity duration-300 ${isPending ? 'opacity-60 animate-pulse' : ''}`;
     if (msg.message_id) msgDiv.setAttribute('data-message-id', msg.message_id);
     if (msg.temp_id) msgDiv.setAttribute('data-temp-id', msg.temp_id);
 
@@ -297,7 +303,7 @@ function renderMessage(msg, direction = 'append') {
 
     if (direction === 'append') {
         container.appendChild(msgDiv);
-        if (!isInitialLoad) container.scrollTop = container.scrollHeight;
+        if (!isInitialLoad) scrollToBottom();
     } else {
         const trigger = document.getElementById('loadMoreTrigger');
         container.insertBefore(msgDiv, trigger.nextSibling);
@@ -329,8 +335,15 @@ function connectWS() {
             case 'online_status':
                 updateUserStatus(data.user_id, data.is_online);
                 break;
-            case 'typing':
-                showTyping(data.user_name, data.is_typing);
+            case 'read_receipt':
+                if (Number(data.user_id) !== Number(currentUserId)) {
+                    data.message_ids.forEach(id => {
+                        const iconContainer = document.querySelector(`[data-message-id="${id}"] .status-icon`);
+                        if (iconContainer) {
+                            iconContainer.innerHTML = '<i class="fa-solid fa-check-double text-[#4a9d7e]"></i>';
+                        }
+                    });
+                }
                 break;
             case 'error':
                 handleError(data);
@@ -404,6 +417,9 @@ function sendMessage() {
 
 function markRead() {
     fetch(`/chat/api/mark-read/${roomId}/`, { method: 'POST', headers: { 'X-CSRFToken': csrftoken } });
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({ type: 'read_receipt' }));
+    }
 }
 
 function loadMoreMessages() {
@@ -459,7 +475,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (loader) loader.remove();
             data.messages.forEach(m => renderMessage(m, 'append'));
             isInitialLoad = false;
-            document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+            
+            // Absolute snap to bottom on load
+            scrollToBottom(true);
+            
             document.getElementById('loadMoreTrigger').classList.remove('hidden');
             markRead();
         })
@@ -472,15 +491,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sendBtn').onclick = sendMessage;
     document.getElementById('messageInput').onkeydown = e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-        
-        // Typing indicator
-        if (chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(JSON.stringify({ type: 'typing', is_typing: true }));
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                chatSocket.send(JSON.stringify({ type: 'typing', is_typing: false }));
-            }, 2000);
-        }
     };
     
     // Sidebar toggle (Restored)
