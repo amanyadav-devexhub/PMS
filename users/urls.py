@@ -24,7 +24,9 @@ urlpatterns = [
     ## user manamgement
     path("user/create/", views.create_user, name="create_user"),
     path("user/<int:user_id>/delete/", views.delete_user, name="delete_user"),
-    path("user/<int:user_id>/edit/", views.edit_user, name='edit_user'),
+    path("user/<int:user_id>/edit/", views.edit_user_page, name='edit_user_page'),
+    path("user/<int:user_id>/details/", views.get_user_details, name='get_user_details'),
+    path("user/<int:user_id>/update/", views.update_user, name='update_user'),
     path("user/<int:user_id>/",views.view_user_details,name="view_user_details"),
     path('user/check-email-exists/', views.check_email_exists, name='check_email_exists'),
 

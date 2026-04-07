@@ -12,5 +12,5 @@ urlpatterns = [
     path('projects/', views.ProjectListAPIView.as_view(), name='api_projects'),
     path('users/', views.UserListAPIView.as_view(), name='api_users'),
     path('tasks/', views.TaskListAPIView.as_view(), name='api_tasks'),
-    path('dashboard/', views.DashboardAPIView.as_view(), name='api_dashboard'),
+    path('api/dashboard/', views.DashboardAPIView.as_view(), name='api_dashboard'),
 ]

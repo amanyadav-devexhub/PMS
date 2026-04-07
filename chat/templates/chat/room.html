@@ -222,7 +222,7 @@ function renderMessage(msg, direction = 'append') {
                 const statusIcon = tempMsg.querySelector('.status-icon');
                 if (statusIcon) {
                     statusIcon.innerHTML = msg.is_read 
-                        ? '<i class="fa-solid fa-check-double text-[#4a9d7e]"></i>' 
+                        ? '<i class="fa-solid fa-check-double text-[#1e3a8a]"></i>' 
                         : '<i class="fa-solid fa-check"></i>';
                 }
             }
@@ -293,7 +293,7 @@ function renderMessage(msg, direction = 'append') {
                     <span class="text-[9px] font-medium uppercase">${formatTime(msg.timestamp || new Date())}</span>
                     ${isMe ? `
                         <span class="status-icon text-[10px]">
-                            ${msg.temp_id ? '<i class="fa-solid fa-clock-rotate-left animate-spin text-[8px] pending-icon"></i>' : (msg.is_read ? '<i class="fa-solid fa-check-double text-[#4a9d7e]"></i>' : '<i class="fa-solid fa-check"></i>')}
+                            ${msg.temp_id ? '<i class="fa-solid fa-clock-rotate-left animate-spin text-[8px] pending-icon"></i>' : (msg.is_read ? '<i class="fa-solid fa-check-double text-[#1e3a8a]"></i>' : '<i class="fa-solid fa-check"></i>')}
                         </span>
                     ` : ''}
                 </div>
@@ -340,7 +340,7 @@ function connectWS() {
                     data.message_ids.forEach(id => {
                         const iconContainer = document.querySelector(`[data-message-id="${id}"] .status-icon`);
                         if (iconContainer) {
-                            iconContainer.innerHTML = '<i class="fa-solid fa-check-double text-[#4a9d7e]"></i>';
+                            iconContainer.innerHTML = '<i class="fa-solid fa-check-double text-[#1e3a8a]"></i>';
                         }
                     });
                 }

@@ -3,6 +3,7 @@
 # Create your views here.
 ## login & logout required libraries
 import profile
+import re
 from urllib import request
 from django.db import models
 
@@ -755,7 +756,11 @@ def view_user_details(request, user_id):
     # Handle POST request for self-edit (only for own profile)
     if request.method == "POST" and request.user.id == user_id:
         user_obj = get_object_or_404(User, id=user_id)
-        profile, created = UserProfile.objects.get_or_create(user=user_obj)
+        # Using defaults to satisfy UNIQUE constraint during creation
+        profile, created = UserProfile.objects.get_or_create(
+            user=user_obj, 
+            defaults={'employee_id': f"EMP-{user_obj.id:04d}"}
+        )
         
         errors = {}
         
@@ -806,16 +811,20 @@ def view_user_details(request, user_id):
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': True, 'message': 'Profile updated successfully!'})
-        return redirect(f"/user/{user_id}/")
+        return redirect('view_user_details', user_id=user_id)
     
     # Only allow GET requests for viewing
     if request.method != "GET":
-        return redirect(f"/view_user_details/{user_id}/")
+        return redirect('view_user_details', user_id=user_id)
     
     # First check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         user_obj = get_object_or_404(User, id=user_id)
-        profile, created = UserProfile.objects.get_or_create(user=user_obj)
+        # Using defaults to satisfy UNIQUE constraint during creation
+        profile, created = UserProfile.objects.get_or_create(
+            user=user_obj,
+            defaults={'employee_id': f"EMP-{user_obj.id:04d}"}
+        )
 
         ## Analytics 
         projects_assigned = Projects.objects.filter(assigned_to=user_obj).count()
@@ -826,7 +835,7 @@ def view_user_details(request, user_id):
         if tasks_assigned > 0:
             performance = int((completed_tasks / tasks_assigned) * 100)
 
-        return JsonResponse({
+        response = JsonResponse({
             "success": True,
             "user": {
                 "id": user_obj.id,
@@ -862,11 +871,15 @@ def view_user_details(request, user_id):
                 "performance": performance
             }
         })
+        response['Vary'] = 'X-Requested-With'
+        return response
     
     # For non-AJAX requests, return minimal template with user_id only
-    return render(request, "view_user_details.html", {
+    response = render(request, "view_user_details.html", {
         "user_id": user_id
     })
+    response['Vary'] = 'X-Requested-With'
+    return response
 
 ## Add project resource
 @jwt_or_session_required
@@ -1109,10 +1122,16 @@ def dashboard(request):
                 'end_date': t.end_date.strftime('%b %d') if t.end_date else "No deadline"
             } for t in recent_tasks]
 
-        return JsonResponse(data)
+        response = JsonResponse(data)
+        response['Vary'] = 'X-Requested-With'
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response
     
     # Regular request - return template
-    return render(request, "dashboard.html")
+    response = render(request, "dashboard.html")
+    response['Vary'] = 'X-Requested-With'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return response
 
 
 
@@ -1551,7 +1570,7 @@ def register(request):
                 user=user,
                 department_id=request.POST.get("department"),
                 designation_id=request.POST.get("designation"),
-                employee_id=request.POST.get("employee_id"),
+                employee_id=request.POST.get("employee_id") or f"EMP-{user.id:04d}",
                 phone=request.POST.get("phone"),
                 date_of_joining=request.POST.get("date_of_joining") or None
             )
@@ -1601,216 +1620,184 @@ If you did not register on our site, please ignore this email.
 ## Edit User - Admin only
 import re
 
+
 @jwt_or_session_required
 @permission_required('users.change_user')
-@csrf_exempt
-def edit_user(request, user_id):
-    """Edit User - AJAX enabled"""
-    
-    # Get user and their profile
+def edit_user_page(request, user_id):
+    """Serve Edit User Page"""
     user = get_object_or_404(User, id=user_id)
-    profile, created = UserProfile.objects.get_or_create(user=user)
+    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'employee_id': f"EMP-{user.id:04d}"})
     
-    # Get all departments and designations for dropdowns
-    departments = Department.objects.all()
-    designations = Designation.objects.all()
-    roles = Role.objects.all().order_by('name')
-    
-    # Check if it's an AJAX request
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
-    if request.method == "POST":
-        # Get form data
-        email = request.POST.get("email")
-        username = request.POST.get("username")
-        user.first_name = request.POST.get("first_name", "")
-        user.last_name = request.POST.get("last_name", "")
-        role_obj_id = request.POST.get("role_obj")
-        is_active = request.POST.get("is_active")
-        employee_id = request.POST.get("employee_id", "").strip()
-        
-        # Validate required fields
-        errors = {}
-        
-        # Email validation
-        if not email:
-            errors['email'] = ['Email is required']
-        elif not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
-            errors['email'] = ['Please enter a valid email address']
-        
-        # Username validation
-        if not username:
-            errors['username'] = ['Username is required']
-        elif len(username) < 3:
-            errors['username'] = ['Username must be at least 3 characters long']
-        
-        # Role validation
-        if not role_obj_id:
-            errors['role_obj'] = ['Role is required']
-        
-        # Employee ID validation
-        if not employee_id:
-            errors['employee_id'] = ['Employee ID is required']
-        elif len(employee_id) < 2:
-            errors['employee_id'] = ['Employee ID must be at least 2 characters long']
-        else:
-            # Check uniqueness (excluding current user)
-            if UserProfile.objects.exclude(id=profile.id).filter(employee_id=employee_id).exists():
-                errors['employee_id'] = ['Employee ID already exists. Please use a unique ID.']
-        
-        # Phone number validation (10 digits, starts with 6-9)
-        phone = request.POST.get("phone", "").strip()
-        if phone:
-            if not re.match(r'^[6-9]\d{9}$', phone):
-                errors['phone'] = ['Phone number must be 10 digits and start with 6, 7, 8, or 9']
-        
-        # Emergency contact validation
-        emergency_contact = request.POST.get("emergency_contact", "").strip()
-        if emergency_contact:
-            if not re.match(r'^[6-9]\d{9}$', emergency_contact):
-                errors['emergency_contact'] = ['Emergency contact must be 10 digits and start with 6, 7, 8, or 9']
-        
-        # Aadhar number validation (12 digits)
-        aadhar_no = request.POST.get("aadhar_no", "").strip()
-        if aadhar_no:
-            if not re.match(r'^\d{12}$', aadhar_no):
-                errors['aadhar_no'] = ['Aadhar number must be exactly 12 digits']
-        
-        # PAN number validation (5 letters + 4 digits + 1 letter)
-        pan_no = request.POST.get("pan_no", "").strip()
-        if pan_no:
-            if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', pan_no.upper()):
-                errors['pan_no'] = ['PAN number must be in format: ABCDE1234F (5 letters, 4 digits, 1 letter)']
-        
-        # IFSC code validation (11 characters: 4 letters + 7 alphanumeric)
-        ifsc = request.POST.get("ifsc", "").strip()
-        if ifsc:
-            if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', ifsc.upper()):
-                errors['ifsc'] = ['IFSC code must be 11 characters (e.g., SBIN0123456)']
-        
-        # CTC validation (positive number)
-        ctc = request.POST.get("ctc", "").strip()
-        if ctc:
-            try:
-                ctc_val = float(ctc)
-                if ctc_val < 0:
-                    errors['ctc'] = ['CTC cannot be negative']
-            except ValueError:
-                errors['ctc'] = ['Please enter a valid number for CTC']
-        
-        # Salary validation (positive number)
-        salary_in_hand = request.POST.get("salary_in_hand", "").strip()
-        if salary_in_hand:
-            try:
-                salary_val = float(salary_in_hand)
-                if salary_val < 0:
-                    errors['salary_in_hand'] = ['Salary cannot be negative']
-            except ValueError:
-                errors['salary_in_hand'] = ['Please enter a valid number for salary']
-        
-        # Account number validation (at least 9 digits)
-        account_no = request.POST.get("account_no", "").strip()
-        if account_no:
-            if len(account_no) < 9 or len(account_no) > 18:
-                errors['account_no'] = ['Account number should be between 9 to 18 digits']
-            elif not account_no.isdigit():
-                errors['account_no'] = ['Account number should contain only digits']
-        
-        # Address validation
-        address = request.POST.get("address", "").strip()
-        if address and len(address) < 5:
-            errors['address'] = ['Address must be at least 5 characters long']
-
-        selected_role = None
-        if role_obj_id:
-            try:
-                selected_role = Role.objects.get(id=role_obj_id)
-            except Role.DoesNotExist:
-                errors['role_obj'] = ['Invalid role selected']
-        
-        if errors:
-            if is_ajax:
-                return JsonResponse({'success': False, 'errors': errors}, status=400)
-            else:
-                for field, err_list in errors.items():
-                    for err in err_list:
-                        messages.error(request, f"{field}: {err}")
-                context = {
-                    "user": user,
-                    "profile": profile,
-                    "departments": departments,
-                    "designations": designations,
-                    "roles": roles,
-                }
-                return render(request, "edit_user.html", context)
-        
-        # Update user
-        user.email = email
-        user.username = username
-        user.role_obj = selected_role
-        user.role = selected_role.name if selected_role else user.role
-        user.is_active = (is_active == "True")
-        user.save()
-
-        # Update profile - Basic Details (Department & Designation are now OPTIONAL)
-        profile.department_id = request.POST.get("department") or None  # ✅ Can be empty
-        profile.designation_id = request.POST.get("designation") or None  # ✅ Can be empty
-        profile.employee_id = employee_id or None
-        profile.phone = phone or None
-        profile.date_of_joining = request.POST.get("date_of_joining") or None
-        
-        # Handle profile image upload with validation
-        if request.FILES.get('profile_image'):
-            image_file = request.FILES['profile_image']
-            if image_file.size > 5 * 1024 * 1024:  # 5MB limit
-                if is_ajax:
-                    return JsonResponse({'success': False, 'errors': {'profile_image': ['Image size must be less than 5MB']}}, status=400)
-                messages.error(request, "Image size must be less than 5MB")
-            elif not image_file.content_type.startswith('image/'):
-                if is_ajax:
-                    return JsonResponse({'success': False, 'errors': {'profile_image': ['File must be an image (JPG, PNG, GIF)']}}, status=400)
-                messages.error(request, "File must be an image (JPG, PNG, GIF)")
-            else:
-                profile.profile_image = image_file
-        
-        # Salary Details
-        profile.ctc = ctc if ctc else None
-        profile.salary_in_hand = salary_in_hand if salary_in_hand else None
-        
-        # Bank Details
-        profile.bank_name = request.POST.get('bank_name') or None
-        profile.account_no = account_no or None
-        profile.ifsc = ifsc.upper() if ifsc else None
-        
-        # Verification Details
-        profile.aadhar_no = aadhar_no or None
-        profile.pan_no = pan_no.upper() if pan_no else None
-        
-        # Additional Details
-        profile.emergency_contact = emergency_contact or None
-        profile.address = address or None
-        
-        profile.save()
-
-        if is_ajax:
-            return JsonResponse({
-                'success': True,
-                'message': f'User "{user.username}" updated successfully!',
-                'user_id': user.id
-            })
-        else:
-            messages.success(request, "User updated successfully")
-            return redirect("admin_view_users")
-    
-    # GET request - show the form
     context = {
         "user": user,
         "profile": profile,
-        "departments": departments,
-        "designations": designations,
-        "roles": roles,
+        "departments": Department.objects.all(),
+        "designations": Designation.objects.all(),
+        "roles": Role.objects.all().order_by('name'),
     }
     return render(request, "edit_user.html", context)
+
+@jwt_or_session_required
+@permission_required('users.change_user')
+def get_user_details(request, user_id):
+    """Return user details as JSON"""
+    user = get_object_or_404(User, id=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'employee_id': f"EMP-{user.id:04d}"})
+    
+    data = {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+        "username": user.username,
+        "is_active": user.is_active,
+        "role": user.role_obj.id if user.role_obj else None,
+        "department": profile.department.id if profile.department else None,
+        "designation": profile.designation.id if profile.designation else None,
+        "employee_id": profile.employee_id,
+        "phone": profile.phone,
+        "emergency_contact": profile.emergency_contact,
+        "aadhar_no": profile.aadhar_no,
+        "pan_no": profile.pan_no,
+        "date_of_joining": profile.date_of_joining.isoformat() if profile.date_of_joining else None,
+        "ctc": profile.ctc,
+        "salary_in_hand": profile.salary_in_hand,
+        "bank_name": profile.bank_name,
+        "account_no": profile.account_no,
+        "ifsc": profile.ifsc,
+        "address": profile.address,
+        "profile_image": profile.profile_image.url if profile.profile_image else None,
+    }
+    return JsonResponse({"success": True, "data": data})
+
+
+@jwt_or_session_required
+@permission_required('users.change_user')
+@csrf_exempt
+def update_user(request, user_id):
+    """Update user and profile details"""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method"}, status=405)
+    
+    user = get_object_or_404(User, id=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'employee_id': f"EMP-{user.id:04d}"})
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    errors = {}
+    
+    # Email validation
+    email = request.POST.get("email")
+    if not email:
+        errors['email'] = ['Email is required']
+    elif not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+        errors['email'] = ['Please enter a valid email address']
+    
+    # Username validation
+    username = request.POST.get("username")
+    if not username:
+        errors['username'] = ['Username is required']
+    elif len(username) < 3:
+        errors['username'] = ['Username must be at least 3 characters long']
+    
+    # Role validation
+    role_obj_id = request.POST.get("role_obj")
+    if not role_obj_id:
+        errors['role_obj'] = ['Role is required']
+    
+    # Employee ID validation
+    employee_id = request.POST.get("employee_id", "").strip()
+    if not employee_id:
+        errors['employee_id'] = ['Employee ID is required']
+    elif len(employee_id) < 2:
+        errors['employee_id'] = ['Employee ID must be at least 2 characters long']
+    else:
+        if UserProfile.objects.exclude(id=profile.id).filter(employee_id=employee_id).exists():
+            errors['employee_id'] = ['Employee ID already exists. Please use a unique ID.']
+
+    # Additional phone & contact validation
+    phone = request.POST.get("phone", "").strip()
+    if phone and not re.match(r'^[6-9]\d{9}$', phone):
+        errors['phone'] = ['Phone number must be 10 digits and start with 6, 7, 8, or 9']
+    
+    emergency_contact = request.POST.get("emergency_contact", "").strip()
+    if emergency_contact and not re.match(r'^[6-9]\d{9}$', emergency_contact):
+        errors['emergency_contact'] = ['Emergency contact must be 10 digits and start with 6, 7, 8, or 9']
+
+    # Aadhar validation
+    aadhar_no = request.POST.get("aadhar_no", "").strip()
+    if aadhar_no and not re.match(r'^\d{12}$', aadhar_no):
+        errors['aadhar_no'] = ['Aadhar number must be exactly 12 digits']
+    
+    # Financial validations (CTC, Salary)
+    ctc = request.POST.get("ctc", "").strip()
+    if ctc:
+        try:
+            if float(ctc) < 0: errors['ctc'] = ['CTC cannot be negative']
+        except ValueError: errors['ctc'] = ['Invalid number for CTC']
+        
+    salary_in_hand = request.POST.get("salary_in_hand", "").strip()
+    if salary_in_hand:
+        try:
+            if float(salary_in_hand) < 0: errors['salary_in_hand'] = ['Salary cannot be negative']
+        except ValueError: errors['salary_in_hand'] = ['Invalid number for salary']
+
+    # Role retrieval
+    selected_role = None
+    if role_obj_id:
+        try:
+            selected_role = Role.objects.get(id=role_obj_id)
+        except Role.DoesNotExist:
+            errors['role_obj'] = ['Invalid role selected']
+
+    if errors:
+        if is_ajax:
+            response = JsonResponse({'success': False, 'errors': errors}, status=400)
+        else:
+            for field, err_list in errors.items():
+                for err in err_list: messages.error(request, f"{field}: {err}")
+            response = redirect("edit_user_page", user_id=user.id)
+        response['Vary'] = 'X-Requested-With'
+        return response
+
+    # Update logic
+    user.email = email
+    user.username = username
+    user.first_name = request.POST.get("first_name", "")
+    user.last_name = request.POST.get("last_name", "")
+    user.role_obj = selected_role
+    user.role = selected_role.name if selected_role else user.role
+    user.is_active = (request.POST.get("is_active") == "True")
+    user.save()
+
+    profile.department_id = request.POST.get("department") or None
+    profile.designation_id = request.POST.get("designation") or None
+    profile.employee_id = employee_id or None
+    profile.phone = phone or None
+    profile.emergency_contact = emergency_contact or None
+    profile.aadhar_no = aadhar_no or None
+    profile.pan_no = request.POST.get("pan_no", "").upper() or None
+    profile.ifsc = request.POST.get("ifsc", "").upper() or None
+    profile.bank_name = request.POST.get("bank_name") or None
+    profile.account_no = request.POST.get("account_no") or None
+    profile.address = request.POST.get("address", "").strip() or None
+    profile.ctc = ctc or None
+    profile.salary_in_hand = salary_in_hand or None
+    profile.date_of_joining = request.POST.get("date_of_joining") or None
+
+    if request.FILES.get('profile_image'):
+        image_file = request.FILES['profile_image']
+        if image_file.size <= 5 * 1024 * 1024 and image_file.content_type.startswith('image/'):
+            profile.profile_image = image_file
+
+    profile.save()
+
+    if is_ajax:
+        response = JsonResponse({'success': True, 'message': f'User "{user.username}" updated successfully!', 'user_id': user.id})
+    else:
+        messages.success(request, "User updated successfully")
+        response = redirect("admin_view_users")
+    
+    response['Vary'] = 'X-Requested-With'
+    return response
 
 
 def _get_permission_groups():

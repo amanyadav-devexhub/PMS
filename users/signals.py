@@ -9,7 +9,11 @@ from .models import Role, UserProfile
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        UserProfile.objects.create(user=instance)
+        # Generate a default employee ID based on user ID to satisfy UNIQUE constraint
+        UserProfile.objects.create(
+            user=instance, 
+            employee_id=f"EMP-{instance.id:04d}"
+        )
 
 
 # @receiver(post_migrate)

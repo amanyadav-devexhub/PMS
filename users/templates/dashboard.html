@@ -170,10 +170,10 @@
                 <div class="px-5 py-3 border-t border-slate-200 dark:border-white/5 flex items-center justify-between">
                     <span class="text-xs text-slate-500">Page ${data.pagination.current_page} of ${data.pagination.total_pages} (${data.pagination.total} total)</span>
                     <div class="flex gap-2">
-                        <button onclick="loadDashboard(${data.pagination.current_page - 1})" 
+                        <button type="button" onclick="loadDashboard(${data.pagination.current_page - 1})" 
                                 class="px-3 py-1 text-xs rounded border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50 text-slate-700 dark:text-slate-300" 
                                 ${!data.pagination.has_previous ? 'disabled' : ''}>Previous</button>
-                        <button onclick="loadDashboard(${data.pagination.current_page + 1})" 
+                        <button type="button" onclick="loadDashboard(${data.pagination.current_page + 1})" 
                                 class="px-3 py-1 text-xs rounded border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50 text-slate-700 dark:text-slate-300" 
                                 ${!data.pagination.has_next ? 'disabled' : ''}>Next</button>
                     </div>
