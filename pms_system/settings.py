@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',           # ← Add this (recommended)
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -94,8 +95,10 @@ CSRF_COOKIE_AGE = 31449600  # 1 year (default)
 WSGI_APPLICATION = 'pms_system.wsgi.application'
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',   # Use this for quick testing
-        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',  # Switch to Redis later
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
     },
 }
 

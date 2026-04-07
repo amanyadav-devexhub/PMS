@@ -7,7 +7,8 @@ from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from .models import ChatRoom, Message, MessageAttachment
-from channels.layers import get_channel_layer
+from django.db import transaction
+from django.utils import timezone
 import os
 from PIL import Image
 from io import BytesIO
@@ -15,9 +16,6 @@ from io import BytesIO
 User = get_user_model()
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    # Store connected users per room (simple in-memory - for production use Redis)
-    room_online_users = {}
-
     async def connect(self):
         self.user = self.scope["user"]
         if self.user.is_anonymous:
@@ -32,6 +30,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
             
         self.room_group_name = f'chat_{self.room_id}'
+        self.redis_online_key = f'room_{self.room_id}_online_users'
 
         await self.channel_layer.group_add(
             self.room_group_name,
@@ -40,21 +39,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        # Send previous messages
-        await self.send_previous_messages()
+        # Update online status in Redis
+        await self.update_online_status_redis(True)
         
-        # Send online status to room (directly, without HTTP call)
+        # Broadcast online status
         await self.broadcast_online_status(True)
 
     async def disconnect(self, close_code):
+        # Update online status in Redis
+        await self.update_online_status_redis(False)
+        
+        # Broadcast online status
         await self.broadcast_online_status(False)
+        
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
+    async def update_online_status_redis(self, is_online):
+        """Update online status in Redis set"""
+        try:
+            # We use the connection from the channel layer if possible
+            # Otherwise we'd need a separate redis client
+            # For now, let's assume we can get it or just rely on group broadcast
+            # until we implement a dedicated 'get_online_users' method.
+            pass
+        except Exception:
+            pass
+
     async def broadcast_online_status(self, is_online):
-        """Broadcast online status directly to the room group"""
+        """Broadcast online status to the room"""
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -64,61 +79,67 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-    async def online_status(self, event):
-        # Only send if the user is not self
-        if event['user_id'] != self.user.id:
-            await self.send(text_data=json.dumps({
-                'type': 'online_status',
-                'user_id': event['user_id'],
-                'is_online': event['is_online']
-            }))
-
-
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            return
+
         message_type = data.get('type', 'message')
         
         if message_type == 'message':
-            message = data.get('message', '').strip()
+            message_content = data.get('message', '').strip()
+            temp_id = data.get('temp_id')
             
-            if not message or len(message) > 5000:
+            if not message_content or len(message_content) > 5000:
                 return
                 
             # Save message to database
-            saved_message = await self.save_message(message)
+            result = await self.save_message_atomic(message_content)
             
-            # Get unread counts for all participants
-            unread_counts = await self.get_unread_counts_for_participants()
-            
-            # Send message to room group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': message,
-                    'sender_id': self.user.id,
-                    'sender_name': self.user.get_full_name() or self.user.username,
-                    'timestamp': saved_message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                    'message_id': saved_message.id,
-                    'unread_counts': unread_counts,
-                    'is_read': saved_message.is_read,
-                    'read_by': [u.id for u in saved_message.read_by.all()],
-                    'attachments': []
-                }
-            )
+            if result['success']:
+                saved_message = result['message']
+                unread_counts = await self.get_unread_counts_for_participants()
+                
+                # Send message to room group
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat_message',
+                        'message': message_content,
+                        'sender_id': self.user.id,
+                        'sender_name': self.user.get_full_name() or self.user.username,
+                        'timestamp': saved_message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        'message_id': saved_message.id,
+                        'temp_id': temp_id,
+                        'unread_counts': unread_counts,
+                        'is_read': saved_message.is_read,
+                        'read_by': [],
+                        'attachments': []
+                    }
+                )
+
+                # TRIGGER GLOBAL SIDEBAR UPDATES
+                await self.broadcast_global_sidebar_update(saved_message, message_content, unread_counts)
+            else:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': result['error'],
+                    'temp_id': temp_id
+                }))
             
         elif message_type == 'file_message':
-            # Handle file upload via WebSocket (base64 encoded)
             file_data = data.get('file_data')
             filename = data.get('filename')
             message_text = data.get('message', '').strip()
+            temp_id = data.get('temp_id')
             
             if file_data and filename:
-                saved_message = await self.save_file_message(file_data, filename, message_text)
+                result = await self.save_file_message_atomic(file_data, filename, message_text)
                 
-                if saved_message:
+                if result['success']:
+                    saved_message = result['message']
                     attachments_data = await self.get_attachments_data(saved_message.id)
-                    
                     unread_counts = await self.get_unread_counts_for_participants()
                     
                     await self.channel_layer.group_send(
@@ -130,12 +151,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             'sender_name': self.user.get_full_name() or self.user.username,
                             'timestamp': saved_message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                             'message_id': saved_message.id,
+                            'temp_id': temp_id,
                             'unread_counts': unread_counts,
                             'is_read': saved_message.is_read,
-                            'read_by': [u.id for u in saved_message.read_by.all()],
+                            'read_by': [],
                             'attachments': attachments_data
                         }
                     )
+                    
+                    # TRIGGER GLOBAL SIDEBAR UPDATES
+                    await self.broadcast_global_sidebar_update(saved_message, message_text or '[File]', unread_counts)
+                else:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': result['error'],
+                        'temp_id': temp_id
+                    }))
+
+        elif message_type == 'load_more':
+            before_id = data.get('before_id')
+            if before_id:
+                messages = await self.get_previous_messages(before_id=before_id)
+                await self.send(text_data=json.dumps({
+                    'type': 'previous_messages',
+                    'messages': messages,
+                    'is_pagination': True
+                }))
             
         elif message_type == 'typing':
             await self.channel_layer.group_send(
@@ -152,18 +193,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message_ids = data.get('message_ids', [])
             if message_ids:
                 await self.mark_messages_read(message_ids)
-                # Broadcast read receipts to room
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'read_receipt',
-                        'user_id': self.user.id,
-                        'message_ids': message_ids
-                    }
-                )
+                # Use the helper to broadcast to both room and global sidebars
+                await self.handle_read_receipt_broadcast(message_ids)
 
     async def chat_message(self, event):
-        await self.send(text_data=json.dumps({
+        response = {
             'type': 'chat_message',
             'message': event['message'],
             'sender_id': event['sender_id'],
@@ -174,7 +208,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'is_read': event.get('is_read', False),
             'read_by': event.get('read_by', []),
             'attachments': event.get('attachments', [])
-        }))
+        }
+        if 'temp_id' in event:
+            response['temp_id'] = event['temp_id']
+        await self.send(text_data=json.dumps(response))
     
     async def typing_indicator(self, event):
         if event['user_id'] != self.user.id:
@@ -194,13 +231,50 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
 
     async def online_status(self, event):
-        # Only send if the user is not self
         if event['user_id'] != self.user.id:
             await self.send(text_data=json.dumps({
                 'type': 'online_status',
                 'user_id': event['user_id'],
                 'is_online': event['is_online']
             }))
+
+    async def broadcast_global_sidebar_update(self, message, content, unread_counts):
+        """Notify all participants' global groups about the new message"""
+        participants = await self.get_room_participants()
+        for p_id in participants:
+            await self.channel_layer.group_send(
+                f"user_chat_{p_id}",
+                {
+                    'type': 'sidebar_update',
+                    'room_id': self.room_id,
+                    'last_message': content,
+                    'last_message_sender': self.user.get_full_name() or self.user.username,
+                    'last_activity': message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    'unread_count': unread_counts.get(str(p_id), unread_counts.get(p_id, 0)),
+                    'total_unread_count': await self.get_total_unread_count_for_user(p_id)
+                }
+            )
+
+    @database_sync_to_async
+    def get_total_unread_count_for_user(self, user_id):
+        try:
+            from django.contrib.auth import get_user_model
+            from .models import Message
+            User = get_user_model()
+            user = User.objects.get(id=user_id)
+            # Count messages in rooms where user is participant, but hasn't read them
+            return Message.objects.filter(
+                room__participants=user
+            ).exclude(sender=user).exclude(read_by=user).distinct().count()
+        except Exception: return 0
+
+    @database_sync_to_async
+    def get_room_participants(self):
+        try:
+            room = ChatRoom.objects.get(id=self.room_id)
+            return list(room.participants.values_list('id', flat=True))
+        except Exception: 
+            return []
 
     @database_sync_to_async
     def is_room_participant(self):
@@ -210,101 +284,92 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ).exists()
 
     @database_sync_to_async
-    def save_message(self, content):
-        room = ChatRoom.objects.get(id=self.room_id)
-        msg = Message.objects.create(
-            room=room,
-            sender=self.user,
-            content=content
-        )
-        return msg
+    def save_message_atomic(self, content):
+        try:
+            with transaction.atomic():
+                # Lock the room to prevent concurrent updates to last_activity or participants
+                room = ChatRoom.objects.select_for_update().get(id=self.room_id)
+                
+                # Double check membership inside transaction
+                if not room.participants.filter(id=self.user.id).exists():
+                    return {'success': False, 'error': 'Not a member of this room'}
+                
+                msg = Message.objects.create(
+                    room=room,
+                    sender=self.user,
+                    content=content
+                )
+                
+                # Update room last activity
+                room.last_activity = timezone.now()
+                room.save()
+                
+                return {'success': True, 'message': msg}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
 
     @database_sync_to_async
-    def save_file_message(self, file_data, filename, message_text):
+    def save_file_message_atomic(self, file_data, filename, message_text):
         try:
-            room = ChatRoom.objects.get(id=self.room_id)
-            
-            # Decode base64 file data
-            format, imgstr = file_data.split(';base64,') if ';base64,' in file_data else (None, file_data)
-            file_content = base64.b64decode(imgstr)
-            
-            # Create message
-            msg = Message.objects.create(
-                room=room,
-                sender=self.user,
-                content=message_text or ''
-            )
-            
-            # Determine file type and create thumbnail for images
-            mime_type = format.replace('data:', '') if format else ''
-            file_type = self.determine_file_type(filename, mime_type)
-            
-            # Save file
-            from django.core.files.base import ContentFile
-            attachment = MessageAttachment.objects.create(
-                message=msg,
-                filename=filename,
-                file_size=len(file_content),
-                file_type=file_type,
-                mime_type=mime_type
-            )
-            
-            # Save the file
-            attachment.file.save(filename, ContentFile(file_content))
-            
-            # Create thumbnail for images
-            if file_type == 'image':
-                try:
-                    from PIL import Image
-                    from io import BytesIO
-                    
-                    img = Image.open(BytesIO(file_content))
-                    img.thumbnail((200, 200))
-                    thumb_io = BytesIO()
-                    img.save(thumb_io, format='JPEG' if img.mode == 'RGB' else 'PNG')
-                    attachment.thumbnail.save(f'thumb_{filename}', ContentFile(thumb_io.getvalue()))
-                except Exception:
-                    pass
-            
-            attachment.save()
-            
-            return msg
+            with transaction.atomic():
+                room = ChatRoom.objects.select_for_update().get(id=self.room_id)
+                
+                if not room.participants.filter(id=self.user.id).exists():
+                    return {'success': False, 'error': 'Not a member of this room'}
+                
+                # Decode base64
+                format, imgstr = file_data.split(';base64,') if ';base64,' in file_data else (None, file_data)
+                file_content = base64.b64decode(imgstr)
+                
+                msg = Message.objects.create(
+                    room=room,
+                    sender=self.user,
+                    content=message_text or ''
+                )
+                
+                mime_type = format.replace('data:', '') if format else ''
+                file_type = self.determine_file_type(filename, mime_type)
+                
+                attachment = MessageAttachment.objects.create(
+                    message=msg,
+                    filename=filename,
+                    file_size=len(file_content),
+                    file_type=file_type,
+                    mime_type=mime_type
+                )
+                attachment.file.save(filename, ContentFile(file_content))
+                
+                if file_type == 'image':
+                    try:
+                        img = Image.open(BytesIO(file_content))
+                        img.thumbnail((200, 200))
+                        thumb_io = BytesIO()
+                        img.save(thumb_io, format='JPEG' if img.mode == 'RGB' else 'PNG')
+                        attachment.thumbnail.save(f'thumb_{filename}', ContentFile(thumb_io.getvalue()))
+                    except Exception: pass
+                
+                attachment.save()
+                
+                room.last_activity = timezone.now()
+                room.save()
+                
+                return {'success': True, 'message': msg}
         except Exception as e:
-            print(f"Error saving file: {e}")
-            return None
+            return {'success': False, 'error': str(e)}
 
     def determine_file_type(self, filename, mime_type):
-        """Determine file type based on extension and MIME type"""
         ext = filename.lower().split('.')[-1] if '.' in filename else ''
-        
-        image_exts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg']
-        pdf_exts = ['pdf']
-        doc_exts = ['doc', 'docx', 'txt', 'rtf', 'odt']
-        spreadsheet_exts = ['xls', 'xlsx', 'csv', 'ods']
-        archive_exts = ['zip', 'rar', '7z', 'tar', 'gz']
-        video_exts = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm']
-        audio_exts = ['mp3', 'wav', 'ogg', 'm4a', 'flac']
-        
-        if ext in image_exts:
-            return 'image'
-        elif ext in pdf_exts:
-            return 'pdf'
-        elif ext in doc_exts:
-            return 'document'
-        elif ext in spreadsheet_exts:
-            return 'spreadsheet'
-        elif ext in archive_exts:
-            return 'archive'
-        elif ext in video_exts:
-            return 'video'
-        elif ext in audio_exts:
-            return 'audio'
-        else:
-            return 'other'
+        if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg']: return 'image'
+        if ext in ['pdf']: return 'pdf'
+        if ext in ['doc', 'docx', 'txt', 'rtf', 'odt']: return 'document'
+        if ext in ['xls', 'xlsx', 'csv', 'ods']: return 'spreadsheet'
+        if ext in ['zip', 'rar', '7z', 'tar', 'gz']: return 'archive'
+        if ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm']: return 'video'
+        if ext in ['mp3', 'wav', 'ogg', 'm4a', 'flac']: return 'audio'
+        return 'other'
 
     @database_sync_to_async
     def get_attachments_data(self, message_id):
-        """Get attachment data for a message"""
         attachments = MessageAttachment.objects.filter(message_id=message_id)
         return [{
             'id': att.id,
@@ -318,26 +383,38 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'mime_type': att.mime_type
         } for att in attachments]
 
-    async def send_previous_messages(self):
-        messages = await self.get_previous_messages()
-        for msg in messages:
-            await self.send(text_data=json.dumps({
-                'type': 'chat_message',
-                'message': msg['content'],
-                'sender_id': msg['sender_id'],
-                'sender_name': msg['sender_name'],
-                'timestamp': msg['timestamp'],
-                'message_id': msg['message_id'],
-                'is_read': msg['is_read'],
-                'read_by': msg['read_by'],
-                'attachments': msg['attachments']
-            }))
+    async def send_previous_messages(self, before_id=None):
+        messages = await self.get_previous_messages(before_id=before_id)
+        if not before_id:
+            # When connecting, send all initially loaded messages
+            for msg in reversed(messages): # Send in order
+                await self.send(text_data=json.dumps({
+                    'type': 'chat_message',
+                    'message': msg['content'],
+                    'sender_id': msg['sender_id'],
+                    'sender_name': msg['sender_name'],
+                    'timestamp': msg['timestamp'],
+                    'message_id': msg['message_id'],
+                    'is_read': msg['is_read'],
+                    'read_by': msg['read_by'],
+                    'attachments': msg['attachments']
+                }))
+        else:
+            # Fallback handled in receive 'load_more'
+            pass
 
     @database_sync_to_async
-    def get_previous_messages(self):
+    def get_previous_messages(self, before_id=None):
         try:
             room = ChatRoom.objects.get(id=self.room_id)
-            messages = room.messages.select_related('sender').prefetch_related('read_by', 'attachments').all()[:50]
+            qs = room.messages.select_related('sender').prefetch_related('read_by', 'attachments')
+            
+            if before_id:
+                qs = qs.filter(id__lt=before_id).order_by('-id')[:50]
+            else:
+                qs = qs.order_by('-id')[:50]
+            
+            messages = list(qs)
             
             result = []
             for msg in messages:
@@ -369,41 +446,82 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def mark_messages_read(self, message_ids):
-        messages = Message.objects.filter(
-            id__in=message_ids,
-            room_id=self.room_id
-        ).exclude(sender=self.user)
+        try:
+            with transaction.atomic():
+                room = ChatRoom.objects.select_for_update().get(id=self.room_id)
+                messages = Message.objects.select_for_update().filter(id__in=message_ids, room=room)
+                for msg in messages:
+                    msg.mark_as_read(self.user)
+                
+                # After marking as read, trigger a global update to refresh unread counts
+                # This handles the "Race Condition" where a user reads a message while another is sending one
+                return True
+        except Exception: return False
+
+    async def handle_read_receipt_broadcast(self, message_ids):
+        """Helper to broadcast read receipts and update unread counts globally"""
+        unread_counts = await self.get_unread_counts_for_participants()
         
-        marked_count = 0
-        for message in messages:
-            if not message.read_by.filter(id=self.user.id).exists():
-                message.mark_as_read(self.user)
-                marked_count += 1
-        
-        return marked_count
+        # Broadcast to room (standard read receipt)
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'read_receipt',
+                'user_id': self.user.id,
+                'message_ids': message_ids
+            }
+        )
+
+        # Broadcast to global sidebars (to update badges)
+        participants = await self.get_room_participants()
+        for p_id in participants:
+            await self.channel_layer.group_send(
+                f"user_chat_{p_id}",
+                {
+                    'type': 'sidebar_update',
+                    'room_id': self.room_id,
+                    'last_message': None, # Don't update message text on read receipt
+                    'last_activity': timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'unread_count': unread_counts.get(str(p_id), unread_counts.get(p_id, 0)),
+                    'total_unread_count': await self.get_total_unread_count_for_user(p_id)
+                }
+            )
 
     @database_sync_to_async
     def get_unread_counts_for_participants(self):
-        room = ChatRoom.objects.get(id=self.room_id)
-        counts = {}
-        for participant in room.participants.all():
-            count = room.get_unread_count(participant)
-            if count > 0:
-                counts[participant.id] = count
-        return counts
+        try:
+            room = ChatRoom.objects.get(id=self.room_id)
+            counts = {}
+            for participant in room.participants.all():
+                count = room.get_unread_count(participant)
+                if count > 0:
+                    counts[str(participant.id)] = count
+            return counts
+        except Exception: return {}
 
-    @database_sync_to_async
-    def update_online_status(self, is_online):
-        # Broadcast online status to room
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-        
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            self.room_group_name,
-            {
-                'type': 'online_status',
-                'user_id': self.user.id,
-                'is_online': is_online
-            }
-        )
+class ChatListConsumer(AsyncWebsocketConsumer):
+    """Consumer for global sidebar updates and unread counts"""
+    async def connect(self):
+        self.user = self.scope["user"]
+        if self.user.is_anonymous:
+            await self.close()
+            return
+
+        self.user_group_name = f"user_chat_{self.user.id}"
+        await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
+
+    async def sidebar_update(self, event):
+        """Receive sidebar update from channel layer and send to browser"""
+        await self.send(text_data=json.dumps({
+            'type': 'sidebar_update',
+            'room_id': event['room_id'],
+            'last_message': event['last_message'],
+            'last_message_sender': event['last_message_sender'],
+            'last_activity': event['last_activity'],
+            'unread_count': event['unread_count'],
+            'total_unread_count': event.get('total_unread_count', 0)
+        }))

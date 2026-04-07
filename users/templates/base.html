@@ -715,61 +715,73 @@
             }
         };
 
-        // ========== Chat Badge Manager ==========
+        // ========== Chat Badge Manager (REAL-TIME) ==========
         const ChatBadgeManager = {
             totalUnread: 0,
-            previousUnread: 0,
-            pollInterval: null,
+            socket: null,
 
             init() {
-                this.fetchUnreadCount();
-                // Poll every 15 seconds (not 5s — reduces server load)
-                this.pollInterval = setInterval(() => {
-                    if (!document.hidden) this.fetchUnreadCount();
-                }, 15000);
+                this.connectWS();
+                this.fetchInitialUnread();
 
-                // Listen for real-time updates from chat room pages
+                // Listen for real-time updates from internal room events (fallback)
                 window.addEventListener('chatBadgeUpdate', (e) => {
-                    if (e.detail && typeof e.detail.action === 'string') {
-                        if (e.detail.action === 'increment') {
-                            this.totalUnread = Math.max(0, this.totalUnread + (e.detail.count || 1));
-                            this.updateBadges(true);
-                        } else if (e.detail.action === 'decrement') {
-                            this.totalUnread = Math.max(0, this.totalUnread - (e.detail.count || 1));
-                            this.updateBadges(true);
-                        } else if (e.detail.action === 'refresh') {
-                            this.fetchUnreadCount();
-                        } else if (e.detail.action === 'set') {
-                            this.totalUnread = Math.max(0, e.detail.count || 0);
-                            this.updateBadges(true);
-                        }
+                    if (e.detail && typeof e.detail.count === 'number') {
+                        if (e.detail.action === 'set') this.totalUnread = e.detail.count;
+                        else if (e.detail.action === 'increment') this.totalUnread += (e.detail.count || 1);
+                        else if (e.detail.action === 'decrement') this.totalUnread = Math.max(0, this.totalUnread - (e.detail.count || 1));
+                        this.updateBadges(true);
                     }
                 });
 
-                // Refresh badge when tab regains focus
                 document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden) this.fetchUnreadCount();
+                    if (!document.hidden && (!this.socket || this.socket.readyState !== WebSocket.OPEN)) {
+                        this.connectWS();
+                        this.fetchInitialUnread();
+                    }
                 });
             },
 
-            fetchUnreadCount() {
+            connectWS() {
+                if (this.socket) this.socket.close();
+                
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                this.socket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/list/`);
+
+                            this.socket.onmessage = (e) => {
+                                const data = JSON.parse(e.data);
+                                if (data.type === 'sidebar_update' && typeof data.total_unread_count !== 'undefined') {
+                                    // If we are in the room being updated, the unread count in the update might be stale (server-side)
+                                    // wait a moment for markRead to complete or just ignore increment if it's THIS room
+                                    if (window.activeChatRoomId && parseInt(data.room_id) === parseInt(window.activeChatRoomId)) {
+                                        // We don't update totalUnread here because it might jump up and then down
+                                        data.unread_count = 0; 
+                                    } else {
+                                        this.totalUnread = data.total_unread_count;
+                                        this.updateBadges(true);
+                                    }
+                                    
+                                    // Dispatch local event so specific pages (like room.html) can react
+                                    window.dispatchEvent(new CustomEvent('sidebarUpdate', { detail: data }));
+                                }
+                            };
+
+                this.socket.onclose = () => {
+                    setTimeout(() => this.connectWS(), 5000);
+                };
+            },
+
+            fetchInitialUnread() {
                 fetch('/chat/api/unread-count/', {
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Authorization': `Bearer ${getAccessToken()}`
-                    }
+                    headers: { 'Authorization': `Bearer ${getAccessToken()}` }
                 })
-                    .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
-                    .then(data => {
-                        if (data.success) {
-                            this.previousUnread = this.totalUnread;
-                            this.totalUnread = data.total_unread || 0;
-                            const changed = this.totalUnread !== this.previousUnread;
-                            this.updateBadges(changed);
-                        }
-                    })
-                    .catch(console.error);
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        this.totalUnread = data.total_unread || 0;
+                        this.updateBadges(false);
+                    }
+                }).catch(() => {});
             },
 
             updateBadges(animate = false) {
@@ -782,16 +794,12 @@
                     if (hasUnread) {
                         badge.textContent = displayCount;
                         badge.classList.remove('hidden');
-                        // Pulse animation when count changes
                         if (animate) {
-                            badge.classList.remove('chat-badge-pulse');
-                            void badge.offsetWidth; // force reflow
                             badge.classList.add('chat-badge-pulse');
                             setTimeout(() => badge.classList.remove('chat-badge-pulse'), 2000);
                         }
                     } else {
                         badge.classList.add('hidden');
-                        badge.classList.remove('chat-badge-pulse');
                     }
                 });
             }

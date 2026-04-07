@@ -22,9 +22,21 @@ class ChatRoom(models.Model):
     )
     group_avatar = models.ImageField(upload_to='group_avatars/', blank=True, null=True)
     description = models.TextField(blank=True, max_length=500)
+    project = models.ForeignKey(
+        'projects.Projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chat_rooms'
+    )
+    last_activity = models.DateTimeField(default=timezone.now)
+
+    @property
+    def project_name(self):
+        return self.project.name if self.project else None
 
     def __str__(self):
-        return self.name or f"Room {self.id}"
+        return self.name if self.is_group else f"DM: {list(self.participants.all())}"
 
     @property
     def last_message(self):
