@@ -9,24 +9,21 @@
     
     <!-- Back Button -->
     <div class="mb-4">
-        <button onclick="goBack()"
-                class="flex items-center gap-2 bg-gray-100 hover:bg-orange-500 text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
+        <button onclick="goBack()" class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
             Back
         </button>
     </div>
     
     <!-- Team Lead View Header -->
     {% if viewing_employee %}
-    <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+    <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="text-lg font-semibold text-blue-800">Tasks for: {{ viewing_employee.get_full_name|default:viewing_employee.username }}</h2>
-                <p class="text-sm text-blue-600">{{ tasks|length }} task{{ tasks|length|pluralize }} found</p>
+                <h2 class="text-lg font-semibold text-blue-800 dark:text-blue-300">Tasks for: {{ viewing_employee.get_full_name|default:viewing_employee.username }}</h2>
+                <p class="text-sm text-blue-600 dark:text-blue-400">{{ tasks|length }} task{{ tasks|length|pluralize }} found</p>
             </div>
-            <a href="{% url 'teamlead_view_users' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+            <a href="{% url 'teamlead_view_users' %}" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition">
                 ← Back to Team
             </a>
         </div>
@@ -35,26 +32,26 @@
 
     {% for task in tasks %}
     <!-- Main Task Card -->
-    <div class="bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden mb-6">
+    <div class="bg-white dark:bg-[#111827] shadow-xl rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden mb-6 transition-colors">
         <!-- Task Header with Status Badge -->
-        <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 border-b border-gray-200 flex justify-between items-center">
+        <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-[#1a1f2e] dark:to-[#111827] px-8 py-6 border-b border-slate-200 dark:border-white/10 flex flex-wrap justify-between items-center gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-gray-800">{{ task.name }}</h1>
-                <p class="text-sm text-gray-500 mt-1">ID: {{ task.id }}</p>
+                <h1 class="text-3xl font-bold text-slate-800 dark:text-white">{{ task.name }}</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">ID: {{ task.id }}</p>
             </div>
             <div>
                 <span class="px-4 py-2 rounded-full text-sm font-semibold 
-                    {% if task.status == 'PENDING' %}bg-red-100 text-red-700
-                    {% elif task.status == 'ONGOING' %}bg-yellow-100 text-yellow-700
-                    {% else %}bg-green-100 text-green-700{% endif %}">
+                    {% if task.status == 'PENDING' %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+                    {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
+                    {% else %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400{% endif %}">
                     {{ task.get_status_display }}
                 </span>
             </div>
         </div>
 
-        <!-- Description Box (sky blue) -->
-        <div class="bg-blue-50 px-8 py-5 border-b border-gray-200">
-            <p class="text-gray-700">{{ task.description|default:"No description provided." }}</p>
+        <!-- Description Box -->
+        <div class="bg-blue-50 dark:bg-blue-900/20 px-8 py-5 border-b border-slate-200 dark:border-white/10">
+            <p class="text-slate-700 dark:text-slate-300">{{ task.description|default:"No description provided." }}</p>
         </div>
 
         <!-- Main Content in Grid Layout -->
@@ -63,13 +60,13 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                 <!-- Left Column -->
                 <div class="space-y-5">
-                    <!-- Task Owner - FIXED for ManyToMany -->
+                    <!-- Task Owner -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Task owner:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Task owner:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-800">
+                            <p class="font-medium text-slate-800 dark:text-slate-200">
                                 {% if task.assigned_by.all %}
                                     {% for owner in task.assigned_by.all %}
                                         {{ owner.get_full_name|default:owner.username }}{% if not forloop.last %}, {% endif %}
@@ -84,10 +81,10 @@
                     <!-- Deadline -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Deadline:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Deadline:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-800">
+                            <p class="font-medium text-slate-800 dark:text-slate-200">
                                 {% if task.deadline %}
                                     {{ task.deadline|date:"F d, Y H:i" }}
                                 {% else %}
@@ -100,21 +97,21 @@
                     <!-- Created -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Created:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Created:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-800">{{ task.created_at|date:"F d, Y H:i" }} / ID: {{ task.id }}</p>
+                            <p class="font-medium text-slate-800 dark:text-slate-200">{{ task.created_at|date:"F d, Y H:i" }} / ID: {{ task.id }}</p>
                         </div>
                     </div>
 
                     <!-- Time tracking -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Time tracking:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Time tracking:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-800">
-                                <span id="timer-{{ task.id }}" class="font-mono bg-gray-100 px-3 py-1 rounded-lg">
+                            <p class="font-medium text-slate-800 dark:text-slate-200">
+                                <span id="timer-{{ task.id }}" class="font-mono bg-slate-100 dark:bg-[#1e293b] px-3 py-1 rounded-lg text-slate-800 dark:text-slate-200">
                                     {% if task.status == "ONGOING" and task.start_time %}
                                         {{ task.current_display_time }}
                                     {% elif task.status == "COMPLETED" and task.total_time %}
@@ -123,7 +120,7 @@
                                         00:00:00
                                     {% endif %}
                                 </span> 
-                                <span class="text-gray-500 ml-2">/ {{ task.estimated_display }}</span>
+                                <span class="text-slate-500 dark:text-slate-400 ml-2">/ {{ task.estimated_display }}</span>
                             </p>
                         </div>
                     </div>
@@ -131,19 +128,19 @@
 
                 <!-- Right Column -->
                 <div class="space-y-5">
-                    <!-- Assignee (handles multiple users) -->
+                    <!-- Assignee -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Assignee:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Assignee:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-800">
+                            <p class="font-medium text-slate-800 dark:text-slate-200">
                                 {% if task.assigned_to.all %}
                                     {% for assignee in task.assigned_to.all %}
                                         {{ assignee.get_full_name|default:assignee.username }}{% if not forloop.last %}, {% endif %}
                                     {% endfor %}
                                 {% else %}
-                                    <span class="text-gray-400">Unassigned</span>
+                                    <span class="text-slate-400 dark:text-slate-500">Unassigned</span>
                                 {% endif %}
                             </p>
                         </div>
@@ -152,13 +149,13 @@
                     <!-- Status -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Status:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Status:</span>
                         </div>
                         <div class="flex-1">
                             <p class="font-medium 
-                                {% if task.status == 'PENDING' %}text-red-600
-                                {% elif task.status == 'ONGOING' %}text-yellow-600
-                                {% else %}text-green-600{% endif %}">
+                                {% if task.status == 'PENDING' %}text-amber-600 dark:text-amber-400
+                                {% elif task.status == 'ONGOING' %}text-blue-600 dark:text-blue-400
+                                {% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
                                 {{ task.get_status_display }}
                             </p>
                         </div>
@@ -167,41 +164,41 @@
                     <!-- Project -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Project:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Project:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-800">{{ task.project.name|default:"Devexhub Internal" }}</p>
+                            <p class="font-medium text-slate-800 dark:text-slate-200">{{ task.project.name|default:"Devexhub Internal" }}</p>
                         </div>
                     </div>
 
                     <!-- Stage -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
-                            <span class="text-gray-500 text-sm font-medium">Stage:</span>
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Stage:</span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-blue-600">{{ task.get_status_display }}</p>
+                            <p class="font-medium text-[#4a9d7e] dark:text-[#34d399]">{{ task.get_status_display }}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Observers Section -->
-            <div class="mt-8 pt-6 border-t border-gray-200">
+            <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
                 <div class="flex items-start">
                     <div class="w-28 flex-shrink-0">
-                        <span class="text-gray-500 text-sm font-medium">Observers:</span>
+                        <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Observers:</span>
                     </div>
                     <div class="flex-1">
                         <div class="flex flex-wrap gap-2">
                             {% if task.observers.all %}
                                 {% for observer in task.observers.all %}
-                                <span class="bg-gray-100 px-4 py-2 rounded-full text-sm text-gray-700">
+                                <span class="bg-slate-100 dark:bg-[#1e293b] px-4 py-2 rounded-full text-sm text-slate-700 dark:text-slate-300">
                                     {{ observer.get_full_name|default:observer.username }}
                                 </span>
                                 {% endfor %}
                             {% else %}
-                                <span class="text-gray-400 text-sm">No observers</span>
+                                <span class="text-slate-400 dark:text-slate-500 text-sm">No observers</span>
                             {% endif %}
                         </div>
                     </div>
@@ -209,91 +206,83 @@
             </div>
 
             <!-- Task Summary Section -->
-            <div class="mt-8 pt-6 border-t border-gray-200">
+            <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
                 <div class="flex items-start">
                     <div class="w-28 flex-shrink-0">
-                        <span class="text-gray-500 text-sm font-medium">Summary:</span>
+                        <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Summary:</span>
                     </div>
                     <div class="flex-1">
                         <div class="flex items-center justify-between mb-2">
-                            <h2 class="text-gray-800 font-semibold">Task status summary is required</h2>
+                            <h2 class="text-slate-800 dark:text-slate-200 font-semibold">Task status summary is required</h2>
                             
                             <!-- Only show + icon for employees (task doers) -->
-                            {% if can_change_task  and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
+                            {% if can_change_task and task.status == "ONGOING" and not task.paused_time and tasks|length == 1 %}
                             <a href="{% url 'add_task_summary' task.id %}" 
-                               class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
+                               class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
                                 +
                             </a>
                             {% endif %}
                         </div>
                         
                         {% if task.summary %}
-                            <div class="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                <p class="text-gray-700">{{ task.summary }}</p>
+                            <div class="mt-2 p-4 bg-slate-50 dark:bg-[#1e293b] rounded-xl border border-slate-200 dark:border-white/10">
+                                <p class="text-slate-700 dark:text-slate-300">{{ task.summary }}</p>
                             </div>
                         {% else %}
-                            <p class="text-gray-400 text-sm italic">No summary added yet.</p>
+                            <p class="text-slate-400 dark:text-slate-500 text-sm italic">No summary added yet.</p>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- Action Buttons - All AJAX now -->
+            <!-- Action Buttons -->
             {% if tasks|length == 1 %}
                 {% if can_change_task %}
-                <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end space-x-4">
                     {% if task.status == "PENDING" %}
-                        <!-- AJAX START BUTTON -->
                         <button type="button" 
                                 onclick="startTask({{ task.id }}, '{{ task.name|escapejs }}')"
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
                                 id="start-btn-{{ task.id }}">
                             Start Task
                         </button>
                         
                     {% elif task.status == "ONGOING" %}
                         {% if task.paused_time %}
-                            <!-- AJAX RESUME BUTTON -->
                             <button type="button" 
                                     onclick="resumeTask({{ task.id }}, '{{ task.name|escapejs }}')"
-                                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                    class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
                                     id="resume-btn-{{ task.id }}">
                                 Resume Task
                             </button>
                         {% else %}
-                            <!-- AJAX PAUSE BUTTON -->
                             <button type="button" 
                                     onclick="pauseTask({{ task.id }}, '{{ task.name|escapejs }}')"
-                                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                    class="bg-amber-500 hover:bg-amber-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
                                     id="pause-btn-{{ task.id }}">
                                 Pause Task
                             </button>
                         {% endif %}
                         
-                        <!-- AJAX COMPLETE BUTTON -->
                         <button type="button" 
                                 onclick="completeTask({{ task.id }}, '{{ task.name|escapejs }}')"
-                                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
                                 id="complete-btn-{{ task.id }}">
                             Complete Task
                         </button>
                     {% endif %}
                 </div>
                 {% else %}
-                <!-- Team Lead viewing ANY task - read-only -->
-                <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end">
-                    <span class="text-sm text-gray-500 italic px-4 py-2 bg-gray-100 rounded-lg">Viewing in read-only mode</span>
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end">
+                    <span class="text-sm text-slate-500 dark:text-slate-400 italic px-4 py-2 bg-slate-100 dark:bg-[#1e293b] rounded-lg">Viewing in read-only mode</span>
                 </div>
                 {% endif %}
             {% else %}
-            <!-- For list view, show View Details link -->
             <div class="mt-6 text-right">
                 <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" 
-                   class="inline-flex items-center text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-medium transition">
+                   class="inline-flex items-center text-[#4a9d7e] hover:text-[#3d8a6d] bg-[#eef6f2] dark:bg-[#1a3a2a] px-4 py-2 rounded-lg text-sm font-medium transition">
                     View Full Details
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
+                    <i class="fa-solid fa-arrow-right ml-1 text-xs"></i>
                 </a>
             </div>
             {% endif %}
@@ -301,12 +290,10 @@
     </div>
     {% empty %}
     <!-- No Tasks State -->
-    <div class="bg-white shadow-xl rounded-2xl border border-gray-200 p-12 text-center">
-        <svg class="w-20 h-20 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-        </svg>
-        <h3 class="text-xl font-bold text-gray-700 mb-2">No Tasks Found</h3>
-        <p class="text-gray-500">No tasks available for this employee.</p>
+    <div class="bg-white dark:bg-[#111827] shadow-xl rounded-2xl border border-slate-200 dark:border-white/10 p-12 text-center">
+        <i class="fa-regular fa-clipboard text-5xl text-slate-300 dark:text-slate-600 mb-4"></i>
+        <h3 class="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">No Tasks Found</h3>
+        <p class="text-slate-500 dark:text-slate-400">No tasks available for this employee.</p>
     </div>
     {% endfor %}
 </div>
@@ -327,7 +314,8 @@
             const elapsed = now - startTime - pausedDuration;
             
             if (elapsed < 0) {
-                document.getElementById(`timer-${taskId}`).textContent = '00:00:00';
+                const timerElement = document.getElementById(`timer-${taskId}`);
+                if (timerElement) timerElement.textContent = '00:00:00';
                 return;
             }
             
@@ -350,18 +338,19 @@
 {% endif %}
 {% endfor %}
 
-<!-- AJAX Task Action JavaScript - Complete, Start, Pause, Resume -->
+<!-- AJAX Task Action JavaScript -->
 <script>
-// Helper function to reset button
 function resetButton(btn, originalText) {
-    btn.textContent = originalText;
-    btn.disabled = false;
-    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    if (btn) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
 }
 
-// START TASK
 function startTask(taskId, taskName) {
     const btn = document.getElementById(`start-btn-${taskId}`);
+    if (!btn) return;
     const originalText = btn.textContent;
     
     btn.textContent = 'Starting...';
@@ -378,10 +367,9 @@ function startTask(taskId, taskName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ ' + data.message);
             location.reload();
         } else {
-            alert('❌ ' + data.error);
+            alert('❌ ' + (data.error || 'Something went wrong'));
             resetButton(btn, originalText);
         }
     })
@@ -391,9 +379,9 @@ function startTask(taskId, taskName) {
     });
 }
 
-// PAUSE TASK
 function pauseTask(taskId, taskName) {
     const btn = document.getElementById(`pause-btn-${taskId}`);
+    if (!btn) return;
     const originalText = btn.textContent;
     
     btn.textContent = 'Pausing...';
@@ -410,10 +398,9 @@ function pauseTask(taskId, taskName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('⏸️ ' + data.message);
             location.reload();
         } else {
-            alert('❌ ' + data.error);
+            alert('❌ ' + (data.error || 'Something went wrong'));
             resetButton(btn, originalText);
         }
     })
@@ -423,9 +410,9 @@ function pauseTask(taskId, taskName) {
     });
 }
 
-// RESUME TASK
 function resumeTask(taskId, taskName) {
     const btn = document.getElementById(`resume-btn-${taskId}`);
+    if (!btn) return;
     const originalText = btn.textContent;
     
     btn.textContent = 'Resuming...';
@@ -442,10 +429,9 @@ function resumeTask(taskId, taskName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('▶️ ' + data.message);
             location.reload();
         } else {
-            alert('❌ ' + data.error);
+            alert('❌ ' + (data.error || 'Something went wrong'));
             resetButton(btn, originalText);
         }
     })
@@ -455,9 +441,9 @@ function resumeTask(taskId, taskName) {
     });
 }
 
-// COMPLETE TASK
 function completeTask(taskId, taskName) {
     const btn = document.getElementById(`complete-btn-${taskId}`);
+    if (!btn) return;
     const originalText = btn.textContent;
     
     btn.textContent = 'Completing...';
@@ -474,7 +460,6 @@ function completeTask(taskId, taskName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ ' + data.message);
             location.reload();
         } else {
             if (data.redirect_url) {
