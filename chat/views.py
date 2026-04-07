@@ -14,8 +14,31 @@ from PIL import Image
 from io import BytesIO
 from django.core.files.base import ContentFile
 from django.http import HttpResponse
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 #  # Add this line
+
+@jwt_or_session_required
+def get_user_rooms(request):
+    """API endpoint to get all rooms for the current user"""
+    rooms = request.user.chat_rooms.all().order_by('-last_activity')
+    
+    rooms_data = []
+    for room in rooms:
+        last_msg = room.last_message
+        rooms_data.append({
+            'id': room.id,
+            'name': room.get_display_name(request.user),
+            'avatar_initial': room.get_avatar_initial(request.user),
+            'is_group': room.is_group,
+            'last_message_preview': last_msg.content[:50] if last_msg and last_msg.content else ('[File]' if last_msg else 'No messages'),
+            'last_activity_short': room.last_activity.strftime("%H:%M") if room.last_activity.date() == timezone.now().date() else room.last_activity.strftime("%b %d"),
+            'unread_count': room.get_unread_count(request.user),
+            'participant_count': room.get_participant_count(),
+        })
+    
+    return JsonResponse({'success': True, 'rooms': rooms_data})
 
 @jwt_or_session_required
 def chat_rooms(request):
@@ -34,10 +57,12 @@ def chat_rooms(request):
             'last_message_time': last_msg.timestamp if last_msg else None,
             'last_message_sender': last_msg.sender.get_full_name() or last_msg.sender.username if last_msg else None,
             'unread_count': room.get_unread_count(request.user),
-            'participant_count': room.get_participant_count()
+            'participant_count': room.get_participant_count(),
+            'last_activity': room.last_activity,
+            'project_name': room.project_name
         })
     
-    rooms_list.sort(key=lambda x: x['last_message_time'] if x['last_message_time'] else timezone.now() - timezone.timedelta(days=36500), reverse=True)
+    rooms_list.sort(key=lambda x: x['last_activity'] if x['last_activity'] else timezone.now() - timezone.timedelta(days=36500), reverse=True)
     
     # Get users we already have DMs with to exclude them from the new chat list
     has_dm_user_ids = set()
@@ -78,18 +103,17 @@ def create_direct_room(request, user_id):
     if other_user == request.user:
         return JsonResponse({'error': 'Cannot chat with yourself'}, status=400)
 
-    # Find or create direct chat room
-    rooms_for_user = request.user.chat_rooms.filter(is_group=False)
-    room = None
-    
-    for r in rooms_for_user:
-        if other_user in r.participants.all():
-            room = r
-            break
+    # Find existing direct chat room with exactly these two participants
+    room = ChatRoom.objects.filter(is_group=False, participants=request.user) \
+                           .filter(participants=other_user).first()
 
     if not room:
-        room = ChatRoom.objects.create(is_group=False)
-        room.participants.add(request.user, other_user)
+        from django.db import transaction
+        with transaction.atomic():
+            room = ChatRoom.objects.create(is_group=False)
+            room.participants.add(request.user, other_user)
+            room.last_activity = timezone.now()
+            room.save()
 
     return JsonResponse({'room_id': room.id})
 @csrf_exempt
@@ -109,22 +133,28 @@ def create_group_room(request):
         if len(participant_ids) < 2:
             return JsonResponse({'error': 'Group needs at least 2 participants'}, status=400)
         
-        # Create group room
-        room = ChatRoom.objects.create(
-            name=group_name,
-            is_group=True,
-            created_by=request.user,
-            description=description
-        )
-        
-        # Add participants
-        room.participants.add(request.user)
-        for participant_id in participant_ids:
-            try:
-                user = User.objects.get(id=participant_id)
-                room.participants.add(user)
-            except User.DoesNotExist:
-                pass
+        from django.db import transaction
+        with transaction.atomic():
+            # Create group room
+            room = ChatRoom.objects.create(
+                name=group_name,
+                is_group=True,
+                created_by=request.user,
+                description=description,
+                project_id=data.get('project_id')  # Link to project if provided
+            )
+            
+            # Add participants
+            room.participants.add(request.user)
+            for participant_id in participant_ids:
+                try:
+                    user = User.objects.get(id=participant_id)
+                    room.participants.add(user)
+                except User.DoesNotExist:
+                    pass
+            
+            room.last_activity = timezone.now()
+            room.save()
         
         return JsonResponse({'room_id': room.id, 'success': True})
         
@@ -140,12 +170,19 @@ def get_messages(request, room_id):
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     after_id = request.GET.get('after', 0)
+    before_id = request.GET.get('before', 0)
     limit = int(request.GET.get('limit', 50))
     
+    qs = room.messages.select_related('sender').prefetch_related('read_by', 'attachments')
+    
     if after_id and after_id != '0':
-        messages = room.messages.filter(id__gt=after_id).select_related('sender').prefetch_related('read_by', 'attachments')[:limit]
+        messages = qs.filter(id__gt=after_id).order_by('id')[:limit]
+    elif before_id and before_id != '0':
+        messages = qs.filter(id__lt=before_id).order_by('-id')[:limit]
+        messages = reversed(list(messages))
     else:
-        messages = room.messages.all().select_related('sender').prefetch_related('read_by', 'attachments')[:limit]
+        messages = qs.order_by('-id')[:limit]
+        messages = reversed(list(messages))
     
     messages_data = []
     for msg in messages:
@@ -192,20 +229,44 @@ def send_message(request, room_id):
         if not content or len(content) > 5000:
             return JsonResponse({'success': False, 'error': 'Invalid message'}, status=400)
         
-        message = Message.objects.create(
-            room=room,
-            sender=request.user,
-            content=content
-        )
+        from django.db import transaction
+        with transaction.atomic():
+            # Lock the room to prevent concurrent membership changes
+            room_locked = ChatRoom.objects.select_for_update().get(id=room_id)
+            
+            # Double check membership inside transaction
+            if not room_locked.participants.filter(id=request.user.id).exists():
+                return JsonResponse({'success': False, 'error': 'Not a member'}, status=403)
+                
+            message = Message.objects.create(
+                room=room_locked,
+                sender=request.user,
+                content=content
+            )
+            
+            room_locked.last_activity = timezone.now()
+            room_locked.save()
         
         message_data = {
             'message_id': message.id,
             'message': message.content,
             'sender_id': message.sender.id,
             'sender_name': message.sender.get_full_name() or message.sender.username,
-            'timestamp': message.timestamp.isoformat(),
-            'is_read': message.is_read
+            'timestamp': message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'is_read': message.is_read,
+            'read_by': [u.id for u in message.read_by.all()],
+            'attachments': []
         }
+        
+        # Broadcast to WebSocket group
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{room_id}",
+            {
+                'type': 'chat_message',
+                **message_data
+            }
+        )
         
         return JsonResponse({
             'success': True,
@@ -321,54 +382,85 @@ def upload_file(request, room_id):
     if uploaded_file.size > 25 * 1024 * 1024:
         return JsonResponse({'error': 'File too large. Max 25MB'}, status=400)
     
-    # Create message
-    message = Message.objects.create(
-        room=room,
-        sender=request.user,
-        content=message_text or ''
+    from django.db import transaction
+    with transaction.atomic():
+        room_locked = ChatRoom.objects.select_for_update().get(id=room_id)
+        
+        # Double check membership
+        if not room_locked.participants.filter(id=request.user.id).exists():
+            return JsonResponse({'success': False, 'error': 'Not a member'}, status=403)
+
+        # Create message
+        message = Message.objects.create(
+            room=room_locked,
+            sender=request.user,
+            content=message_text or ''
+        )
+        
+        # Determine file type
+        file_type = determine_file_type(uploaded_file.name, uploaded_file.content_type)
+        
+        # Create attachment
+        attachment = MessageAttachment.objects.create(
+            message=message,
+            filename=uploaded_file.name,
+            file_size=uploaded_file.size,
+            file_type=file_type,
+            mime_type=uploaded_file.content_type
+        )
+        
+        # Save the file
+        attachment.file.save(uploaded_file.name, uploaded_file)
+        
+        # Create thumbnail for images
+        if file_type == 'image':
+            try:
+                img = Image.open(uploaded_file)
+                img.thumbnail((200, 200))
+                thumb_io = BytesIO()
+                img.save(thumb_io, format='JPEG' if img.mode == 'RGB' else 'PNG')
+                attachment.thumbnail.save(f'thumb_{uploaded_file.name}', ContentFile(thumb_io.getvalue()))
+            except Exception:
+                pass
+        
+        attachment.save()
+        
+        room_locked.last_activity = timezone.now()
+        room_locked.save()
+    
+    attachment_data = {
+        'id': attachment.id,
+        'filename': attachment.filename,
+        'file_size': attachment.file_size,
+        'formatted_size': attachment.formatted_size,
+        'file_type': attachment.file_type,
+        'file_icon': attachment.file_icon,
+        'file_url': attachment.file.url,
+        'thumbnail_url': attachment.thumbnail.url if attachment.thumbnail else None,
+        'mime_type': attachment.mime_type
+    }
+
+    # Broadcast to WebSocket group
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"chat_{room_id}",
+        {
+            'type': 'chat_message',
+            'message_id': message.id,
+            'message': message.content or '[File]',
+            'sender_id': request.user.id,
+            'sender_name': request.user.get_full_name() or request.user.username,
+            'timestamp': message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'is_read': message.is_read,
+            'read_by': [],
+            'attachments': [attachment_data]
+        }
     )
-    
-    # Determine file type
-    file_type = determine_file_type(uploaded_file.name, uploaded_file.content_type)
-    
-    # Create attachment
-    attachment = MessageAttachment.objects.create(
-        message=message,
-        filename=uploaded_file.name,
-        file_size=uploaded_file.size,
-        file_type=file_type,
-        mime_type=uploaded_file.content_type
-    )
-    
-    # Save the file
-    attachment.file.save(uploaded_file.name, uploaded_file)
-    
-    # Create thumbnail for images
-    if file_type == 'image':
-        try:
-            img = Image.open(uploaded_file)
-            img.thumbnail((200, 200))
-            thumb_io = BytesIO()
-            img.save(thumb_io, format='JPEG' if img.mode == 'RGB' else 'PNG')
-            attachment.thumbnail.save(f'thumb_{uploaded_file.name}', ContentFile(thumb_io.getvalue()))
-        except Exception:
-            pass
-    
-    attachment.save()
     
     return JsonResponse({
         'success': True,
         'message_id': message.id,
-        'attachment': {
-            'id': attachment.id,
-            'filename': attachment.filename,
-            'file_size': attachment.file_size,
-            'formatted_size': attachment.formatted_size,
-            'file_type': attachment.file_type,
-            'file_icon': attachment.file_icon,
-            'file_url': attachment.file.url,
-            'thumbnail_url': attachment.thumbnail.url if attachment.thumbnail else None
-        }
+        'attachment': attachment_data
     })
 
 #  # Add this line
@@ -416,3 +508,23 @@ def determine_file_type(filename, mime_type):
         return 'audio'
     else:
         return 'other'
+
+@jwt_or_session_required
+def list_projects(request):
+    """List all projects for the user or all projects for admins"""
+    from projects.models import Projects
+    
+    if request.user.is_superuser:
+        projects = Projects.objects.all()
+    else:
+        # Get projects where user is assigned or is creator
+        projects = Projects.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).distinct()
+        
+    projects_data = []
+    for p in projects:
+        projects_data.append({
+            'id': p.id,
+            'name': p.name
+        })
+        
+    return JsonResponse({'projects': projects_data})

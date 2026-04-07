@@ -316,52 +316,53 @@ function loadRecentChats() {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            const totalUnread = data.total_unread || 0;
-            const statUnreadElement = document.getElementById('statUnreadCount');
-            if (statUnreadElement) statUnreadElement.innerText = totalUnread;
-            
-            const recentChatsContainer = document.getElementById('recentChatsContainer');
-            if (recentChatsContainer) {
-                if (totalUnread > 0) {
-                    recentChatsContainer.innerHTML = `
-                        <div class="bg-[#eef6f2] dark:bg-[#1a3a2a] rounded-lg p-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-[#4a9d7e] dark:text-[#34d399]">📬 New Messages</p>
-                                    <p class="text-2xl font-bold text-[#4a9d7e] dark:text-[#34d399] mt-1">${totalUnread}</p>
-                                    <p class="text-xs text-[#4a9d7e]/70 dark:text-[#34d399]/70">unread conversation${totalUnread > 1 ? 's' : ''}</p>
-                                </div>
-                                <a href="{% url 'chat_rooms' %}" class="px-3 py-1.5 bg-[#4a9d7e] text-white text-xs rounded-lg hover:bg-[#3d8a6d] transition">
-                                    Read
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    recentChatsContainer.innerHTML = `
-                        <div class="text-center py-6">
-                            <i class="fa-regular fa-comment-dots text-3xl text-slate-300 mb-2"></i>
-                            <p class="text-sm text-slate-500">No new messages</p>
-                            <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Start a conversation →</a>
-                        </div>
-                    `;
-                }
-            }
+            updateDashboardChatUI(data.total_unread || 0);
         }
     })
     .catch(err => {
         console.error('Error loading chats:', err);
-        const recentChatsContainer = document.getElementById('recentChatsContainer');
-        if (recentChatsContainer) {
-            recentChatsContainer.innerHTML = `
-                <div class="text-center py-6">
-                    <p class="text-xs text-slate-400">Unable to load messages</p>
-                    <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Open Chat →</a>
-                </div>
-            `;
-        }
     });
 }
+
+function updateDashboardChatUI(totalUnread) {
+    const statUnreadElement = document.getElementById('statUnreadCount');
+    if (statUnreadElement) statUnreadElement.innerText = totalUnread;
+    
+    const recentChatsContainer = document.getElementById('recentChatsContainer');
+    if (!recentChatsContainer) return;
+
+    if (totalUnread > 0) {
+        recentChatsContainer.innerHTML = `
+            <div class="bg-[#eef6f2] dark:bg-[#1a3a2a] rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-[#4a9d7e] dark:text-[#34d399]">📬 New Messages</p>
+                        <p class="text-2xl font-bold text-[#4a9d7e] dark:text-[#34d399] mt-1">${totalUnread}</p>
+                        <p class="text-xs text-[#4a9d7e]/70 dark:text-[#34d399]/70">unread conversation${totalUnread > 1 ? 's' : ''}</p>
+                    </div>
+                    <a href="/chat/" class="px-3 py-1.5 bg-[#4a9d7e] text-white text-xs rounded-lg hover:bg-[#3d8a6d] transition">
+                        Read
+                    </a>
+                </div>
+            </div>
+        `;
+    } else {
+        recentChatsContainer.innerHTML = `
+            <div class="text-center py-6">
+                <i class="fa-regular fa-comment-dots text-3xl text-slate-300 mb-2"></i>
+                <p class="text-sm text-slate-500">No new messages</p>
+                <a href="/chat/" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Start a conversation →</a>
+            </div>
+        `;
+    }
+}
+
+// REAL-TIME SYNC FROM BASE.HTML
+window.addEventListener('sidebarUpdate', (e) => {
+    if (e.detail && typeof e.detail.total_unread_count !== 'undefined') {
+        updateDashboardChatUI(e.detail.total_unread_count);
+    }
+});
 
 function getRoleBadgeClass(tier) {
     switch(tier) {
