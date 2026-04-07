@@ -4,6 +4,7 @@
 ## login & logout required libraries
 import profile
 from urllib import request
+from django.db import models
 
 from .decorators import allowed_roles, permission_required
 from users.decorators import jwt_or_session_required
@@ -40,6 +41,7 @@ from django.contrib.contenttypes.models import ContentType
 from users.models import Role, User
 from users.permissions import (
     can_add_task,
+    can_change_projects,
     can_change_task,
     can_delete_task,
     can_manage_all_tasks,
@@ -307,15 +309,15 @@ def edit_projects(request, project_id):
         manager_ids = [u.id for u in all_active_users if is_manager_like(u)]
         return all_active_users.exclude(id__in=manager_ids)
 
-    # Scoped managers can edit only projects they own.
-    if not can_view_all_projects(request.user) and project.created_by != request.user:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'error': "You don't have permission to edit this project."
-            }, status=403)
-        messages.error(request, "⛔ You don't have permission to edit this project.")
-        return redirect("view_projects")
+    # # Scoped managers can edit only projects they own OR if they have change_projects permission
+    # if not can_view_all_projects(request.user) and project.created_by != request.user and not can_change_projects(request.user):
+    #     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    #         return JsonResponse({
+    #             'success': False,
+    #             'error': "You don't have permission to edit this project."
+    #         }, status=403)
+    #     messages.error(request, "⛔ You don't have permission to edit this project.")
+    #     return redirect("view_projects")
 
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -2175,7 +2177,7 @@ from .forms import UserRegisterForm, UserProfileForm
 from .models import User, UserProfile, Role, Department, Designation
 @jwt_or_session_required
 @csrf_exempt
-@allowed_roles(allowed_roles=["ADMIN"])
+@permission_required('users.add_user')
 def create_user(request):
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -3355,7 +3357,12 @@ def start_task(request, task_id):
         'status', 'start_time', 'paused_time', 
         'total_paused_duration', 'total_time', 'end_time'
     ])
-    
+    if task.project and task.project.created_by:
+        Notification.objects.create(
+            user=task.project.created_by,
+            message=f"▶️ Task '{task.name}' has been started by {request.user.get_full_name() or request.user.username}"
+        )
+        
     return JsonResponse({
         'success': True,
         'message': f'Task "{task.name}" started successfully!',
@@ -3394,6 +3401,11 @@ def pause_task(request, task_id):
     # Pause the task
     task.paused_time = timezone.now()
     task.save()
+    if task.project and task.project.created_by:
+        Notification.objects.create(
+            user=task.project.created_by,
+            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}"
+        )
 
     return JsonResponse({
         'success': True,
@@ -3434,6 +3446,11 @@ def resume_task(request, task_id):
     # Clear paused time
     task.paused_time = None
     task.save()
+    if task.project and task.project.created_by:
+        Notification.objects.create(
+            user=task.project.created_by,
+            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}"
+        )
 
     return JsonResponse({
         'success': True,
@@ -3503,13 +3520,28 @@ def complete_task(request, task_id):
         seconds = total_seconds % 60
         time_display = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    # Notify users that can manage/oversee tasks.
-    observer_candidates = User.objects.filter(is_active=True)
-    observers = [user for user in observer_candidates if is_manager_like(user)]
+    # ✅ UPDATED: Notify managers, admins, and project creator
     employee_name = request.user.get_full_name() or request.user.username
-    message = f"Task '{task.name}' has been completed by {employee_name}. Time spent: {time_display}"
+    message = f"✅ Task '{task.name}' has been completed by {employee_name}. Time spent: {time_display}"
     
-    for user in observers:
+    # Get all users to notify (managers + admins + project creator)
+    users_to_notify = set()
+    
+    # Add managers (users with manager-like permissions)
+    for user in User.objects.filter(is_active=True):
+        if is_manager_like(user):
+            users_to_notify.add(user)
+    
+    # Add admins
+    for admin in User.objects.filter(role='ADMIN', is_active=True):
+        users_to_notify.add(admin)
+    
+    # Add project creator if not already included
+    if task.project and task.project.created_by:
+        users_to_notify.add(task.project.created_by)
+    
+    # Create notifications for all users
+    for user in users_to_notify:
         Notification.objects.create(user=user, message=message)
 
     # Return JSON response instead of redirect
@@ -3520,7 +3552,6 @@ def complete_task(request, task_id):
         'time_display': time_display,
         'status': 'COMPLETED'
     })
-
 
 
 from .models import Department, Designation
