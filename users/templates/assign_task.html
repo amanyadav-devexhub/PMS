@@ -1100,7 +1100,9 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
             } else {
                 alert('✅ ' + data.message);
             }
-            window.location.href = data.redirect_url || "{% url 'dashboard' %}";
+            window.location.href = data.redirect_url || "{% url 'dashboard
+            
+            ' %}";
         } else {
             if (data.errors) {
                 Object.keys(data.errors).forEach(field => {

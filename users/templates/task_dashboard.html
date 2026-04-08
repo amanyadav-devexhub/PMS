@@ -8,8 +8,8 @@
 
     <!-- Back Button -->
     <div class="mb-6">
-        <button onclick="goBack()" class="back-btn-small">
-            <i class="fa-solid fa-arrow-left"></i>
+        <button onclick="goBack()" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition font-medium">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
             Back
         </button>
     </div>
@@ -105,12 +105,12 @@
                         <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Deadline</th>
                         <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Assignees</th>
                         <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Project</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="taskTableBody">
                     {% for task in tasks %}
-                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer {% if task.is_overdue %}bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500{% endif %}" 
-                        onclick="window.location='{% url 'employee_tasks' %}?task_id={{ task.id }}'">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition {% if task.is_overdue %}bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500{% endif %}">
                         <td class="px-5 py-3">
                             <div class="text-sm font-medium text-slate-800 dark:text-white">{{ task.name }}</div>
                             <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: {{ task.id }}</div>
@@ -125,12 +125,12 @@
                         </td>
                         <td class="px-5 py-3">
                             <div class="text-sm font-mono {% if task.is_overdue %}text-red-600 dark:text-red-400 font-bold{% endif %}">
-                                {{ task.time_spent_display }}
+                                {{ task.time_display|default:"00:00:00" }}
                                 {% if task.is_overdue %}
                                     <span class="ml-1 text-[10px] bg-red-200 dark:bg-red-800 px-1.5 py-0.5 rounded-full">Overdue</span>
                                 {% endif %}
                             </div>
-                            <div class="text-[10px] text-slate-400 dark:text-slate-500">/ {{ task.estimated_display }}</div>
+                            <div class="text-[10px] text-slate-400 dark:text-slate-500">/ {{ task.estimated_display|default:"04:00:00" }}</div>
                         </td>
                         <td class="px-5 py-3">
                             {% if task.deadline %}
@@ -157,10 +157,31 @@
                                 {{ task.project.name|truncatechars:15 }}
                             </span>
                         </td>
+                        <td class="px-5 py-3">
+                            <div class="flex items-center gap-2">
+                                <!-- View Button - Always visible to task assignees -->
+                                <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" 
+                                   class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition"
+                                   title="View Task Details">
+                                    <i class="fa-regular fa-eye text-[10px]"></i>
+                                    View
+                                </a>
+                                
+                                <!-- Edit Button - Only show if user has edit permission -->
+                                {% if can_change_task %}
+                                <a href="{% url 'edit_task' task.id %}" 
+                                   class="inline-flex items-center gap-1 text-[#4a9d7e] dark:text-[#4a9d7e] hover:text-[#3d8a6d] dark:hover:text-[#34d399] bg-[#eef6f2] dark:bg-[#4a9d7e]/10 hover:bg-[#d5e9df] dark:hover:bg-[#4a9d7e]/20 px-2 py-1 rounded-lg text-[10px] font-medium transition"
+                                   title="Edit Task">
+                                    <i class="fa-solid fa-pen text-[10px]"></i>
+                                    Edit
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
+                        <td colspan="7" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
                             <i class="fa-regular fa-clipboard text-3xl mb-2 block"></i>
                             <p class="text-sm">No tasks found</p>
                         </td>
@@ -266,7 +287,7 @@ function renderTasksTable(tasks) {
     if (!tasks || tasks.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
+                <td colspan="7" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
                     <i class="fa-regular fa-clipboard text-3xl mb-2 block"></i>
                     <p class="text-sm">No tasks found</p>
                 </td>
@@ -278,7 +299,6 @@ function renderTasksTable(tasks) {
     let html = '';
     tasks.forEach(task => {
         let statusClass = '';
-        let statusBgClass = '';
         if (task.status === 'PENDING') {
             statusClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
         } else if (task.status === 'ONGOING') {
@@ -290,15 +310,22 @@ function renderTasksTable(tasks) {
         const rowClass = task.is_overdue ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' : 'hover:bg-slate-50 dark:hover:bg-white/5';
         
         let assigneesHtml = '';
-        task.assignees.slice(0, 2).forEach(assignee => {
-            assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">${escapeHtml(assignee)}</span>`;
-        });
-        if (task.total_assignees > 2) {
-            assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+${task.total_assignees - 2}</span>`;
+        if (task.assignees && task.assignees.length > 0) {
+            task.assignees.slice(0, 2).forEach(assignee => {
+                assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">${escapeHtml(assignee)}</span>`;
+            });
+            if (task.total_assignees > 2) {
+                assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+${task.total_assignees - 2}</span>`;
+            }
+        } else {
+            assigneesHtml = '<span class="text-xs text-slate-400">No assignees</span>';
         }
         
+        // Get permissions from Django template variables passed to JS
+        const canEdit = {{ can_change_task|lower }};
+        
         html += `
-            <tr class="${rowClass} transition cursor-pointer" onclick="window.location='${task.view_url}'">
+            <tr class="${rowClass} transition">
                 <td class="px-5 py-3">
                     <div class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(task.name)}</div>
                     <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: ${task.id}</div>
@@ -310,17 +337,17 @@ function renderTasksTable(tasks) {
                 </td>
                 <td class="px-5 py-3">
                     <div class="text-sm font-mono ${task.is_overdue ? 'text-red-600 dark:text-red-400 font-bold' : ''}">
-                        ${escapeHtml(task.time_spent_display)}
+                        ${escapeHtml(task.time_spent_display || '00:00:00')}
                         ${task.is_overdue ? '<span class="ml-1 text-[10px] bg-red-200 dark:bg-red-800 px-1.5 py-0.5 rounded-full">Overdue</span>' : ''}
                     </div>
-                    <div class="text-[10px] text-slate-400 dark:text-slate-500">/ ${escapeHtml(task.estimated_display)}</div>
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500">/ ${escapeHtml(task.estimated_display || '04:00:00')}</div>
                 </td>
                 <td class="px-5 py-3">
                     ${task.deadline ? `<div class="text-sm">${escapeHtml(task.deadline)}</div>` : '<span class="text-sm text-slate-400 dark:text-slate-500 italic">No deadline</span>'}
                 </td>
                 <td class="px-5 py-3">
                     <div class="flex flex-wrap gap-1">
-                        ${assigneesHtml || '<span class="text-xs text-slate-400">No assignees</span>'}
+                        ${assigneesHtml}
                     </div>
                 </td>
                 <td class="px-5 py-3">
@@ -328,6 +355,24 @@ function renderTasksTable(tasks) {
                         <i class="fa-regular fa-folder text-[9px]"></i>
                         ${escapeHtml(task.project_name)}
                     </span>
+                </td>
+                <td class="px-5 py-3">
+                    <div class="flex items-center gap-2">
+                        <a href="${task.view_url}" 
+                           class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition"
+                           title="View Task Details">
+                            <i class="fa-regular fa-eye text-[10px]"></i>
+                            View
+                        </a>
+                        ${canEdit ? `
+                        <a href="${task.edit_url || '/task/' + task.id + '/edit/'}" 
+                           class="inline-flex items-center gap-1 text-[#4a9d7e] dark:text-[#4a9d7e] hover:text-[#3d8a6d] dark:hover:text-[#34d399] bg-[#eef6f2] dark:bg-[#4a9d7e]/10 hover:bg-[#d5e9df] dark:hover:bg-[#4a9d7e]/20 px-2 py-1 rounded-lg text-[10px] font-medium transition"
+                           title="Edit Task">
+                            <i class="fa-solid fa-pen text-[10px]"></i>
+                            Edit
+                        </a>
+                        ` : ''}
+                    </div>
                 </td>
             </tr>
         `;
@@ -382,19 +427,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Client-side search functionality
-document.getElementById('searchInput')?.addEventListener('keyup', function() {
-    let searchText = this.value.toLowerCase();
-    let rows = document.querySelectorAll('#taskTableBody tr');
-    
-    rows.forEach(row => {
-        let taskName = row.querySelector('td:first-child .font-medium');
-        if (taskName && taskName.textContent.toLowerCase().includes(searchText)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    searchInput.addEventListener('keyup', function() {
+        let searchText = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#taskTableBody tr');
+        
+        rows.forEach(row => {
+            let taskName = row.querySelector('td:first-child .font-medium');
+            if (taskName && taskName.textContent.toLowerCase().includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
     });
-});
+}
 </script>
 
 {% endblock %}
