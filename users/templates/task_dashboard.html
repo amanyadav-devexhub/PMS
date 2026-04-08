@@ -25,7 +25,7 @@
             <a href="{% url 'assign_task' %}" 
                class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
                 <i class="fa-solid fa-plus text-xs"></i>
-                Create Task
+                Add Task
             </a>
             {% endif %}
         </div>
@@ -109,84 +109,13 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="taskTableBody">
-                    {% for task in tasks %}
-                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition {% if task.is_overdue %}bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500{% endif %}">
-                        <td class="px-5 py-3">
-                            <div class="text-sm font-medium text-slate-800 dark:text-white">{{ task.name }}</div>
-                            <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: {{ task.id }}</div>
-                        </td>
-                        <td class="px-5 py-3">
-                            <span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full 
-                                {% if task.status == 'PENDING' %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
-                                {% elif task.status == 'ONGOING' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
-                                {% else %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400{% endif %}">
-                                {{ task.get_status_display }}
-                            </span>
-                        </td>
-                        <td class="px-5 py-3">
-                            <div class="text-sm font-mono {% if task.is_overdue %}text-red-600 dark:text-red-400 font-bold{% endif %}">
-                                {{ task.time_display|default:"00:00:00" }}
-                                {% if task.is_overdue %}
-                                    <span class="ml-1 text-[10px] bg-red-200 dark:bg-red-800 px-1.5 py-0.5 rounded-full">Overdue</span>
-                                {% endif %}
-                            </div>
-                            <div class="text-[10px] text-slate-400 dark:text-slate-500">/ {{ task.estimated_display|default:"04:00:00" }}</div>
-                        </td>
-                        <td class="px-5 py-3">
-                            {% if task.deadline %}
-                                <div class="text-sm {% if task.deadline < now and task.status != 'COMPLETED' %}text-red-600 dark:text-red-400 font-semibold{% endif %}">
-                                    {{ task.deadline|date:"M d, H:i" }}
-                                </div>
-                            {% else %}
-                                <span class="text-sm text-slate-400 dark:text-slate-500 italic">No deadline</span>
-                            {% endif %}
-                        </td>
-                        <td class="px-5 py-3">
-                            <div class="flex flex-wrap gap-1">
-                                {% for assignee in task.assigned_to.all|slice:":2" %}
-                                    <span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">{{ assignee.get_full_name|default:assignee.username }}</span>
-                                {% endfor %}
-                                {% if task.assigned_to.count > 2 %}
-                                    <span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+{{ task.assigned_to.count|add:"-2" }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="px-5 py-3">
-                            <span class="inline-flex items-center gap-1 text-xs bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] dark:text-[#34d399] px-2 py-0.5 rounded-full">
-                                <i class="fa-regular fa-folder text-[9px]"></i>
-                                {{ task.project.name|truncatechars:15 }}
-                            </span>
-                        </td>
-                        <td class="px-5 py-3">
-                            <div class="flex items-center gap-2">
-                                <!-- View Button - Always visible to task assignees -->
-                                <a href="{% url 'employee_tasks' %}?task_id={{ task.id }}" 
-                                   class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition"
-                                   title="View Task Details">
-                                    <i class="fa-regular fa-eye text-[10px]"></i>
-                                    View
-                                </a>
-                                
-                                <!-- Edit Button - Only show if user has edit permission -->
-                                {% if can_change_task %}
-                                <a href="{% url 'edit_task' task.id %}" 
-                                   class="inline-flex items-center gap-1 text-[#4a9d7e] dark:text-[#4a9d7e] hover:text-[#3d8a6d] dark:hover:text-[#34d399] bg-[#eef6f2] dark:bg-[#4a9d7e]/10 hover:bg-[#d5e9df] dark:hover:bg-[#4a9d7e]/20 px-2 py-1 rounded-lg text-[10px] font-medium transition"
-                                   title="Edit Task">
-                                    <i class="fa-solid fa-pen text-[10px]"></i>
-                                    Edit
-                                </a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
+                    <!-- Data will be loaded via AJAX/API -->
                     <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
-                            <i class="fa-regular fa-clipboard text-3xl mb-2 block"></i>
-                            <p class="text-sm">No tasks found</p>
+                        <td colspan="7" class="py-20 text-center">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-[#4a9d7e]"></div>
+                            <p class="mt-4 text-sm text-slate-500 dark:text-slate-400 font-medium">Loading tasks...</p>
                         </td>
                     </tr>
-                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -241,6 +170,11 @@ function loadTasks(page = 1, pageSize = 10) {
     const url = new URL(window.location.href);
     url.searchParams.set('page', page);
     url.searchParams.set('page_size', pageSize);
+    if (currentSearchQuery) {
+        url.searchParams.set('search', currentSearchQuery);
+    } else {
+        url.searchParams.delete('search');
+    }
     
     fetch(url, {
         headers: {
@@ -281,6 +215,21 @@ function loadTasks(page = 1, pageSize = 10) {
     });
 }
 
+/**
+ * Truncates text to a specified number of words
+ * @param {string} text The text to truncate
+ * @param {number} limit The word limit
+ * @returns {string} Truncated text with ellipsis if applicable
+ */
+function truncateWords(text, limit) {
+    if (!text) return '';
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    if (words.length > limit) {
+        return words.slice(0, limit).join(' ') + '...';
+    }
+    return text;
+}
+
 function renderTasksTable(tasks) {
     const tbody = document.getElementById('taskTableBody');
     
@@ -310,24 +259,29 @@ function renderTasksTable(tasks) {
         const rowClass = task.is_overdue ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' : 'hover:bg-slate-50 dark:hover:bg-white/5';
         
         let assigneesHtml = '';
-        if (task.assignees && task.assignees.length > 0) {
-            task.assignees.slice(0, 2).forEach(assignee => {
-                assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">${escapeHtml(assignee)}</span>`;
+        if (task.assigned_to_details && task.assigned_to_details.length > 0) {
+            task.assigned_to_details.slice(0, 2).forEach(assignee => {
+                assigneesHtml += `
+                    <a href="/user/${assignee.id}/" class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-white/20 transition">
+                        ${escapeHtml(assignee.full_name || assignee.username)}
+                    </a>`;
             });
-            if (task.total_assignees > 2) {
-                assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+${task.total_assignees - 2}</span>`;
+            if (task.assigned_to_details.length > 2) {
+                assigneesHtml += `<span class="text-xs bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">+${task.assigned_to_details.length - 2}</span>`;
             }
         } else {
             assigneesHtml = '<span class="text-xs text-slate-400">No assignees</span>';
         }
         
         // Get permissions from Django template variables passed to JS
-        const canEdit = {{ can_change_task|lower }};
+        const canEdit = {{ can_change_task|default:"false"|lower }};
         
         html += `
             <tr class="${rowClass} transition">
                 <td class="px-5 py-3">
-                    <div class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(task.name)}</div>
+                    <div class="text-sm font-medium text-slate-800 dark:text-white" title="${escapeHtml(task.name)}">
+                        ${escapeHtml(task.name.split(/\s+/).slice(0, 20).join(' ') + (task.name.split(/\s+/).length > 20 ? '...' : ''))}
+                    </div>
                     <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: ${task.id}</div>
                 </td>
                 <td class="px-5 py-3">
@@ -351,10 +305,10 @@ function renderTasksTable(tasks) {
                     </div>
                 </td>
                 <td class="px-5 py-3">
-                    <span class="inline-flex items-center gap-1 text-xs bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] dark:text-[#34d399] px-2 py-0.5 rounded-full">
+                    <a href="/project/${task.project}/" class="inline-flex items-center gap-1 text-xs bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] dark:text-[#34d399] px-2 py-0.5 rounded-full hover:bg-[#d5e9df] dark:hover:bg-[#4a9d7e]/20 transition">
                         <i class="fa-regular fa-folder text-[9px]"></i>
                         ${escapeHtml(task.project_name)}
-                    </span>
+                    </a>
                 </td>
                 <td class="px-5 py-3">
                     <div class="flex items-center gap-2">
@@ -426,21 +380,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Client-side search functionality
+// Server-side search functionality
 const searchInput = document.getElementById('searchInput');
 if (searchInput) {
+    let debounceTimer;
     searchInput.addEventListener('keyup', function() {
-        let searchText = this.value.toLowerCase();
-        let rows = document.querySelectorAll('#taskTableBody tr');
-        
-        rows.forEach(row => {
-            let taskName = row.querySelector('td:first-child .font-medium');
-            if (taskName && taskName.textContent.toLowerCase().includes(searchText)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
+        clearTimeout(debounceTimer);
+        const searchText = this.value.trim();
+        debounceTimer = setTimeout(() => {
+            currentSearchQuery = searchText;
+            loadTasks(1, currentPageSize);
+        }, 300);
     });
 }
 </script>

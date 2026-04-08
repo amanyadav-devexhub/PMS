@@ -75,18 +75,18 @@
     <!-- Main Card -->
     <div class="bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
 
-        <!-- Card Header -->
+        <!-- Card Header (Dynamic) -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d]">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-pen-to-square text-white/80 text-sm"></i>
                 <h2 class="text-base font-semibold text-white">
-                    Edit Task: <span class="text-[#eef6f2] font-bold">{{ task.name }}</span>
+                    Edit Task: <span id="taskHeaderName" class="text-[#eef6f2] font-bold">Loading...</span>
                 </h2>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-[#eef6f2]/90">
-                <span><span class="font-bold">Project:</span> {{ task.project.name }}</span>
-                <span><span class="font-bold">Task ID:</span> {{ task.id }}</span>
-                <span><span class="font-bold">Created:</span> {{ task.created_at|date:"M d, Y" }}</span>
+                <span><span class="font-bold">Project:</span> <span id="taskHeaderProject">Loading...</span></span>
+                <span><span class="font-bold">Task ID:</span> <span id="taskHeaderId">...</span></span>
+                <span><span class="font-bold">Created:</span> <span id="taskHeaderCreated">...</span></span>
             </div>
         </div>
 
@@ -104,12 +104,8 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Task Name <span class="text-red-500">*</span>
                         </label>
-                        {{ form.name|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition" }}
-                        {% if form.name.errors %}
-                            {% for error in form.name.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                        <input type="text" name="name" id="id_name" required
+                               class="w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition">
                     </div>
 
                     <!-- Description -->
@@ -118,12 +114,7 @@
                             Description
                         </label>
                         <div id="description-editor" class="bg-white dark:bg-[#1e293b]"></div>
-                        <input type="hidden" name="description" id="id_description" value="{{ task.description }}">
-                        {% if form.description.errors %}
-                            {% for error in form.description.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                        <input type="hidden" name="description" id="id_description">
                     </div>
 
                     <!-- Project -->
@@ -131,12 +122,10 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Project <span class="text-red-500">*</span>
                         </label>
-                        {{ form.project|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition" }}
-                        {% if form.project.errors %}
-                            {% for error in form.project.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                        <select name="project" id="id_project" required
+                                class="w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition">
+                            <option value="">Loading projects...</option>
+                        </select>
                     </div>
 
                     <!-- ===== TASK OWNER (Searchable Dropdown) ===== -->
@@ -163,20 +152,7 @@
                                     </div>
                                 </div>
                                 <div id="ownerOptions" class="max-h-60 overflow-y-auto">
-                                    {% for user in form.assigned_by.field.queryset %}
-                                        <div class="dropdown-option flex items-center px-3 py-2 hover:bg-[#eef6f2] dark:hover:bg-white/5 cursor-pointer transition"
-                                             data-value="{{ user.id }}"
-                                             data-label="{{ user.get_full_name|default:user.username }}"
-                                             data-email="{{ user.email }}">
-                                            <input type="checkbox" class="owner-checkbox rounded border-gray-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e]/30 mr-3"
-                                                   value="{{ user.id }}" id="owner_{{ user.id }}"
-                                                   {% if user in task.assigned_by.all %}checked{% endif %}>
-                                            <label for="owner_{{ user.id }}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
-                                                <span class="text-gray-400 dark:text-gray-500 text-xs block">{{ user.email }}</span>
-                                            </label>
-                                        </div>
-                                    {% endfor %}
+                                    <div class="p-4 text-center text-sm text-gray-400">Loading users...</div>
                                 </div>
                                 <div class="sticky bottom-0 bg-gray-50 dark:bg-[#111827] p-2 border-t border-gray-200 dark:border-white/10 flex justify-between rounded-b-lg">
                                     <button type="button" id="ownerSelectAll" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] font-medium">Select All</button>
@@ -212,20 +188,7 @@
                                     </div>
                                 </div>
                                 <div id="assigneeOptions" class="max-h-60 overflow-y-auto">
-                                    {% for user in form.assigned_to.field.queryset %}
-                                        <div class="dropdown-option flex items-center px-3 py-2 hover:bg-[#eef6f2] dark:hover:bg-white/5 cursor-pointer transition"
-                                             data-value="{{ user.id }}"
-                                             data-label="{{ user.get_full_name|default:user.username }}"
-                                             data-email="{{ user.email }}">
-                                            <input type="checkbox" class="assignee-checkbox rounded border-gray-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e]/30 mr-3"
-                                                   value="{{ user.id }}" id="assignee_{{ user.id }}"
-                                                   {% if user in task.assigned_to.all %}checked{% endif %}>
-                                            <label for="assignee_{{ user.id }}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
-                                                <span class="text-gray-400 dark:text-gray-500 text-xs block">{{ user.email }}</span>
-                                            </label>
-                                        </div>
-                                    {% endfor %}
+                                    <div class="p-4 text-center text-sm text-gray-400">Loading users...</div>
                                 </div>
                                 <div class="sticky bottom-0 bg-gray-50 dark:bg-[#111827] p-2 border-t border-gray-200 dark:border-white/10 flex justify-between rounded-b-lg">
                                     <button type="button" id="assigneeSelectAll" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] font-medium">Select All</button>
@@ -247,12 +210,12 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Status <span class="text-red-500">*</span>
                         </label>
-                        {{ form.status|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition" }}
-                        {% if form.status.errors %}
-                            {% for error in form.status.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                        <select name="status" id="id_status" required
+                                class="w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition">
+                            <option value="PENDING">Pending</option>
+                            <option value="ONGOING">Ongoing</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
                     </div>
 
                     <!-- Start and End Date -->
@@ -261,9 +224,7 @@
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Start Date <span class="text-red-500">*</span>
                             </label>
-                            <input type="date" name="start_date" id="start_date" 
-                                   value="{{ task.start_date|date:'Y-m-d' }}"
-                                   min="{% now 'Y-m-d' %}"
+                            <input type="date" name="start_date" id="start_date" required
                                    class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                         </div>
 
@@ -271,9 +232,7 @@
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 End Date <span class="text-red-500">*</span>
                             </label>
-                            <input type="date" name="end_date" id="end_date" 
-                                   value="{{ task.end_date|date:'Y-m-d' }}"
-                                   min="{% now 'Y-m-d' %}"
+                            <input type="date" name="end_date" id="end_date" required
                                    class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                         </div>
                     </div>
@@ -283,13 +242,8 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Deadline <span class="text-gray-400 dark:text-gray-500 text-xs">(with time)</span>
                         </label>
-                        <input type="datetime-local" name="deadline" 
-                               value="{{ task.deadline|date:'Y-m-d\\TH:i' }}"
-                               min="{% now 'Y-m-d' %}"
+                        <input type="datetime-local" name="deadline" id="id_deadline"
                                class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
-                        {% if form.deadline.help_text %}
-                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ form.deadline.help_text }}</p>
-                        {% endif %}
                     </div>
 
                     <!-- Estimated Time -->
@@ -300,24 +254,17 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <input type="number" name="estimated_hours" id="estimated_hours" min="0" max="24" step="1"
-                                    value="{% if task.estimated_time %}{{ task.estimated_time|floatformat:0 }}{% else %}1{% endif %}"
                                     class="w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition"
                                     placeholder="Hours">
                             </div>
                             <div>
                                 <input type="number" name="estimated_minutes" id="estimated_minutes" min="0" max="59" step="1"
-                                    value="{% if task.estimated_time %}{{ task.estimated_time|floatformat:0 }}{% else %}0{% endif %}"
                                     class="w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition"
                                     placeholder="Minutes">
                             </div>
                         </div>
-                        <input type="hidden" name="estimated_time" id="estimated_time" value="{{ task.estimated_time|default:3600 }}">
+                        <input type="hidden" name="estimated_time" id="estimated_time">
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">Enter hours and minutes (e.g., 2 hours 30 minutes)</p>
-                        {% if form.estimated_time.errors %}
-                            {% for error in form.estimated_time.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
                     </div>
 
                     <!-- ===== OBSERVERS (Searchable Dropdown) ===== -->
@@ -344,20 +291,7 @@
                                     </div>
                                 </div>
                                 <div id="observerOptions" class="max-h-60 overflow-y-auto">
-                                    {% for user in form.observers.field.queryset %}
-                                        <div class="dropdown-option flex items-center px-3 py-2 hover:bg-[#eef6f2] dark:hover:bg-white/5 cursor-pointer transition"
-                                             data-value="{{ user.id }}"
-                                             data-label="{{ user.get_full_name|default:user.username }}"
-                                             data-email="{{ user.email }}">
-                                            <input type="checkbox" class="observer-checkbox rounded border-gray-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e]/30 mr-3"
-                                                   value="{{ user.id }}" id="observer_{{ user.id }}"
-                                                   {% if user in task.observers.all %}checked{% endif %}>
-                                            <label for="observer_{{ user.id }}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
-                                                <span class="text-gray-400 dark:text-gray-500 text-xs block">{{ user.email }}</span>
-                                            </label>
-                                        </div>
-                                    {% endfor %}
+                                    <div class="p-4 text-center text-sm text-gray-400">Loading users...</div>
                                 </div>
                                 <div class="sticky bottom-0 bg-gray-50 dark:bg-[#111827] p-2 border-t border-gray-200 dark:border-white/10 flex justify-between rounded-b-lg">
                                     <button type="button" id="observerSelectAll" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] font-medium">Select All</button>
@@ -383,7 +317,7 @@
                         <i class="fa-solid fa-check text-xs"></i>
                         Update Task
                     </button>
-                    <a href="{% url 'view_project_detail' task.project.id %}"
+                    <a id="cancelEditBtn" href="#"
                        class="bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 px-6 py-2.5 rounded-lg text-sm font-medium transition">
                         Cancel
                     </a>
@@ -393,23 +327,20 @@
         </div>
     </div>
 
-    <!-- Task Info Card -->
-    <div class="mt-6 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/30 p-4">
+    <!-- Task Info Card (Dynamic) -->
+    <div id="taskInfoCard" class="hidden mt-6 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/30 p-4">
         <div class="flex items-start gap-3">
             <div class="bg-orange-100 dark:bg-orange-900/30 p-2 rounded-full">
                 <i class="fa-solid fa-circle-info text-[#4a9d7e] text-sm"></i>
             </div>
             <div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    <span class="font-medium">Created:</span> {{ task.created_at|date:"M d, Y H:i" }}
+                    <span class="font-medium">Created:</span> <span id="infoCreated">...</span>
                 </p>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     <span class="font-medium">Current Status:</span>
-                    <span class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs
-                        {% if task.status == 'PENDING' %}bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400
-                        {% elif task.status == 'ONGOING' %}bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400
-                        {% else %}bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400{% endif %}">
-                        {{ task.get_status_display }}
+                    <span id="infoStatusBadge" class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs">
+                        ...
                     </span>
                 </p>
             </div>
@@ -581,6 +512,17 @@
             });
         }
         
+        // Listen for external updates (e.g., after API load)
+        window.addEventListener('taskDataLoaded', () => {
+            selectedValues.clear();
+            document.querySelectorAll(`.${checkboxClass}`).forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedValues.add(checkbox.value);
+                }
+            });
+            updateDisplay();
+        });
+
         attachCheckboxListeners();
         initializeSelectedValues();
     }
@@ -733,104 +675,289 @@ if (initialDescription) {
     quill.root.innerHTML = initialDescription;
 }
 
-const form = document.getElementById('editTaskForm');
+    const taskId = window.location.pathname.split('/')[2];
+    let usersList = [];
+    let projectsList = [];
 
-if (form) {
-    form.addEventListener('submit', function (e) {
+    async function fetchTaskData() {
+        showLoading(true);
+        try {
+            // Fetch Users and Projects first (parallel)
+            const [usersResponse, projectsResponse] = await Promise.all([
+                authFetch('/api/users/'),
+                authFetch('/api/projects/')
+            ]);
+            
+            const usersRes = await usersResponse.json();
+            const projectsRes = await projectsResponse.json();
 
-        const startDate = document.getElementById('start_date');
-        const endDate = document.getElementById('end_date');
-        const deadlineInput = document.querySelector('[name="deadline"]');
+            usersList = usersRes.results || usersRes;
+            projectsList = projectsRes.results || projectsRes;
 
-        let isValid = true;
+            // Populate static dropdowns first
+            populateProjectDropdown();
+            populateSearchableDropdownChoices();
 
-        // Clear previous styles
-        document.querySelectorAll('.border-red-500, .bg-red-50, .dark\\:bg-red-900\\/20').forEach(el => {
-            el.classList.remove('border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
+            // Fetch the task itself
+            const taskResponse = await authFetch(`/api/tasks/${taskId}/`);
+            if (!taskResponse.ok) {
+                if (taskResponse.status === 404) throw new Error('Task not found.');
+                if (taskResponse.status === 403) throw new Error('Access denied to this task.');
+                throw new Error(`Failed to load task. Status: ${taskResponse.status}`);
+            }
+            const task = await taskResponse.json();
+            
+            populateForm(task);
+            showLoading(false);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            alert(`Error: ${error.message || 'Failed to load task data. Please try again.'}`);
+            showLoading(false);
+        }
+    }
+
+    function populateProjectDropdown() {
+        const projectSelect = document.getElementById('id_project');
+        if (!projectSelect) return;
+        projectSelect.innerHTML = '<option value="">Select a project...</option>';
+        projectsList.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            projectSelect.appendChild(opt);
+        });
+    }
+
+    function populateSearchableDropdownChoices() {
+        const dropdownConfigs = [
+            { id: 'ownerOptions', checkbox: 'owner-checkbox' },
+            { id: 'assigneeOptions', checkbox: 'assignee-checkbox' },
+            { id: 'observerOptions', checkbox: 'observer-checkbox' }
+        ];
+
+        dropdownConfigs.forEach(config => {
+            const container = document.getElementById(config.id);
+            if (!container) return;
+            container.innerHTML = '';
+            
+            usersList.forEach(user => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-option flex items-center px-3 py-2 hover:bg-[#eef6f2] dark:hover:bg-white/5 cursor-pointer transition';
+                div.setAttribute('data-value', user.id);
+                div.setAttribute('data-label', user.full_name || user.username);
+                div.setAttribute('data-email', user.email);
+                div.innerHTML = `
+                    <input type="checkbox" class="${config.checkbox} rounded border-gray-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e]/30 mr-3"
+                           value="${user.id}" id="${config.id}_${user.id}">
+                    <label for="${config.id}_${user.id}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <span class="font-medium">${escapeHtml(user.full_name || user.username)}</span>
+                        <span class="text-gray-400 dark:text-gray-500 text-xs block">${escapeHtml(user.email)}</span>
+                    </label>
+                `;
+                div.addEventListener('click', function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = div.querySelector('input');
+                        cb.checked = !cb.checked;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                });
+                container.appendChild(div);
+            });
         });
 
-        // Start > End
-        if (startDate.value && endDate.value && startDate.value > endDate.value) {
-            startDate.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
-            endDate.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
-            alert('End date must be after start date');
-            isValid = false;
+        // Re-initialize searchable dropdown logic
+        initDropdowns();
+    }
+
+    function populateForm(task) {
+        document.getElementById('taskHeaderName').textContent = task.name;
+        document.getElementById('taskHeaderProject').textContent = task.project_name;
+        document.getElementById('taskHeaderId').textContent = task.id;
+        document.getElementById('taskHeaderCreated').textContent = new Date(task.created_at).toLocaleDateString();
+        
+        document.getElementById('id_name').value = task.name;
+        document.getElementById('id_project').value = task.project;
+        document.getElementById('id_status').value = task.status;
+        document.getElementById('start_date').value = task.start_date;
+        document.getElementById('end_date').value = task.end_date;
+        
+        if (task.deadline) {
+            document.getElementById('id_deadline').value = task.deadline.slice(0, 16);
         }
 
-        // Deadline validation
-        if (deadlineInput && deadlineInput.value) {
-            const deadlineDate = deadlineInput.value.split('T')[0];
-
-            if (startDate.value && deadlineDate < startDate.value) {
-                deadlineInput.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
-                alert('Deadline cannot be before start date');
-                isValid = false;
-            }
-
-            if (endDate.value && deadlineDate > endDate.value) {
-                deadlineInput.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/20');
-                alert('Deadline cannot be after end date');
-                isValid = false;
-            }
+        // Description/Quill
+        document.getElementById('id_description').value = task.description;
+        if (quill) {
+            quill.root.innerHTML = task.description || '';
         }
 
-        if (!isValid) {
+        // Estimated Time
+        const totalSecs = task.estimated_time || 3600;
+        document.getElementById('estimated_hours').value = Math.floor(totalSecs / 3600);
+        document.getElementById('estimated_minutes').value = Math.floor((totalSecs % 3600) / 60);
+        document.getElementById('estimated_time').value = totalSecs;
+
+        // Relationships (Checkboxes) - Added safety checks
+        if (task.assigned_by && Array.isArray(task.assigned_by)) {
+            task.assigned_by.forEach(id => {
+                const cb = document.querySelector(`.owner-checkbox[value="${id}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+        if (task.assigned_to && Array.isArray(task.assigned_to)) {
+            task.assigned_to.forEach(id => {
+                const cb = document.querySelector(`.assignee-checkbox[value="${id}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+        if (task.observers && Array.isArray(task.observers)) {
+            task.observers.forEach(id => {
+                const cb = document.querySelector(`.observer-checkbox[value="${id}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+
+        // Trigger display updates
+        window.dispatchEvent(new Event('taskDataLoaded'));
+
+        // Info Card
+        if (document.getElementById('infoCreated')) {
+            document.getElementById('infoCreated').textContent = task.created_at ? new Date(task.created_at).toLocaleString() : 'N/A';
+        }
+        const badge = document.getElementById('infoStatusBadge');
+        if (badge) {
+            badge.textContent = task.status_display || task.status;
+            badge.className = 'inline-block ml-1 px-2 py-0.5 rounded-full text-xs ' + getStatusBadgeClass(task.status);
+        }
+        if (document.getElementById('taskInfoCard')) {
+            document.getElementById('taskInfoCard').classList.remove('hidden');
+        }
+
+        // Cancel Button Link
+        if (document.getElementById('cancelEditBtn')) {
+            document.getElementById('cancelEditBtn').href = `/project/${task.project}/`;
+        }
+    }
+
+    function getStatusBadgeClass(status) {
+        switch (status) {
+            case 'PENDING': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+            case 'ONGOING': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function showLoading(show) {
+        const btn = document.querySelector('button[type="submit"]');
+        if (show) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Loading...';
+            btn.disabled = true;
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-check text-xs"></i> Update Task';
+            btn.disabled = false;
+        }
+    }
+
+    function initDropdowns() {
+        createSearchableDropdown({
+            name: 'assigned_by',
+            selectedDisplayId: 'ownerSelectedDisplay',
+            dropdownId: 'ownerDropdown',
+            searchInputId: 'ownerSearchInput',
+            checkboxClass: 'owner-checkbox',
+            hiddenContainerId: 'ownerHiddenContainer',
+            selectAllId: 'ownerSelectAll',
+            clearAllId: 'ownerClearAll'
+        });
+        
+        createSearchableDropdown({
+            name: 'assigned_to',
+            selectedDisplayId: 'assigneeSelectedDisplay',
+            dropdownId: 'assigneeDropdown',
+            searchInputId: 'assigneeSearchInput',
+            checkboxClass: 'assignee-checkbox',
+            hiddenContainerId: 'assigneeHiddenContainer',
+            selectAllId: 'assigneeSelectAll',
+            clearAllId: 'assigneeClearAll'
+        });
+        
+        createSearchableDropdown({
+            name: 'observers',
+            selectedDisplayId: 'observerSelectedDisplay',
+            dropdownId: 'observerDropdown',
+            searchInputId: 'observerSearchInput',
+            checkboxClass: 'observer-checkbox',
+            hiddenContainerId: 'observerHiddenContainer',
+            selectAllId: 'observerSelectAll',
+            clearAllId: 'observerClearAll'
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchTaskData);
+
+    const form = document.getElementById('editTaskForm');
+    if (form) {
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
-            return;
-        }
 
-        e.preventDefault();
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
 
-        // Sync Quill content
-        document.getElementById('id_description').value = quill.root.innerHTML;
+            // Sync Quill content
+            document.getElementById('id_description').value = quill.root.innerHTML;
 
-        const formData = new FormData(this);
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
+            const formData = new FormData(this);
+            const data = {};
+            
+            // Convert FormData to JSON, handling multi-selects
+            formData.forEach((value, key) => {
+                if (['assigned_to', 'assigned_by', 'observers'].includes(key)) {
+                    if (!data[key]) data[key] = [];
+                    data[key].push(parseInt(value));
+                } else {
+                    data[key] = value;
+                }
+            });
 
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Updating...';
-        submitBtn.disabled = true;
-        submitBtn.classList.add('opacity-50');
+            // Handle Estimated Time explicitly
+            data['estimated_time'] = parseInt(document.getElementById('estimated_time').value);
 
-        document.querySelectorAll('.field-error').forEach(el => el.remove());
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Updating...';
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50');
 
-        fetch(window.location.href, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('✅ ' + data.message);
-                window.location.href = "{% url 'view_project_detail' task.project.id %}";
-            } else {
+            try {
+                const response = await authFetch(`/api/tasks/${taskId}/`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data)
+                });
+
+                const resData = await response.json();
+
+                if (response.ok) {
+                    alert('Task updated successfully!');
+                    window.location.href = `/project/${resData.task.project}/`;
+                } else {
+                    console.error('Update failed:', resData.errors || resData.error);
+                    alert(`Failed to update task: ${resData.error || 'Please check the form.'}`);
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50');
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                alert('An error occurred. Please try again.');
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-50');
-                if (data.errors) {
-                    let errorMsg = 'Please fix the following errors:\n';
-                    for (const [field, errors] of Object.entries(data.errors)) {
-                        errorMsg += `\n- ${field}: ${errors.join(', ')}`;
-                    }
-                    alert(errorMsg);
-                } else {
-                    alert('❌ Failed to update task. Please check the form.');
-                }
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Network error. Please try again.');
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('opacity-50');
         });
-    });
-}
+    }
+
+    function goBack() {
+        window.history.back();
+    }
 </script>
 
 <style>

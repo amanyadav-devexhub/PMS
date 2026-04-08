@@ -4,7 +4,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from .models import Notification
-
+# notifications/consumers.py
+from django.utils import timezone
 User = get_user_model()
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -69,7 +70,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                 'id': event['notification_id'],
                 'message': event['message'],
                 'created_at': event['created_at'],
-                'is_read': False
+                'is_read': False,
+                'target_url': event.get('target_url')
             },
             'unread_count': event['unread_count']
         }))
@@ -150,11 +152,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         
         notifications_data = []
         for notif in page_obj:
+            local_time = timezone.localtime(notif.created_at)
             notifications_data.append({
                 'id': notif.id,
                 'message': notif.message,
-                'created_at': notif.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'is_read': notif.is_read
+                'created_at': local_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_read': notif.is_read,
+                'target_url': notif.target_url
             })
         
         return {

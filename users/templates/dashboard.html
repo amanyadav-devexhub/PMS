@@ -141,7 +141,7 @@
                         <tbody class="divide-y divide-slate-100 dark:divide-white/5">
                             ${data.users.map(user => `
                                 <tr>
-                                    <td class="py-4 whitespace-nowrap">
+                                    <td class="py-4 px-5  whitespace-nowrap">
                                         <div class="w-8 h-8 rounded-full overflow-hidden mr-3">
                                             ${user.profile_image
                     ? `<img src="${user.profile_image}" class="w-full h-full object-cover" />`
@@ -231,7 +231,7 @@
                                     <i class="fa-solid fa-tasks text-purple-500 text-xs"></i>
                                 </div>
                                 <div>
-                                    <h4 class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(t.name)}</h4>
+                                    <h4 class="text-sm font-medium text-slate-800 dark:text-white" title="${escapeHtml(t.name)}">${escapeHtml(truncateWords(t.name, 20))}</h4>
                                     <p class="text-[10px] text-slate-400">${escapeHtml(t.project_name)} • Due: ${t.end_date}</p>
                                 </div>
                             </div>
@@ -386,6 +386,15 @@ window.addEventListener('sidebarUpdate', (e) => {
             case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
             default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
         }
+    }
+
+    function truncateWords(text, limit) {
+        if (!text) return '';
+        const words = text.split(/\s+/).filter(w => w.length > 0);
+        if (words.length > limit) {
+            return words.slice(0, limit).join(' ') + '...';
+        }
+        return text;
     }
 
     function escapeHtml(text) {

@@ -46,16 +46,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.broadcast_online_status(True)
 
     async def disconnect(self, close_code):
-        # Update online status in Redis
-        await self.update_online_status_redis(False)
-        
-        # Broadcast online status
-        await self.broadcast_online_status(False)
-        
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        if hasattr(self, 'user'):
+            # Update online status in Redis
+            await self.update_online_status_redis(False)
+            
+            # Broadcast online status
+            await self.broadcast_online_status(False)
+            
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
 
     async def update_online_status_redis(self, is_online):
         """Update online status in Redis set"""
@@ -526,7 +528,8 @@ class ChatListConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
+        if hasattr(self, 'user_group_name'):
+            await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
 
     async def sidebar_update(self, event):
         """Receive sidebar update from channel layer and send to browser"""

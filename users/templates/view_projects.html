@@ -70,64 +70,13 @@
                 </thead>
 
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="projects-table-body">
-                    {% for project in projects %}
-                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition" id="project-row-{{ project.id }}">
-                        <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">
-                            {{ forloop.counter }}
-                        </td>
-                        <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-white">
-                            {{ project.name }}
-                        </td>
-                        <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">
-                            {% if project.assigned_to.all %}
-                                {% for user in project.assigned_to.all %}
-                                    {{ user.get_full_name|default:user.username }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-slate-400">Not assigned</span>
-                            {% endif %}
-                        </td>
-                        <td class="px-5 py-3">
-                            {% if project.status == "PENDING" %}
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                    {{ project.get_status_display }}
-                                </span>
-                            {% elif project.status == "ONGOING" %}
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                    {{ project.get_status_display }}
-                                </span>
-                            {% elif project.status == "COMPLETED" %}
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                    {{ project.get_status_display }}
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-5 py-3 text-center">
-                            <div class="flex items-center justify-center gap-1.5">
-                                <a href="{% url 'view_project_detail' project.id %}"
-                                   class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition">
-                                    <i class="fa-regular fa-eye text-[10px]"></i>
-                                    View
-                                </a>
-                                <button type="button" 
-                                        onclick="deleteProject({{ project.id }}, '{{ project.name|escapejs }}')"
-                                        class="delete-project-btn inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition"
-                                        style="display: none;"
-                                        id="delete-project-{{ project.id }}">
-                                    <i class="fa-solid fa-trash text-[10px]"></i>
-                                    Delete
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
+                    <!-- Data will be loaded via AJAX/jQuery -->
                     <tr>
-                        <td colspan="5" class="text-center py-12 text-slate-500 dark:text-slate-400">
-                            <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
-                            No projects found.
+                        <td colspan="5" class="py-20 text-center">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-[#4a9d7e]"></div>
+                            <p class="mt-4 text-sm text-slate-500 dark:text-slate-400 font-medium">Loading projects...</p>
                         </td>
                     </tr>
-                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -198,31 +147,6 @@
         });
     }
     
-    // Authenticated fetch wrapper
-    function authFetch(url, options = {}) {
-        const token = getAccessToken();
-        
-        if (!token) {
-            window.location.href = "{% url 'login_page' %}";
-            return Promise.reject('No token');
-        }
-        
-        options.headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`,
-            'X-Requested-With': 'XMLHttpRequest'
-        };
-        
-        return fetch(url, options).then(response => {
-            if (response.status === 401) {
-                localStorage.clear();
-                window.location.href = "{% url 'login_page' %}";
-                throw new Error('Unauthorized');
-            }
-            return response;
-        });
-    }
-    
     // Pagination variables
     let currentPage = 1;
     let currentPageSize = 10;
@@ -258,54 +182,60 @@
         return div.innerHTML;
     }
     
-    async function loadProjects(search = '', page = 1, pageSize = 10) {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    function loadProjects(search = '', page = 1, pageSize = 10) {
+        currentSearchQuery = search;
+        currentPage = page;
+        currentPageSize = pageSize;
+
+        const url = new URL('/api/projects/', window.location.origin);
+        url.searchParams.append('page', page);
+        url.searchParams.append('page_size', pageSize);
+        if (search) url.searchParams.append('search', search);
+
+        const tableBody = document.getElementById('projects-table-body');
         
-        try {
-            const url = new URL(window.location.href);
-            if (search) {
-                url.searchParams.set('search', search);
-            } else {
-                url.searchParams.delete('search');
-            }
-            url.searchParams.set('page', page);
-            url.searchParams.set('page_size', pageSize);
-            
-            const response = await authFetch(url, { method: 'GET' });
-            const data = await response.json();
-            
-            if (data.success) {
-                currentSearchQuery = data.search_query;
-                currentPage = data.current_page;
-                currentPageSize = data.page_size;
+        authFetch(url.toString())
+            .then(response => response.json())
+            .then(data => {
+                // DRF returns 'results' for paginated data
+                const projects = data.results || data.projects || [];
+                const total = data.count || data.total || 0;
                 
-                renderProjectsTable(data.projects);
-                updatePaginationUI(data);
+                renderProjectsTable(projects);
+                
+                // Update pagination info
+                const totalPages = Math.ceil(total / pageSize);
+                updatePaginationUI({
+                    has_previous: !!data.previous,
+                    has_next: !!data.next,
+                    current_page: page,
+                    total_pages: totalPages,
+                    previous_page_number: page - 1,
+                    next_page_number: page + 1
+                });
+                
                 updateButtonVisibility();
                 
-                const startIndex = (data.current_page - 1) * data.page_size + 1;
-                const endIndex = Math.min(data.current_page * data.page_size, data.total);
+                const startIndex = (page - 1) * pageSize + 1;
+                const endIndex = Math.min(page * pageSize, total);
                 const showingInfo = document.getElementById('showingInfo');
                 if (showingInfo) {
-                    showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total} projects`;
+                    showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${total} projects`;
                 }
                 
                 const clearBtn = document.getElementById('clearSearchBtn');
-                if (clearBtn) {
-                    if (data.search_query) {
-                        clearBtn.classList.remove('hidden');
-                    } else {
-                        clearBtn.classList.add('hidden');
-                    }
+                if (search) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
                 }
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showNotification('Error loading projects. Please try again.', 'error');
-        } finally {
-            if (loadingOverlay) loadingOverlay.classList.add('hidden');
-        }
+            })
+            .catch(error => {
+                console.error('Error loading projects:', error);
+                if (error !== 'No token' && error.message !== 'Unauthorized') {
+                    showNotification('Error loading projects. Please try again.', 'error');
+                }
+            });
     }
     
     function renderProjectsTable(projects) {
@@ -331,11 +261,13 @@
             html += `
                 <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition" id="project-row-${project.id}">
                     <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">${counter}</td>
-                    <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(project.name)}</td>
-                    <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">${escapeHtml(project.assigned_to_display)}</td>
+                    <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-white"><span class="block max-w-[200px] truncate" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span></td>
+                    <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">
+                        ${project.assigned_to_details ? project.assigned_to_details.map(u => escapeHtml(u.full_name)).join(', ') : 'Not assigned'}
+                    </td>
                     <td class="px-5 py-3">
-                        <span class="${project.status_class} inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                            ${escapeHtml(project.status_display)}
+                        <span class="${project.status_class || getStatusClass(project.status)} inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                            ${escapeHtml(project.status_display || project.status)}
                         </span>
                     </td>
                     <td class="px-5 py-3 text-center">
@@ -399,24 +331,38 @@
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Deleting...';
         btn.disabled = true;
         
-        authFetch(`/project/${projectId}/delete/`, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message, 'success');
-                    loadProjects(currentSearchQuery, currentPage, currentPageSize);
-                } else {
-                    showNotification(data.error || 'Something went wrong', 'error');
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }
-            })
-            .catch(error => {
-                showNotification('Network error. Please try again.', 'error');
-                console.error('Error:', error);
+        authFetch(`/api/projects/${projectId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                loadProjects(currentSearchQuery, currentPage, currentPageSize);
+            } else {
+                showNotification(data.error || 'Something went wrong', 'error');
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-            });
+            }
+        })
+        .catch(error => {
+            showNotification('Network error. Please try again.', 'error');
+            console.error('Error:', error);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    function getStatusClass(status) {
+        switch (status) {
+            case 'PENDING': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+            case 'ONGOING': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+            default: return 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300';
+        }
     }
     
     // Event Listeners
@@ -450,10 +396,18 @@
         }
         
         if (searchInput) {
-            searchInput.addEventListener('keypress', function(e) {
+            let debounceTimer;
+            searchInput.addEventListener('keyup', function(e) {
+                clearTimeout(debounceTimer);
+                const searchText = this.value.trim();
+                // Optionally keep the enter key for instant trigger
                 if (e.key === 'Enter') {
-                    loadProjects(this.value.trim(), 1, currentPageSize);
+                    loadProjects(searchText, 1, currentPageSize);
+                    return;
                 }
+                debounceTimer = setTimeout(() => {
+                    loadProjects(searchText, 1, currentPageSize);
+                }, 300);
             });
         }
         

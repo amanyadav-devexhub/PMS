@@ -109,7 +109,7 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Project Name <span class="text-red-500">*</span>
                         </label>
-                        {{ form.name|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition" }}
+                        {{ form.name|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition"|attr:"value:" }}
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
 
@@ -119,7 +119,7 @@
                             Description <span class="text-red-500">*</span>
                         </label>
                         <div id="description-editor" class="bg-white dark:bg-[#1e293b]"></div>
-                        <input type="hidden" name="description" id="id_description" value="{{ project.description }}">
+                        <input type="hidden" name="description" id="id_description" value="">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
 
@@ -158,29 +158,12 @@
                                 </div>
                                 
                                 <!-- Options List -->
-                                <div id="dropdownOptions" class="max-h-60 overflow-y-auto">
-                                    {% for user in form.assigned_to.field.queryset %}
-                                        <div class="dropdown-option flex items-center px-3 py-2 hover:bg-[#eef6f2] dark:hover:bg-white/5 cursor-pointer transition"
-                                             data-value="{{ user.id }}"
-                                             data-label="{{ user.get_full_name|default:user.username }}"
-                                             data-email="{{ user.email }}">
-                                            <input type="checkbox" 
-                                                   class="option-checkbox rounded border-gray-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e]/30 mr-3"
-                                                   value="{{ user.id }}"
-                                                   id="option_{{ user.id }}"
-                                                   {% if user in project.assigned_to.all %}checked{% endif %}>
-                                            <label for="option_{{ user.id }}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                                <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
-                                                <span class="text-gray-400 dark:text-gray-500 text-xs block">{{ user.email }}</span>
-                                            </label>
-                                        </div>
-                                    {% empty %}
-                                        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
-                                            <i class="fa-regular fa-user text-sm mb-1"></i>
-                                            <p class="text-xs">No employees available.</p>
-                                        </div>
-                                    {% endfor %}
-                                </div>
+                                 <div id="dropdownOptions" class="max-h-60 overflow-y-auto">
+                                     <!-- Options will be loaded dynamically via API -->
+                                     <div class="p-4 text-center text-gray-500">
+                                         <i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading employees...
+                                     </div>
+                                 </div>
                                 
                                 <!-- Dropdown Footer -->
                                 <div class="sticky bottom-0 bg-gray-50 dark:bg-[#111827] p-2 border-t border-gray-200 dark:border-white/10 flex justify-between rounded-b-lg">
@@ -205,7 +188,7 @@
                                 Start date <span class="text-red-500">*</span>
                             </label>
                             <input type="date" name="start_date" id="start_date" 
-                                   value="{{ project.start_date|date:'Y-m-d' }}"
+                                   value=""
                                    class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                             <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                         </div>
@@ -216,7 +199,7 @@
                                 End date <span class="text-red-500">*</span>
                             </label>
                             <input type="date" name="end_date" id="end_date" 
-                                   value="{{ project.end_date|date:'Y-m-d' }}"
+                                   value=""
                                    class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                             <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                         </div>
@@ -265,11 +248,8 @@
         }
     });
 
-    // Load existing content
-    const initialDescription = document.getElementById('id_description').value;
-    if (initialDescription) {
-        quill.root.innerHTML = initialDescription;
-    }
+    // Initial values will be loaded via API
+    let initialDescription = '';
 
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('editProjectForm');
@@ -572,21 +552,24 @@
                 return;
             }
             
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            
             if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Updating...';
             
             // Sync Quill content
             document.getElementById('id_description').value = quill.root.innerHTML;
 
             // Get form data
             const formData = new FormData(form);
-            const redirectUrl = form.dataset.redirectUrl;
-            formData.append('redirect_url', redirectUrl);
+            const projectId = "{{ project.id }}";
             
             try {
-                const response = await fetch(window.location.href, {
-                    method: 'POST',
+                const response = await authFetch(`/api/projects/${projectId}/`, {
+                    method: 'PATCH',
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRFToken': getCSRFToken()
                     },
                     body: formData
@@ -599,23 +582,126 @@
                     
                     // Redirect after success
                     setTimeout(() => {
-                        window.location.href = data.redirect_url;
+                        window.location.href = form.dataset.redirectUrl || "{% url 'view_projects' %}";
                     }, 1500);
                 } else {
                     // Error handling
                     if (data.errors) {
                         displayErrors(data.errors);
+                    } else if (data.error) {
+                        showNotification(data.error, 'error');
+                    } else {
+                        showNotification('Error updating project. Please check the form for errors.', 'error');
                     }
-                    showNotification(data.message || 'Error updating project. Please check the form for errors.', 'error');
                 }
             } catch (error) {
-                showNotification('An unexpected error occurred.', 'error');
+                if (error !== 'No token' && error.message !== 'Unauthorized') {
+                    showNotification('An unexpected error occurred: ' + error.message, 'error');
+                }
+                console.error('Submission error:', error);
             } finally {
                 // Hide loading overlay
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
             }
         });
         
+        // ==================== INITIAL DATA LOADING ====================
+        async function fetchInitialData() {
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            const projectId = "{{ project.id }}";
+            
+            try {
+                // Fetch project details and user list in parallel
+                const [projectRes, usersRes] = await Promise.all([
+                    authFetch(`/api/projects/${projectId}/`),
+                    authFetch(`/api/users/`)
+                ]);
+                
+                if (!projectRes.ok || !usersRes.ok) {
+                    throw new Error('Failed to load initial data');
+                }
+                
+                const projectData = await projectRes.json();
+                const usersData = await usersRes.json();
+                
+                populateForm(projectData, usersData);
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showNotification('Failed to load project data. Please refresh the page.', 'error');
+            } finally {
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            }
+        }
+        
+        function populateForm(project, users) {
+            // Populate Basic Fields
+            form.querySelector('[name="name"]').value = project.name;
+            form.querySelector('[name="start_date"]').value = project.start_date;
+            form.querySelector('[name="end_date"]').value = project.end_date;
+            form.querySelector('[name="status"]').value = project.status;
+            
+            // Populate Quill
+            if (project.description) {
+                quill.root.innerHTML = project.description;
+                document.getElementById('id_description').value = project.description;
+            }
+            
+            // Render User Options
+            renderUserOptions(users, project.assigned_to_details || []);
+            
+            // Freezing logic (prevent past dates)
+            preventPastDates();
+        }
+        
+        function renderUserOptions(users, assignedUsers) {
+            const dropdownOptions = document.getElementById('dropdownOptions');
+            const assignedIds = new Set(assignedUsers.map(u => u.id));
+            
+            if (!users || users.length === 0) {
+                dropdownOptions.innerHTML = `
+                    <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                        <i class="fa-regular fa-user text-sm mb-1"></i>
+                        <p class="text-xs">No employees available.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            users.forEach(user => {
+                const isSelected = assignedIds.has(user.id);
+                if (isSelected) selectedValues.add(user.id.toString());
+                
+                html += `
+                    <div class="dropdown-option flex items-center px-3 py-2 hover:bg-[#eef6f2] dark:hover:bg-white/5 cursor-pointer transition"
+                         data-value="${user.id}"
+                         data-label="${escapeHtml(user.full_name)}"
+                         data-email="${escapeHtml(user.email)}">
+                        <input type="checkbox" 
+                               class="option-checkbox rounded border-gray-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e]/30 mr-3"
+                               value="${user.id}"
+                               id="option_${user.id}"
+                               ${isSelected ? 'checked' : ''}>
+                        <label for="option_${user.id}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                            <span class="font-medium">${escapeHtml(user.full_name)}</span>
+                            <span class="text-gray-400 dark:text-gray-500 text-xs block">${escapeHtml(user.email)}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            dropdownOptions.innerHTML = html;
+            
+            // Re-attach listeners for dynamic elements
+            attachCheckboxListeners();
+            updateDisplay();
+        }
+        
+        // Initial setup
+        fetchInitialData();
         preventPastDates();
     });
     

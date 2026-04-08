@@ -282,6 +282,15 @@
         return div.innerHTML;
     }
 
+    function truncateWords(text, limit) {
+        if (!text) return '';
+        const words = text.split(/\s+/).filter(w => w.length > 0);
+        if (words.length > limit) {
+            return words.slice(0, limit).join(' ') + '...';
+        }
+        return text;
+    }
+
     function loadDashboardData() {
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.classList.remove('hidden');
@@ -357,7 +366,7 @@
                                 tasksContainer.innerHTML += `
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                                 <div>
-                                    <h4 class="font-semibold text-gray-800">${escapeHtml(task.name)}</h4>
+                                    <h4 class="font-semibold text-gray-800" title="${escapeHtml(task.name)}">${escapeHtml(truncateWords(task.name, 20))}</h4>
                                     <p class="text-xs text-gray-500">Assigned to: ${escapeHtml(assigneesText)}</p>
                                 </div>
                                 <span class="px-2 py-1 text-xs rounded-full ${statusClass}">

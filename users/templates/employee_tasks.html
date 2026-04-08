@@ -120,7 +120,7 @@
                         </div>
                     </div>
 
-                    <!-- Time tracking -->
+                    <!-- Time tracking with Estimated Time -->
                     <div class="flex items-start">
                         <div class="w-28 flex-shrink-0">
                             <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Time tracking:</span>
@@ -136,7 +136,7 @@
                                         00:00:00
                                     {% endif %}
                                 </span> 
-                                <span class="text-slate-500 dark:text-slate-400 ml-2">/ {{ task.estimated_display }}</span>
+                                <span class="text-slate-500 dark:text-slate-400 ml-2">/ {{ task.estimated_display|default:"00:00:00" }}</span>
                             </p>
                         </div>
                     </div>

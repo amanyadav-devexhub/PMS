@@ -4,11 +4,14 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from notifications.models import Notification
 from users.decorators import jwt_or_session_required
+from django.utils import timezone
+
 
 @jwt_or_session_required
 def all_notifications(request):
     # Check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        
         # Get all notifications for the user
         notifications = request.user.notifications.all().order_by('-created_at')
         
@@ -25,11 +28,13 @@ def all_notifications(request):
         # Prepare JSON response
         notifications_data = []
         for notif in notifications_page:
+            local_time = timezone.localtime(notif.created_at)
             notifications_data.append({
                 'id': notif.id,
                 'message': notif.message,
-                'created_at': notif.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'is_read': notif.is_read
+                'created_at': local_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_read': notif.is_read,
+                'target_url': notif.target_url
             })
         
         return JsonResponse({

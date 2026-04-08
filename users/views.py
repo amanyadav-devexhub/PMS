@@ -531,13 +531,13 @@ def edit_task(request, task_id):
             if is_ajax:
                 return JsonResponse({
                     'success': True,
-                    'message': f'✅ Task "{task.name}" updated successfully!',
+                    'message': f'Task "{task.name}" updated successfully!',
                     'task_id': task.id,
                     'task_name': task.name,
                     'project_id': task.project.id
                 })
             else:
-                messages.success(request, f'✅ Task "{task.name}" updated successfully!')
+                messages.success(request, f'Task "{task.name}" updated successfully!')
                 return redirect('view_project_detail', project_id=task.project.id)
         else:
             # Form is invalid
@@ -1487,7 +1487,10 @@ def employee_projects(request):
         
         # Apply search filter
         if search_query:
-            projects = projects.filter(name__icontains=search_query)
+            projects = projects.filter(
+                models.Q(name__icontains=search_query) |
+                models.Q(description__icontains=search_query)
+            ).distinct()
         
         projects = projects.order_by('-start_date')
         
@@ -2493,7 +2496,8 @@ def assign_task(request):
                 ).exists():
                     Notification.objects.create(
                         user=employee,
-                        message=f'Task "{task.name}" has been assigned to you'
+                        message=f'Task "{task.name}" has been assigned to you',
+                        content_object=task
                     )
             
             # Step 8: Create notifications for observers
@@ -2501,7 +2505,8 @@ def assign_task(request):
             for observer in task.observers.all():
                 Notification.objects.create(
                     user=observer,
-                    message=f'Task "{task.name}" has been assigned to {assignee_names}'
+                    message=f'Task "{task.name}" has been assigned to {assignee_names}',
+                    content_object=task
                 )
 
             # Format estimated time for success message
@@ -2657,7 +2662,8 @@ def create_project(request):
                             Notification.objects.create(
                                 user=user,
                                 message=f'📁 You have been assigned to project "{project.name}" by {request.user.get_full_name() or request.user.username}.',
-                                is_read=False
+                                is_read=False,
+                                content_object=project
                             )
                 
                 # Determine redirect URL based on user role
@@ -2783,7 +2789,8 @@ def create_project(request):
                         Notification.objects.create(
                             user=user,
                             message=f'📁 You have been assigned to project "{project.name}" by {request.user.get_full_name() or request.user.username}.',
-                            is_read=False
+                            is_read=False,
+                            content_object=project
                         )
 
             messages.success(request, "✅ Project created successfully!")
@@ -2838,6 +2845,7 @@ def task_dashboard(request):
         # Get pagination parameters
         page = request.GET.get("page", 1)
         page_size = request.GET.get("page_size", 10)
+        search = request.GET.get("search", "").strip()
         
         if has_any(request.user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']):
             tasks = Task.objects.all().order_by('-created_at')
@@ -2857,6 +2865,16 @@ def task_dashboard(request):
         else:
             # Regular employee / contributor explicitly only sees tasks assigned to them
             tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+
+        if search:
+            tasks = tasks.filter(
+                models.Q(name__icontains=search) |
+                models.Q(description__icontains=search) |
+                models.Q(assigned_to__username__icontains=search) |
+                models.Q(assigned_to__first_name__icontains=search) |
+                models.Q(assigned_to__last_name__icontains=search) |
+                models.Q(project__name__icontains=search)
+            ).distinct()
         
         # Statistics (using full queryset for stats)
         total_tasks = tasks.count()
@@ -2910,10 +2928,13 @@ def task_dashboard(request):
                     is_overdue = True
                     overdue_count += 1
             
-            # Get assignees
-            assignees_list = []
-            for assignee in task.assigned_to.all()[:2]:
-                assignees_list.append(assignee.get_full_name() or assignee.username)
+            # Get assignees with details
+            assigned_to_details = []
+            for assignee in task.assigned_to.all():
+                assigned_to_details.append({
+                    'id': assignee.id,
+                    'full_name': assignee.get_full_name() or assignee.username
+                })
             
             tasks_data.append({
                 'id': task.id,
@@ -2924,8 +2945,9 @@ def task_dashboard(request):
                 'estimated_display': estimated_display,
                 'is_overdue': is_overdue,
                 'deadline': task.deadline.strftime('%b %d, %H:%M') if task.deadline else None,
+                'project': task.project.id,
                 'project_name': task.project.name[:15] if task.project.name else 'N/A',
-                'assignees': assignees_list,
+                'assigned_to_details': assigned_to_details,
                 'total_assignees': task.assigned_to.count(),
                 'view_url': f"/employee/tasks/?task_id={task.id}"
             })
@@ -3025,7 +3047,8 @@ def task_dashboard(request):
                         Notification.objects.create(
                             user=owner,
                             message=f"⚠️ Task '{task.name}' (Project: {task.project.name}) is overdue!",
-                            is_read=False
+                            is_read=False,
+                            content_object=task
                         )
                 
                 for assignee in task.assigned_to.all():
@@ -3039,7 +3062,8 @@ def task_dashboard(request):
                         Notification.objects.create(
                             user=assignee,
                             message=f"⚠️ Task '{task.name}' assigned to you is overdue!",
-                            is_read=False
+                            is_read=False,
+                            content_object=task
                         )
                 
                 for observer in task.observers.all():
@@ -3053,7 +3077,8 @@ def task_dashboard(request):
                         Notification.objects.create(
                             user=observer,
                             message=f"⚠️ Task '{task.name}' (Project: {task.project.name}) is overdue!",
-                            is_read=False
+                            is_read=False,
+                            content_object=task
                         )
                 
                 print(f"🔔 Overdue notifications sent for task: {task.name}")
@@ -3071,6 +3096,7 @@ def task_dashboard(request):
         'now': now,
         'paginator': paginator,
         'page_obj': tasks_page,
+        'can_change_task': request.user.has_perm('Tasks.change_task'),
     }
     return render(request, 'task_dashboard.html', context)
 
@@ -3251,8 +3277,11 @@ def employee_tasks(request):
     elif task_id:
         task = get_object_or_404(Task, id=task_id)
         
-        # Check permission: view_all_tasks OR assigned to task OR can_manage_all_tasks
-        if not (has_view_all_tasks(request.user) or task.assigned_to.filter(id=request.user.id).exists() or can_manage_all_tasks(request.user)):
+        # Check permission: view_all_tasks OR assigned to task OR observing task OR can_manage_all_tasks
+        if not (has_view_all_tasks(request.user) or 
+                task.assigned_to.filter(id=request.user.id).exists() or 
+                task.observers.filter(id=request.user.id).exists() or
+                can_manage_all_tasks(request.user)):
             messages.error(request, "You don't have permission to view this task.")
             return redirect('task_dashboard')
         
@@ -3368,7 +3397,8 @@ def start_task(request, task_id):
     if task.project and task.project.created_by:
         Notification.objects.create(
             user=task.project.created_by,
-            message=f"▶️ Task '{task.name}' has been started by {request.user.get_full_name() or request.user.username}"
+            message=f"▶️ Task '{task.name}' has been started by {request.user.get_full_name() or request.user.username}",
+            content_object=task
         )
         
     return JsonResponse({
@@ -3412,7 +3442,8 @@ def pause_task(request, task_id):
     if task.project and task.project.created_by:
         Notification.objects.create(
             user=task.project.created_by,
-            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}"
+            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}",
+            content_object=task
         )
 
     return JsonResponse({
@@ -3457,7 +3488,8 @@ def resume_task(request, task_id):
     if task.project and task.project.created_by:
         Notification.objects.create(
             user=task.project.created_by,
-            message=f"⏸️ Task '{task.name}' has been paused by {request.user.get_full_name() or request.user.username}"
+            message=f"▶️ Task '{task.name}' has been resumed by {request.user.get_full_name() or request.user.username}",
+            content_object=task
         )
 
     return JsonResponse({
@@ -3550,7 +3582,7 @@ def complete_task(request, task_id):
     
     # Create notifications for all users
     for user in users_to_notify:
-        Notification.objects.create(user=user, message=message)
+        Notification.objects.create(user=user, message=message, content_object=task)
 
     # Return JSON response instead of redirect
     return JsonResponse({

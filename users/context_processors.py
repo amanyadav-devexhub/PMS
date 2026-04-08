@@ -23,16 +23,21 @@ from .permissions import (
     is_manager_like,
 )
 
+# notifications/context_processors.py
+from django.utils import timezone
+
 def notification_count(request):
-    """
-    Returns unread notifications count and recent notifications for the current user.
-    """
     if request.user.is_authenticated:
-        # Get unread count
         unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
         
-        # Get recent notifications (last 5, ordered by -created_at)
-        recent_notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:5]
+        recent_notifications = Notification.objects.filter(
+            user=request.user
+        ).order_by('-created_at')[:5]
+        
+        # Add formatted time to each notification
+        for notif in recent_notifications:
+            local_time = timezone.localtime(notif.created_at)
+            notif.formatted_time = local_time.strftime('%Y-%m-%d %H:%M:%S')
         
         return {
             'unread_notifications_count': unread_count,

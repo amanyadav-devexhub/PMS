@@ -147,9 +147,9 @@
               <option value="">Select Role</option>
               {% for role in roles %}
               <option
-                value="{{ role.id }}"
-                {% if user.role_obj_id == role.id or user.role == role.name %}selected{% endif %}
-              >
+                    value="{{ role.id }}"
+                    {% if user.role_obj_id == role.id %}selected{% endif %}
+                >
                 {{ role.name }}
               </option>
               {% endfor %}
@@ -323,21 +323,20 @@
           </div>
 
           <!-- Date of Joining -->
-          <div class="md:col-span-2">
+          <!-- Date of Joining -->
+        <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-              Date of Joining
+                Date of Joining
             </label>
             <input
-              type="date"
-              name="date_of_joining"
-              value="{{ profile.date_of_joining|date:'Y-m-d'|default:'' }}"
-              max="{% now 'Y-m-d' %}"
-              title="Date of joining cannot be in the future"
-              class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
+                type="date"
+                name="date_of_joining"
+                value="{{ profile.date_of_joining|date:'Y-m-d'|default:'' }}"
+                class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition"
             />
             <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Cannot be a future date</p>
-          </div>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Date of joining</p>
+        </div>
 
           <!-- Emergency Contact -->
           <div class="md:col-span-2">
@@ -743,15 +742,22 @@
                   });
 
                   // Select fields
-                  const selects = ['role_obj', 'is_active', 'department', 'designation'];
+                 const selects = ['role_obj', 'is_active', 'department', 'designation'];
                   selects.forEach(fieldName => {
                       const select = form.querySelector(`[name="${fieldName}"]`);
                       if (select) {
                           // Handle special cases for role and status
                           let val;
-                          if (fieldName === 'role_obj') val = data.role;
-                          else if (fieldName === 'is_active') val = String(data.is_active);
-                          else val = data[fieldName];
+                          if (fieldName === 'role_obj') {
+                              val = data.role;
+                          } 
+                          else if (fieldName === 'is_active') {
+                              // Fix: Convert boolean to "True"/"False" strings matching the select options
+                              val = data.is_active === true ? "True" : "False";
+                          } 
+                          else {
+                              val = data[fieldName];
+                          }
 
                           if (val !== undefined && val !== null) {
                               select.value = String(val);
