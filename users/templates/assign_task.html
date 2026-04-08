@@ -5,8 +5,60 @@
 {% block page_title %}Assign Task{% endblock %}
 
 {% block extra_css %}
+<!-- Quill CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <style>
-    /* Dark mode overrides for form elements */
+    /* Quill Editor Custom Styling */
+    .ql-toolbar {
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        background-color: #f8fafc;
+        border-color: #e2e8f0 !important;
+    }
+    .ql-container {
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+        border-color: #e2e8f0 !important;
+        font-family: inherit;
+    }
+    .ql-editor {
+        min-height: 150px;
+        font-size: 0.875rem;
+    }
+    #description-editor {
+        min-height: 200px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+    }
+    .dark #description-editor {
+        border-color: #334155;
+    }
+    
+    /* Dark mode Quill overrides */
+    .dark .ql-toolbar {
+        background-color: #1e293b;
+        border-color: #334155 !important;
+    }
+    .dark .ql-container {
+        background-color: #1e293b;
+        border-color: #334155 !important;
+        color: #e2e8f0;
+    }
+    .dark .ql-stroke {
+        stroke: #94a3b8 !important;
+    }
+    .dark .ql-fill {
+        fill: #94a3b8 !important;
+    }
+    .dark .ql-picker {
+        color: #94a3b8 !important;
+    }
+    .dark .ql-picker-options {
+        background-color: #1e293b !important;
+        border-color: #334155 !important;
+    }
+
+    /* Existing styles */
     .dark select,
     .dark input:not([type="checkbox"]),
     .dark textarea {
@@ -317,27 +369,46 @@
                             {% endif %}
                         </div>
                         
-                        <div class="form-group">
+                        <div class="form-group pb-2 pt-1">
                             <label class="form-label">
-                                Project <span class="required-star">*</span>
+                                Assigned Project <span class="required-star">*</span>
                             </label>
-                            {{ form.project|add_class:"form-control" }}
-                            {% if form.project.errors %}
-                                {% for error in form.project.errors %}
-                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                {% endfor %}
+                            {% if preselected_project %}
+                            <div class="flex items-center gap-3 p-3.5 bg-[#4a9d7e]/5 dark:bg-[#4a9d7e]/10 border border-[#4a9d7e]/20 dark:border-[#4a9d7e]/30 rounded-xl shadow-sm hover:shadow-md transition">
+                                <div class="bg-[#4a9d7e] p-2 rounded-lg text-white">
+                                    <i class="fa-solid fa-briefcase text-xs"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <span class="text-sm font-bold text-slate-800 dark:text-white block">{{ preselected_project.name }}</span>
+                                    <p class="text-[10px] text-slate-500 dark:text-slate-400">Created for specific project template</p>
+                                </div>
+                                <input type="hidden" name="project" value="{{ preselected_project.id }}">
+                            </div>
+                            {% else %}
+                                {{ form.project|add_class:"form-control" }}
+                                {% if form.project.errors %}
+                                    {% for error in form.project.errors %}
+                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">Select a project for this task</p>
                             {% endif %}
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        {{ form.description|add_class:"form-control"|attr:"rows:3" }}
+                    <div class="form-group pb-1">
+                        <label class="form-label">Task Description</label>
+                        <div id="description-editor" class="bg-white dark:bg-[#1e293b]"></div>
+                        <input type="hidden" name="description" id="id_description">
                         {% if form.description.errors %}
                             {% for error in form.description.errors %}
                                 <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
+                        <p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-info text-[9px]"></i>
+                            Describe the task requirements and details using rich text formatting.
+                        </p>
                     </div>
                 </div>
                 
@@ -1044,7 +1115,21 @@ function showDeadlineError(input, message) {
 </script>
 
 <!-- AJAX Form Submission -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
+// Initialize Quill Editor
+const quill = new Quill('#description-editor', {
+    theme: 'snow',
+    placeholder: 'Write task details here...',
+    modules: {
+        toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link', 'clean']
+        ]
+    }
+});
+
 function getCSRFToken() {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -1069,6 +1154,9 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
         return;
     }
     
+    // Sync Quill content to hidden input
+    document.getElementById('id_description').value = quill.root.innerHTML;
+
     const formData = new FormData(this);
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;

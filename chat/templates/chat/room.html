@@ -326,7 +326,7 @@ function connectWS() {
         switch(data.type) {
             case 'chat_message':
                 renderMessage(data, 'append');
-                if (data.sender_id !== currentUserId) markRead();
+                if (data.sender_id !== currentUserId) markRead(data.message_id);
                 break;
             case 'previous_messages':
                 data.messages.forEach(m => renderMessage(m, 'prepend'));
@@ -415,10 +415,17 @@ function sendMessage() {
     }
 }
 
-function markRead() {
+function markRead(messageId = null) {
+    // We keep the AJAX call as a secondary backup for reliability (e.g. initial load)
     fetch(`/chat/api/mark-read/${roomId}/`, { method: 'POST', headers: { 'X-CSRFToken': csrftoken } });
+    
+    // The WebSocket call is primary for real-time updates ('double ticks')
     if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-        chatSocket.send(JSON.stringify({ type: 'read_receipt' }));
+        const payload = { type: 'read_receipt' };
+        if (messageId) {
+            payload.message_ids = [messageId];
+        }
+        chatSocket.send(JSON.stringify(payload));
     }
 }
 

@@ -3,6 +3,16 @@
 {% block title %}Task Details{% endblock %}
 {% block page_title %}Task Details{% endblock %}
 
+{% block extra_css %}
+<style>
+    .rich-text-content ul { list-style-type: disc !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content ol { list-style-type: decimal !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content p { margin-bottom: 0.75rem !important; }
+    .rich-text-content a { color: #4a9d7e !important; text-decoration: underline !important; }
+    .rich-text-content blockquote { border-left: 4px solid #4a9d7e !important; padding-left: 1rem !important; font-style: italic !important; margin: 1rem 0 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <div class="container mx-auto px-4 py-6 max-w-5xl">
@@ -51,7 +61,13 @@
 
         <!-- Description Box -->
         <div class="bg-blue-50 dark:bg-blue-900/20 px-8 py-5 border-b border-slate-200 dark:border-white/10">
-            <p class="text-slate-700 dark:text-slate-300">{{ task.description|default:"No description provided." }}</p>
+            <div class="text-slate-700 dark:text-slate-300 rich-text-content max-w-none">
+                {% if task.description %}
+                    {{ task.description|safe }}
+                {% else %}
+                    <p class="italic text-slate-400">No description provided.</p>
+                {% endif %}
+            </div>
         </div>
 
         <!-- Main Content in Grid Layout -->
