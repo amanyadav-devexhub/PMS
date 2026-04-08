@@ -4,7 +4,65 @@
 {% block title %}Edit Project{% endblock %}
 {% block page_title %}Edit Project{% endblock %}
 
+{% block extra_css %}
+<!-- Quill CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+    /* Quill Editor Custom Styling */
+    .ql-toolbar {
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        background-color: #f8fafc;
+        border-color: #e2e8f0 !important;
+    }
+    .ql-container {
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+        border-color: #e2e8f0 !important;
+        font-family: inherit;
+    }
+    .ql-editor {
+        min-height: 150px;
+        font-size: 0.875rem;
+    }
+    #description-editor {
+        min-height: 200px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+    }
+    
+    /* Dark mode Quill overrides */
+    .dark .ql-toolbar {
+        background-color: #1e293b;
+        border-color: #334155 !important;
+    }
+    .dark .ql-container {
+        background-color: #1e293b;
+        border-color: #334155 !important;
+        color: #e2e8f0;
+    }
+    .dark .ql-stroke {
+        stroke: #94a3b8 !important;
+    }
+    .dark .ql-fill {
+        fill: #94a3b8 !important;
+    }
+    .dark .ql-picker {
+        color: #94a3b8 !important;
+    }
+    .dark .ql-picker-options {
+        background-color: #1e293b !important;
+        border-color: #334155 !important;
+    }
+    .dark #description-editor {
+        border-color: #334155;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+
+
 
 <div class="max-w-4xl mx-auto">
 
@@ -60,7 +118,8 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Description <span class="text-red-500">*</span>
                         </label>
-                        {{ form.description|add_class:"w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition" }}
+                        <div id="description-editor" class="bg-white dark:bg-[#1e293b]"></div>
+                        <input type="hidden" name="description" id="id_description" value="{{ project.description }}">
                         <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
                     </div>
 
@@ -191,7 +250,27 @@
 </div>
 
 <!-- AJAX JavaScript -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
+    // Initialize Quill Editor
+    const quill = new Quill('#description-editor', {
+        theme: 'snow',
+        placeholder: 'Update project details...',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'clean']
+            ]
+        }
+    });
+
+    // Load existing content
+    const initialDescription = document.getElementById('id_description').value;
+    if (initialDescription) {
+        quill.root.innerHTML = initialDescription;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('editProjectForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -493,9 +572,11 @@
                 return;
             }
             
-            // Show loading overlay
             if (loadingOverlay) loadingOverlay.classList.remove('hidden');
             
+            // Sync Quill content
+            document.getElementById('id_description').value = quill.root.innerHTML;
+
             // Get form data
             const formData = new FormData(form);
             const redirectUrl = form.dataset.redirectUrl;

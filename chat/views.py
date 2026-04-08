@@ -86,8 +86,37 @@ def chat_room(request, room_id):
     
     # Mark all messages as read when entering room
     unread_messages = Message.objects.filter(room=room).exclude(sender=request.user).exclude(read_by=request.user)
-    for msg in unread_messages:
-        msg.mark_as_read(request.user)
+    message_ids = list(unread_messages.values_list('id', flat=True))
+    
+    if message_ids:
+        for msg in unread_messages:
+            msg.mark_as_read(request.user)
+            
+        # Broadcast read receipt to room
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{room_id}",
+            {
+                'type': 'read_receipt',
+                'user_id': request.user.id,
+                'message_ids': message_ids
+            }
+        )
+        # Global sidebar updates will be handled by the client when it connects or via separate polling/socket
+        # But we can also broadcast it here for consistency
+        participants = list(room.participants.values_list('id', flat=True))
+        for p_id in participants:
+            async_to_sync(channel_layer.group_send)(
+                f"user_chat_{p_id}",
+                {
+                    'type': 'sidebar_update',
+                    'room_id': room.id,
+                    'last_message': None,
+                    'last_activity': timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'unread_count': room.get_unread_count(User.objects.get(id=p_id)),
+                    'total_unread_count': Message.objects.filter(room__participants__id=p_id).exclude(sender_id=p_id).exclude(read_by__id=p_id).distinct().count() or 0
+                }
+            )
     
     return render(request, 'chat/room.html', {
         'room': room,
@@ -320,10 +349,56 @@ def mark_messages_read(request, room_id):
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     messages = Message.objects.filter(room=room).exclude(sender=request.user).exclude(read_by=request.user)
+    message_ids = list(messages.values_list('id', flat=True))
+    
     updated = 0
     for msg in messages:
         msg.mark_as_read(request.user)
         updated += 1
+    
+    if updated > 0:
+        # Broadcast read receipt to room
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{room_id}",
+            {
+                'type': 'read_receipt',
+                'user_id': request.user.id,
+                'message_ids': message_ids
+            }
+        )
+        
+        # Update unread counts for participants
+        from .consumers import ChatConsumer
+        # We need a way to get participants and unread counts
+        # and broadcast to their global sidebars
+        participants = list(room.participants.values_list('id', flat=True))
+        
+        # Get unread counts (Simplified version of consumers.py logic)
+        unread_counts = {}
+        for p_id in participants:
+            try:
+                user = User.objects.get(id=p_id)
+                unread_counts[str(p_id)] = room.get_unread_count(user)
+            except: pass
+
+        for p_id in participants:
+            # Get total unread count for user
+            total_unread = Message.objects.filter(
+                room__participants__id=p_id
+            ).exclude(sender_id=p_id).exclude(read_by__id=p_id).distinct().count()
+            
+            async_to_sync(channel_layer.group_send)(
+                f"user_chat_{p_id}",
+                {
+                    'type': 'sidebar_update',
+                    'room_id': room.id,
+                    'last_message': None,
+                    'last_activity': timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'unread_count': unread_counts.get(str(p_id), 0),
+                    'total_unread_count': total_unread
+                }
+            )
     
     return JsonResponse({'success': True, 'marked_count': updated})
 #  # Add this line

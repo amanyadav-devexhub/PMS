@@ -3,6 +3,15 @@
 {% block title %}Project Details{% endblock %}
 {% block page_title %}Project Details{% endblock %}
 
+{% block extra_css %}
+<style>
+    .rich-text-content ul { list-style-type: disc !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content ol { list-style-type: decimal !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content p { margin-bottom: 0.75rem !important; }
+    .rich-text-content a { color: #4a9d7e !important; text-decoration: underline !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto">
 
@@ -29,8 +38,10 @@
             <!-- Title and Status -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
-                    <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">{{ project.name }}</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ project.description }}</p>
+                    <h1 class="text-xl md:text-2xl font-bold text-gray-800">{{ project.name }}</h1>
+                    <div class="text-sm text-gray-600 mt-2 rich-text-content">
+                        {{ project.description|safe|default:"No description provided." }}
+                    </div>
                 </div>
                 <div>
                     <span class="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold

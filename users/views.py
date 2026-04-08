@@ -2511,6 +2511,9 @@ def assign_task(request):
             if minutes > 0:
                 time_display += f" {minutes} minute{'s' if minutes != 1 else ''}"
 
+            # Construct the redirect URL with task_id
+            redirect_url = reverse('employee_tasks') + f'?task_id={task.id}'
+
             # AJAX response
             if is_ajax:
                 return JsonResponse({
@@ -2519,12 +2522,12 @@ def assign_task(request):
                     'task_id': task.id,
                     'task_name': task.name,
                     'time_display': time_display,
-                    'redirect_url': default_redirect,
+                    'redirect_url': redirect_url,
                 })
             else:
                 # Regular form submission fallback
                 messages.success(request, f'Task "{task.name}" assigned successfully to {task.assigned_to.count()} employee(s)!')
-                return redirect(default_redirect)
+                return redirect(redirect_url)
         else:
             # Form is invalid
             if is_ajax:
@@ -2533,14 +2536,32 @@ def assign_task(request):
                     'errors': form.errors
                 }, status=400)
             else:
-                context = {'form': form}
+                # Re-fetch project for context if needed
+                project_id = request.POST.get('project')
+                project = None
+                if project_id:
+                    try:
+                        project = Projects.objects.get(id=project_id)
+                    except (Projects.DoesNotExist, ValueError):
+                        pass
+                context = {'form': form, 'preselected_project': project}
                 return render(request, "assign_task.html", context)
     
-    # GET request - show empty form
+    # GET request - show form (pre-populated if project_id is in URL)
     else:
-        form = FilteredTaskForm()
+        project_id = request.GET.get('project')
+        initial_data = {}
+        project = None
+        if project_id:
+            initial_data['project'] = project_id
+            try:
+                project = Projects.objects.get(id=project_id)
+            except (Projects.DoesNotExist, ValueError):
+                pass
+            
+        form = FilteredTaskForm(initial=initial_data)
 
-    return render(request, "assign_task.html", {"form": form})
+    return render(request, "assign_task.html", {"form": form, "preselected_project": project})
 
 
 ## Create Project
