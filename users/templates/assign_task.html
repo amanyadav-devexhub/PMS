@@ -692,7 +692,7 @@
     </div>
 </div>
 
-<!-- All JavaScript remains EXACTLY the same -->
+<!-- JavaScript for Searchable Dropdowns -->
 <script>
     // Helper function to create searchable dropdown
     function createSearchableDropdown(config) {
@@ -953,94 +953,94 @@
         notificationContainer.appendChild(notification);
         setTimeout(() => notification.remove(), 5000);
     }
+    
     // ✅ MAKE GLOBAL
-function validateDates() {
-    let isValid = true;
+    function validateDates() {
+        let isValid = true;
 
-    const startDate = document.getElementById('start_date');
-    const endDate = document.getElementById('end_date');
-    const deadlineInput = document.getElementById('deadline');
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
+        const deadlineInput = document.getElementById('deadline');
 
-    document.querySelectorAll('.date-error-message').forEach(el => {
-        el.classList.add('hidden');
-        el.innerHTML = '';
-    });
+        document.querySelectorAll('.date-error-message').forEach(el => {
+            el.classList.add('hidden');
+            el.innerHTML = '';
+        });
 
-    document.querySelectorAll('.deadline-error-message').forEach(el => {
-        el.classList.add('hidden');
-        el.innerHTML = '';
-    });
+        document.querySelectorAll('.deadline-error-message').forEach(el => {
+            el.classList.add('hidden');
+            el.innerHTML = '';
+        });
 
-    [startDate, endDate, deadlineInput].forEach(el => {
-        if (el) el.classList.remove('border-red-500', 'bg-red-50');
-    });
+        [startDate, endDate, deadlineInput].forEach(el => {
+            if (el) el.classList.remove('border-red-500', 'bg-red-50');
+        });
 
-    const todayDate = new Date().toISOString().split('T')[0];
+        const todayDate = new Date().toISOString().split('T')[0];
 
-    if (startDate.value && startDate.value < todayDate) {
-        showError(startDate, 'Start date cannot be in the past!');
-        isValid = false;
-    }
-
-    if (endDate.value && endDate.value < todayDate) {
-        showError(endDate, 'End date cannot be in the past!');
-        isValid = false;
-    }
-
-    if (startDate.value && endDate.value && startDate.value > endDate.value) {
-        showError(endDate, 'End date must be after start date');
-        isValid = false;
-    }
-
-    if (deadlineInput.value) {
-        const deadlineDate = deadlineInput.value.split('T')[0];
-        const now = new Date();
-        const selectedDateTime = new Date(deadlineInput.value);
-
-        if (selectedDateTime < now) {
-            showDeadlineError(deadlineInput, 'Deadline cannot be in the past!');
+        if (startDate.value && startDate.value < todayDate) {
+            showError(startDate, 'Start date cannot be in the past!');
             isValid = false;
         }
 
-        if (startDate.value && deadlineDate < startDate.value) {
-            showDeadlineError(deadlineInput, 'Deadline cannot be before start date!');
+        if (endDate.value && endDate.value < todayDate) {
+            showError(endDate, 'End date cannot be in the past!');
             isValid = false;
         }
 
-        if (endDate.value && deadlineDate > endDate.value) {
-            showDeadlineError(deadlineInput, 'Deadline cannot be after end date!');
+        if (startDate.value && endDate.value && startDate.value > endDate.value) {
+            showError(endDate, 'End date must be after start date');
             isValid = false;
         }
+
+        if (deadlineInput.value) {
+            const deadlineDate = deadlineInput.value.split('T')[0];
+            const now = new Date();
+            const selectedDateTime = new Date(deadlineInput.value);
+
+            if (selectedDateTime < now) {
+                showDeadlineError(deadlineInput, 'Deadline cannot be in the past!');
+                isValid = false;
+            }
+
+            if (startDate.value && deadlineDate < startDate.value) {
+                showDeadlineError(deadlineInput, 'Deadline cannot be before start date!');
+                isValid = false;
+            }
+
+            if (endDate.value && deadlineDate > endDate.value) {
+                showDeadlineError(deadlineInput, 'Deadline cannot be after end date!');
+                isValid = false;
+            }
+        }
+
+        return isValid;
     }
 
-    return isValid;
-}
-
-// helper functions
-function showError(input, message) {
-    const errorDiv = input.parentElement.querySelector('.date-error-message');
-    if (errorDiv) {
-        errorDiv.innerHTML = message;
-        errorDiv.classList.remove('hidden');
+    // helper functions
+    function showError(input, message) {
+        const errorDiv = input.parentElement.querySelector('.date-error-message');
+        if (errorDiv) {
+            errorDiv.innerHTML = message;
+            errorDiv.classList.remove('hidden');
+        }
+        input.classList.add('border-red-500', 'bg-red-50');
     }
-    input.classList.add('border-red-500', 'bg-red-50');
-}
 
-function showDeadlineError(input, message) {
-    const errorDiv = input.parentElement.querySelector('.deadline-error-message');
-    if (errorDiv) {
-        errorDiv.innerHTML = message;
-        errorDiv.classList.remove('hidden');
+    function showDeadlineError(input, message) {
+        const errorDiv = input.parentElement.querySelector('.deadline-error-message');
+        if (errorDiv) {
+            errorDiv.innerHTML = message;
+            errorDiv.classList.remove('hidden');
+        }
+        input.classList.add('border-red-500', 'bg-red-50');
     }
-    input.classList.add('border-red-500', 'bg-red-50');
-}
 
     document.addEventListener('DOMContentLoaded', function() {
         const startDate = document.getElementById('start_date');
         const endDate = document.getElementById('end_date');
         const deadlineInput = document.getElementById('deadline');
     
-        
         // ==================== PAST DATE FREEZING ====================
         const today = new Date().toISOString().split('T')[0];
         
@@ -1114,7 +1114,7 @@ function showDeadlineError(input, message) {
     });
 </script>
 
-<!-- AJAX Form Submission -->
+<!-- Quill Editor and AJAX Form Submission -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
 // Initialize Quill Editor
