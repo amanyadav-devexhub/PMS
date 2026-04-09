@@ -1,3 +1,6 @@
+from django.db import models
+from django.db.models import Q
+
 def _has(user, perm_name):
     if not user or not user.is_authenticated:
         return False
@@ -82,7 +85,8 @@ def can_manage_projects(user):
 
 
 def can_view_all_projects(user):
-    return has_any(user, ['projects.view_all_projects']) or can_manage_users(user)
+    """Whether user can see all projects in the system"""
+    return _has(user, 'projects.view_all_projects')
 
 
 def can_add_task(user):
@@ -106,7 +110,8 @@ def can_manage_all_tasks(user):
 
 
 def can_view_all_tasks(user):
-    return has_any(user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']) or can_manage_users(user)
+    """Whether user can see all tasks in the system"""
+    return has_any(user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks'])
 
 
 def can_start_task(user):
@@ -134,3 +139,40 @@ def is_contributor_like(user):
 
 def dashboard_url_for(user):
     return '/dashboard/'
+
+
+def get_task_queryset(user, queryset=None):
+    """
+    Centralized logic to filter tasks based on permissions:
+    - can_view_all_tasks (view_all_tasks or Admin): See everything.
+    - Regular view_task: See only tasks assigned to or observing.
+    """
+    from Tasks.models import Task
+    
+    if queryset is None:
+        queryset = Task.objects.all()
+    
+    if can_view_all_tasks(user):
+        return queryset.order_by('-created_at')
+    
+    # Show tasks where user is assignee OR observer
+    return queryset.filter(
+        Q(assigned_to=user) | Q(observers=user)
+    ).distinct().order_by('-created_at')
+
+
+def get_projects_queryset(user, queryset=None):
+    """
+    Centralized logic to filter projects based on permissions:
+    - can_view_all_projects (view_all_projects or Admin): See everything.
+    - Regular view_projects: See only projects assigned to the user.
+    """
+    from projects.models import Projects
+    
+    if queryset is None:
+        queryset = Projects.objects.all()
+    
+    if can_view_all_projects(user):
+        return queryset.order_by('-start_date')
+    
+    return queryset.filter(assigned_to=user).distinct().order_by('-start_date')

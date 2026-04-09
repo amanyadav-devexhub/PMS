@@ -94,7 +94,7 @@
     </div>
 
     <!-- Tasks Table -->
-    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden ">
         <div class="overflow-x-auto">
             <table class="min-w-full">
                 <thead class="bg-slate-50 dark:bg-white/5">
@@ -155,6 +155,21 @@
         </div>
     </div>
 
+</div>
+
+<!-- Toast Notification Container -->
+<div id="toastMessage" class="fixed top-4 right-4 z-[9999] hidden transform transition-all duration-300 translate-x-full">
+    <div class="bg-white dark:bg-[#1e293b] rounded-lg shadow-lg border-l-4 p-4 min-w-[300px] border-slate-200 dark:border-white/10">
+        <div class="flex items-center gap-3">
+            <div id="toastIcon" class="text-xl"></div>
+            <div class="flex-1">
+                <p id="toastText" class="text-xs font-semibold text-slate-800 dark:text-white"></p>
+            </div>
+            <button onclick="hideToast()" class="text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        </div>
+    </div>
 </div>
 
 <!-- AJAX Loader with Pagination -->
@@ -275,11 +290,12 @@ function renderTasksTable(tasks) {
         
         // Get permissions from Django template variables passed to JS
         const canEdit = {{ can_change_task|default:"false"|lower }};
+        const canDelete = {{ can_delete_task|default:"false"|lower }};
         
         html += `
             <tr class="${rowClass} transition">
-                <td class="px-5 py-3">
-                    <div class="text-sm font-medium text-slate-800 dark:text-white" title="${escapeHtml(task.name)}">
+                <td class="px-5 py-3 overflow-dots ">
+                    <div class="text-sm font-medium text-slate-800 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis w-[40px]" title="${escapeHtml(task.name)}">
                         ${escapeHtml(task.name.split(/\s+/).slice(0, 20).join(' ') + (task.name.split(/\s+/).length > 20 ? '...' : ''))}
                     </div>
                     <div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">ID: ${task.id}</div>
@@ -326,6 +342,15 @@ function renderTasksTable(tasks) {
                             Edit
                         </a>
                         ` : ''}
+                        ${canDelete ? `
+                        <button type="button" 
+                           onclick="deleteTask(${task.id}, '${escapeHtml(task.name)}')"
+                           class="inline-flex items-center gap-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 px-2 py-1 rounded-lg text-[10px] font-medium transition"
+                           title="Delete Task">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                            Delete
+                        </button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -364,6 +389,73 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Notification System
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toastMessage');
+    const toastText = document.getElementById('toastText');
+    const toastIcon = document.getElementById('toastIcon');
+    const borderDiv = toast.querySelector('.border-l-4');
+    
+    if (type === 'success') {
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
+        borderDiv.className = 'bg-white dark:bg-[#1e293b] rounded-lg shadow-lg border-l-4 border-green-500 p-4 min-w-[300px] transition-all';
+    } else if (type === 'error') {
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+        borderDiv.className = 'bg-white dark:bg-[#1e293b] rounded-lg shadow-lg border-l-4 border-red-500 p-4 min-w-[300px] transition-all';
+    }
+    
+    toastText.textContent = message;
+    toast.classList.remove('hidden', 'translate-x-full');
+    toast.classList.add('translate-x-0');
+    
+    setTimeout(() => {
+        hideToast();
+    }, 4000);
+}
+
+function hideToast() {
+    const toast = document.getElementById('toastMessage');
+    if (toast) {
+        toast.classList.add('translate-x-full');
+        setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 300);
+    }
+}
+
+// Deletion Logic
+async function deleteTask(taskId, taskName) {
+    if (!confirm(`Are you sure you want to delete task "${taskName}"?`)) return;
+    
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    
+    try {
+        const response = await authFetch(`/api/tasks/${taskId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (response.ok) {
+            showToast(`✅ Task deleted successfully`, 'success');
+            // Reload current page
+            loadTasks(currentPage, currentPageSize);
+        } else {
+            const data = await response.json().catch(() => ({}));
+            showToast(`❌ ${data.error || 'Failed to delete task'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        if (error !== 'No token' && error.message !== 'Unauthorized') {
+            showToast('Network error while deleting task', 'error');
+        }
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
 }
 
 // Event Listeners

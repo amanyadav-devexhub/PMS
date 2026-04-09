@@ -26,6 +26,8 @@ from users.permissions import (
     can_change_task,
     can_manage_all_tasks,
     is_manager_like,
+    get_task_queryset,
+    get_projects_queryset,
 )
 
 User = get_user_model()
@@ -167,10 +169,7 @@ class ProjectListAPIView(APIView):
         user = request.user
         search = request.query_params.get('search', '')
 
-        if can_view_all_projects(user):
-            projects = Projects.objects.all()
-        else:
-            projects = Projects.objects.filter(assigned_to=user)
+        projects = get_projects_queryset(user)
 
         if search:
             projects = projects.filter(
@@ -281,26 +280,9 @@ class TaskListAPIView(APIView):
         assigned_to = request.query_params.get('assigned_to')
         search = request.query_params.get('search', '')
 
-        if can_view_all_tasks(user) or can_change_task(user):
-            tasks = Task.objects.all()
-        elif can_manage_all_tasks(user):
-            # Managers/Admins can see tasks in projects they created/assigned, 
-            # or tasks they are explicitly assigned to or observing
-            my_project_ids = Projects.objects.filter(
-                Q(assigned_to=user) | Q(created_by=user)
-            ).values_list('id', flat=True)
-            tasks = Task.objects.filter(
-                Q(project_id__in=my_project_ids) | 
-                Q(assigned_to=user) | 
-                Q(observers=user)
-            ).distinct()
-        else:
-            # Regular employees see tasks assigned to them or tasks they observe
-            tasks = Task.objects.filter(
-                Q(assigned_to=user) | 
-                Q(observers=user)
-            ).distinct()
-
+        # Use centralized permission-filtered queryset
+        tasks = get_task_queryset(user)
+        
         if project_id:
             tasks = tasks.filter(project_id=project_id)
         
@@ -430,9 +412,8 @@ class DashboardAPIView(APIView):
             })
 
         if can_add_task(user) or can_manage_projects(user):
-            my_projects = Projects.objects.filter(assigned_to=user)
-            project_ids = my_projects.values_list('id', flat=True)
-            my_tasks = Task.objects.filter(project_id__in=project_ids)
+            my_projects = get_projects_queryset(user)
+            my_tasks = get_task_queryset(user)
             active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
             team_members_total = sum(1 for member in active_users if not is_manager_like(member))
 
@@ -449,8 +430,8 @@ class DashboardAPIView(APIView):
             })
 
         if can_view_task(user):
-            tasks = Task.objects.filter(assigned_to=user)
-            projects = Projects.objects.filter(assigned_to=user)
+            tasks = get_task_queryset(user)
+            projects = get_projects_queryset(user)
             return Response({
                 'role': role,
                 'dashboard_variant': 'contributor',

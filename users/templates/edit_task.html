@@ -369,25 +369,19 @@
         const searchInput = document.getElementById(searchInputId);
         const hiddenContainer = document.getElementById(hiddenContainerId);
         
-        function initializeSelectedValues() {
-            document.querySelectorAll(`.${checkboxClass}:checked`).forEach(checkbox => {
-                selectedValues.add(checkbox.value);
-            });
-            updateDisplay();
-        }
-        
+        if (!selectedDisplay || !dropdown) return;
+
         function updateDisplay() {
-            if (!selectedDisplay) return;
             selectedDisplay.innerHTML = '';
             
             if (selectedValues.size === 0) {
                 const placeholder = document.createElement('span');
                 placeholder.className = 'text-gray-400 dark:text-gray-500 text-sm';
-                placeholder.innerText = `Select ${name}...`;
+                placeholder.innerText = `Select ${name.replace('_', ' ')}...`;
                 selectedDisplay.appendChild(placeholder);
             } else {
                 selectedValues.forEach(value => {
-                    const option = document.querySelector(`#${dropdownId} .dropdown-option[data-value="${value}"]`);
+                    const option = dropdown.querySelector(`.dropdown-option[data-value="${value}"]`);
                     if (option) {
                         const label = option.getAttribute('data-label');
                         const badge = document.createElement('span');
@@ -401,33 +395,22 @@
                         selectedDisplay.appendChild(badge);
                     }
                 });
-                
-                if (hiddenContainer) {
-                    hiddenContainer.innerHTML = '';
-                    selectedValues.forEach(value => {
-                        const hiddenInput = document.createElement('input');
-                        hiddenInput.type = 'hidden';
-                        hiddenInput.name = name;
-                        hiddenInput.value = value;
-                        hiddenContainer.appendChild(hiddenInput);
-                    });
-                }
             }
-            
-            document.querySelectorAll(`#${selectedDisplayId} .remove-badge`).forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const value = this.getAttribute('data-value');
-                    selectedValues.delete(value);
-                    const checkbox = document.querySelector(`.${checkboxClass}[value="${value}"]`);
-                    if (checkbox) checkbox.checked = false;
-                    updateDisplay();
+
+            // Update hidden inputs
+            if (hiddenContainer) {
+                hiddenContainer.innerHTML = '';
+                selectedValues.forEach(value => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = name;
+                    hiddenInput.value = value;
+                    hiddenContainer.appendChild(hiddenInput);
                 });
-            });
+            }
         }
         
         function toggleDropdown(show) {
-            if (!dropdown) return;
             if (show) {
                 dropdown.style.display = 'block';
                 if (searchInput) setTimeout(() => searchInput.focus(), 100);
@@ -436,86 +419,92 @@
             }
         }
         
-        function handleCheckboxChange(checkbox, value) {
-            if (checkbox.checked) {
-                selectedValues.add(value);
-            } else {
-                selectedValues.delete(value);
+        // --- EVENT LISTENERS (ATTACHED ONCE) ---
+
+        // Toggle on click
+        selectedDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isCurrentlyOpen = dropdown.style.display === 'block';
+            toggleDropdown(!isCurrentlyOpen);
+        });
+
+        // Event Delegation for Checkboxes
+        dropdown.addEventListener('change', (e) => {
+            if (e.target.classList.contains(checkboxClass)) {
+                if (e.target.checked) {
+                    selectedValues.add(e.target.value);
+                } else {
+                    selectedValues.delete(e.target.value);
+                }
+                updateDisplay();
             }
-            updateDisplay();
-        }
-        
+        });
+
+        // Event Delegation for Badge Removal
+        selectedDisplay.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-badge');
+            if (removeBtn) {
+                e.stopPropagation();
+                const value = removeBtn.getAttribute('data-value');
+                selectedValues.delete(value);
+                const checkbox = dropdown.querySelector(`.${checkboxClass}[value="${value}"]`);
+                if (checkbox) checkbox.checked = false;
+                updateDisplay();
+            }
+        });
+
+        // Search functionality
         if (searchInput) {
-            searchInput.addEventListener('keyup', function() {
-                const searchTerm = this.value.toLowerCase();
-                const options = dropdown ? dropdown.querySelectorAll('.dropdown-option') : [];
+            searchInput.addEventListener('keyup', () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.dropdown-option');
                 options.forEach(option => {
-                    const label = option.getAttribute('data-label').toLowerCase();
-                    const email = option.getAttribute('data-email').toLowerCase();
-                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                    }
+                    const label = option.getAttribute('data-label')?.toLowerCase() || "";
+                    const email = option.getAttribute('data-email')?.toLowerCase() || "";
+                    option.style.display = (label.includes(searchTerm) || email.includes(searchTerm)) ? '' : 'none';
                 });
             });
         }
         
+        // Select All
         const selectAllBtn = document.getElementById(selectAllId);
         if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', function() {
-                const options = dropdown ? dropdown.querySelectorAll('.dropdown-option') : [];
+            selectAllBtn.addEventListener('click', () => {
+                const options = dropdown.querySelectorAll('.dropdown-option');
                 options.forEach(option => {
-                    const checkbox = option.querySelector(`.${checkboxClass}`);
-                    const value = option.getAttribute('data-value');
-                    if (checkbox && !checkbox.checked) {
-                        checkbox.checked = true;
-                        selectedValues.add(value);
+                    if (option.style.display !== 'none') {
+                        const checkbox = option.querySelector(`.${checkboxClass}`);
+                        if (checkbox && !checkbox.checked) {
+                            checkbox.checked = true;
+                            selectedValues.add(checkbox.value);
+                        }
                     }
                 });
                 updateDisplay();
             });
         }
         
+        // Clear All
         const clearAllBtn = document.getElementById(clearAllId);
         if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', function() {
-                document.querySelectorAll(`.${checkboxClass}`).forEach(checkbox => {
-                    checkbox.checked = false;
-                });
+            clearAllBtn.addEventListener('click', () => {
+                dropdown.querySelectorAll(`.${checkboxClass}`).forEach(cb => cb.checked = false);
                 selectedValues.clear();
                 updateDisplay();
             });
         }
         
-        if (selectedDisplay) {
-            selectedDisplay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (dropdown) toggleDropdown(dropdown.style.display !== 'block');
-            });
-        }
-        
-        document.addEventListener('click', function(e) {
-            if (selectedDisplay && dropdown && !selectedDisplay.contains(e.target) && !dropdown.contains(e.target)) {
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!selectedDisplay.contains(e.target) && !dropdown.contains(e.target)) {
                 toggleDropdown(false);
             }
         });
         
-        function attachCheckboxListeners() {
-            document.querySelectorAll(`.${checkboxClass}`).forEach(checkbox => {
-                checkbox.removeEventListener('change', checkbox._listener);
-                const listener = function(e) {
-                    handleCheckboxChange(this, this.value);
-                };
-                checkbox.addEventListener('change', listener);
-                checkbox._listener = listener;
-            });
-        }
-        
-        // Listen for external updates (e.g., after API load)
-        window.addEventListener('taskDataLoaded', () => {
+        // Listen for external data load
+        window.addEventListener(`refreshDropdown_${name}`, () => {
             selectedValues.clear();
-            document.querySelectorAll(`.${checkboxClass}`).forEach(checkbox => {
+            dropdown.querySelectorAll(`.${checkboxClass}`).forEach(checkbox => {
                 if (checkbox.checked) {
                     selectedValues.add(checkbox.value);
                 }
@@ -523,8 +512,8 @@
             updateDisplay();
         });
 
-        attachCheckboxListeners();
-        initializeSelectedValues();
+        // Initial update
+        updateDisplay();
     }
     
     function escapeHtml(text) {
@@ -534,8 +523,9 @@
         return div.innerHTML;
     }
     
-    document.addEventListener('DOMContentLoaded', function() {
-        createSearchableDropdown({
+    // We only call this once users are loaded, but we define the configs
+    const dropdownConfigs = [
+        {
             name: 'assigned_by',
             selectedDisplayId: 'ownerSelectedDisplay',
             dropdownId: 'ownerDropdown',
@@ -544,9 +534,8 @@
             hiddenContainerId: 'ownerHiddenContainer',
             selectAllId: 'ownerSelectAll',
             clearAllId: 'ownerClearAll'
-        });
-        
-        createSearchableDropdown({
+        },
+        {
             name: 'assigned_to',
             selectedDisplayId: 'assigneeSelectedDisplay',
             dropdownId: 'assigneeDropdown',
@@ -555,9 +544,8 @@
             hiddenContainerId: 'assigneeHiddenContainer',
             selectAllId: 'assigneeSelectAll',
             clearAllId: 'assigneeClearAll'
-        });
-        
-        createSearchableDropdown({
+        },
+        {
             name: 'observers',
             selectedDisplayId: 'observerSelectedDisplay',
             dropdownId: 'observerDropdown',
@@ -566,8 +554,13 @@
             hiddenContainerId: 'observerHiddenContainer',
             selectAllId: 'observerSelectAll',
             clearAllId: 'observerClearAll'
-        });
-    });
+        }
+    ];
+
+    function initAllDropdowns() {
+        dropdownConfigs.forEach(config => createSearchableDropdown(config));
+    }
+
 </script>
 
 <!-- JavaScript for Date Validation and Estimated Time -->
@@ -754,19 +747,15 @@ if (initialDescription) {
                         <span class="text-gray-400 dark:text-gray-500 text-xs block">${escapeHtml(user.email)}</span>
                     </label>
                 `;
-                div.addEventListener('click', function(e) {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = div.querySelector('input');
-                        cb.checked = !cb.checked;
-                        cb.dispatchEvent(new Event('change'));
-                    }
-                });
                 container.appendChild(div);
             });
         });
 
-        // Re-initialize searchable dropdown logic
-        initDropdowns();
+        // Initial initialization of dropdown logic (only once)
+        if (!window.dropdownsInitialized) {
+            initAllDropdowns();
+            window.dropdownsInitialized = true;
+        }
     }
 
     function populateForm(task) {
@@ -817,8 +806,10 @@ if (initialDescription) {
             });
         }
 
-        // Trigger display updates
-        window.dispatchEvent(new Event('taskDataLoaded'));
+        // Trigger display updates using the new events
+        dropdownConfigs.forEach(config => {
+            window.dispatchEvent(new Event(`refreshDropdown_${config.name}`));
+        });
 
         // Info Card
         if (document.getElementById('infoCreated')) {
@@ -859,40 +850,6 @@ if (initialDescription) {
         }
     }
 
-    function initDropdowns() {
-        createSearchableDropdown({
-            name: 'assigned_by',
-            selectedDisplayId: 'ownerSelectedDisplay',
-            dropdownId: 'ownerDropdown',
-            searchInputId: 'ownerSearchInput',
-            checkboxClass: 'owner-checkbox',
-            hiddenContainerId: 'ownerHiddenContainer',
-            selectAllId: 'ownerSelectAll',
-            clearAllId: 'ownerClearAll'
-        });
-        
-        createSearchableDropdown({
-            name: 'assigned_to',
-            selectedDisplayId: 'assigneeSelectedDisplay',
-            dropdownId: 'assigneeDropdown',
-            searchInputId: 'assigneeSearchInput',
-            checkboxClass: 'assignee-checkbox',
-            hiddenContainerId: 'assigneeHiddenContainer',
-            selectAllId: 'assigneeSelectAll',
-            clearAllId: 'assigneeClearAll'
-        });
-        
-        createSearchableDropdown({
-            name: 'observers',
-            selectedDisplayId: 'observerSelectedDisplay',
-            dropdownId: 'observerDropdown',
-            searchInputId: 'observerSearchInput',
-            checkboxClass: 'observer-checkbox',
-            hiddenContainerId: 'observerHiddenContainer',
-            selectAllId: 'observerSelectAll',
-            clearAllId: 'observerClearAll'
-        });
-    }
 
     document.addEventListener('DOMContentLoaded', fetchTaskData);
 

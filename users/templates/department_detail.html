@@ -28,7 +28,7 @@ function loadDepartmentUsers(deptId) {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
     
-    fetch(`/department/${deptId}/`, {
+    fetch(`/department/${deptId}/members/api/`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
@@ -43,14 +43,15 @@ function loadDepartmentUsers(deptId) {
 
             if(data.users.length > 0){
                 data.users.forEach(user => {
-                    const card = document.createElement('div');
-                    card.className = "bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-5 hover:shadow-lg transition-all duration-200";
+                    const card = document.createElement('a');
+                    card.href = `/user/${user.id}/`;
+                    card.className = "group block bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-5 hover:border-[#4a9d7e] dark:hover:border-[#4a9d7e]/50 hover:shadow-lg transition-all duration-200";
                     card.innerHTML = `
                         <div class="flex items-start gap-3">
                             <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=4a9d7e&color=fff&size=40&bold=true"
                                 class="w-10 h-10 rounded-full object-cover">
                             <div class="flex-1 min-w-0">
-                                <h3 class="text-base font-semibold text-slate-800 dark:text-white truncate">${escapeHtml(user.username)}</h3>
+                                <h3 class="text-base font-semibold text-slate-800 dark:text-white truncate group-hover:text-[#4a9d7e] transition-colors">${escapeHtml(user.username)}</h3>
                                 <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${escapeHtml(user.email)}</p>
                                 <div class="flex flex-wrap gap-2 mt-2">
                                     <span class="text-xs px-2 py-0.5 bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] rounded-full">${escapeHtml(user.role)}</span>

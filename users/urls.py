@@ -72,12 +72,14 @@ urlpatterns = [
     ## Department management endpoints
     path("departments/", views.departments, name='departments'),
     path("department/<int:dept_id>/", views.department_detail, name='department_detail'),
+    path("department/<int:dept_id>/members/api/", views.department_members_api, name='department_members_api'),
     path("department/create/", views.create_department, name='create_department'),
     path("department/<int:dept_id>/delete/", views.delete_department, name='delete_department'),
 
     # Designation management endpoints
     path("designations/", views.designations, name='designations'),
     path("designation/<int:desig_id>/", views.designation_detail, name='designation_detail'),
+    path("designation/<int:desig_id>/members/api/", views.designation_members_api, name='designation_members_api'),
     path("designation/create/", views.create_designation, name='create_designation'),
     path("designation/<int:desig_id>/delete/", views.delete_designation, name='delete_designation'),
 

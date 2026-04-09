@@ -314,21 +314,14 @@
         }
         
         // ==================== SEARCHABLE DROPDOWN ====================
+        let selectedValues = new Set();
         const selectedDisplay = document.getElementById('selectedItemsDisplay');
         const customDropdown = document.getElementById('customDropdown');
         const searchInput = document.getElementById('employeeSearchInput');
         const selectedValuesContainer = document.getElementById('selectedValuesContainer');
-        const placeholderText = document.getElementById('placeholderText');
         
-        let selectedValues = new Set();
-        
-        function initializeSelectedValues() {
-            document.querySelectorAll('.option-checkbox:checked').forEach(checkbox => {
-                selectedValues.add(checkbox.value);
-            });
-            updateDisplay();
-        }
-        
+        if (!selectedDisplay || !customDropdown) return;
+
         function updateDisplay() {
             selectedDisplay.innerHTML = '';
             
@@ -339,7 +332,7 @@
                 selectedDisplay.appendChild(placeholder);
             } else {
                 selectedValues.forEach(value => {
-                    const option = document.querySelector(`.dropdown-option[data-value="${value}"]`);
+                    const option = customDropdown.querySelector(`.dropdown-option[data-value="${value}"]`);
                     if (option) {
                         const label = option.getAttribute('data-label');
                         const badge = document.createElement('span');
@@ -353,7 +346,9 @@
                         selectedDisplay.appendChild(badge);
                     }
                 });
-                
+            }
+
+            if (selectedValuesContainer) {
                 selectedValuesContainer.innerHTML = '';
                 selectedValues.forEach(value => {
                     const hiddenInput = document.createElement('input');
@@ -363,17 +358,6 @@
                     selectedValuesContainer.appendChild(hiddenInput);
                 });
             }
-            
-            document.querySelectorAll('.remove-badge').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const value = this.getAttribute('data-value');
-                    selectedValues.delete(value);
-                    const checkbox = document.querySelector(`.option-checkbox[value="${value}"]`);
-                    if (checkbox) checkbox.checked = false;
-                    updateDisplay();
-                });
-            });
         }
         
         function toggleDropdown(show) {
@@ -387,84 +371,100 @@
             }
         }
         
-        function handleCheckboxChange(checkbox, value) {
-            if (checkbox.checked) {
-                selectedValues.add(value);
-            } else {
-                selectedValues.delete(value);
+        // --- EVENT LISTENERS ---
+
+        // Toggle dropdown
+        selectedDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isCurrentlyOpen = customDropdown.style.display === 'block';
+            toggleDropdown(!isCurrentlyOpen);
+        });
+
+        // Event Delegation for Checkbox Changes
+        customDropdown.addEventListener('change', (e) => {
+            if (e.target.classList.contains('option-checkbox')) {
+                if (e.target.checked) {
+                    selectedValues.add(e.target.value);
+                } else {
+                    selectedValues.delete(e.target.value);
+                }
+                updateDisplay();
             }
-            updateDisplay();
-        }
-        
+        });
+
+        // Event Delegation for Badge Removal
+        selectedDisplay.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-badge');
+            if (removeBtn) {
+                e.stopPropagation();
+                const value = removeBtn.getAttribute('data-value');
+                selectedValues.delete(value);
+                const checkbox = customDropdown.querySelector(`.option-checkbox[value="${value}"]`);
+                if (checkbox) checkbox.checked = false;
+                updateDisplay();
+            }
+        });
+
+        // Search logic
         if (searchInput) {
-            searchInput.addEventListener('keyup', function() {
-                const searchTerm = this.value.toLowerCase();
-                const options = document.querySelectorAll('.dropdown-option');
+            searchInput.addEventListener('keyup', () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const options = customDropdown.querySelectorAll('.dropdown-option');
                 options.forEach(option => {
-                    const label = option.getAttribute('data-label').toLowerCase();
-                    const email = option.getAttribute('data-email').toLowerCase();
-                    
-                    if (label.includes(searchTerm) || email.includes(searchTerm)) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                    }
+                    const label = option.getAttribute('data-label')?.toLowerCase() || "";
+                    const email = option.getAttribute('data-email')?.toLowerCase() || "";
+                    option.style.display = (label.includes(searchTerm) || email.includes(searchTerm)) ? '' : 'none';
                 });
             });
         }
         
+        // Select All
         const selectAllBtn = document.getElementById('selectAllOptions');
         if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', function() {
-                document.querySelectorAll('.dropdown-option').forEach(option => {
-                    const checkbox = option.querySelector('.option-checkbox');
-                    const value = option.getAttribute('data-value');
-                    if (checkbox && !checkbox.checked) {
-                        checkbox.checked = true;
-                        selectedValues.add(value);
+            selectAllBtn.addEventListener('click', () => {
+                customDropdown.querySelectorAll('.dropdown-option').forEach(option => {
+                    if (option.style.display !== 'none') {
+                        const checkbox = option.querySelector('.option-checkbox');
+                        if (checkbox && !checkbox.checked) {
+                            checkbox.checked = true;
+                            selectedValues.add(checkbox.value);
+                        }
                     }
                 });
                 updateDisplay();
             });
         }
         
+        // Clear All
         const clearAllBtn = document.getElementById('clearAllOptions');
         if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', function() {
-                document.querySelectorAll('.option-checkbox').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
+            clearAllBtn.addEventListener('click', () => {
+                customDropdown.querySelectorAll('.option-checkbox').forEach(cb => cb.checked = false);
                 selectedValues.clear();
                 updateDisplay();
             });
         }
         
-        if (selectedDisplay) {
-            selectedDisplay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleDropdown(customDropdown.style.display !== 'block');
-            });
-        }
-        
-        document.addEventListener('click', function(e) {
-            if (!selectedDisplay?.contains(e.target) && !customDropdown?.contains(e.target)) {
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!selectedDisplay.contains(e.target) && !customDropdown.contains(e.target)) {
                 toggleDropdown(false);
             }
         });
-        
-        function attachCheckboxListeners() {
-            document.querySelectorAll('.option-checkbox').forEach(checkbox => {
-                checkbox.removeEventListener('change', checkbox._listener);
-                const listener = function(e) {
-                    handleCheckboxChange(this, this.value);
-                };
-                checkbox.addEventListener('change', listener);
-                checkbox._listener = listener;
+
+        // Global refresh event
+        window.addEventListener('refreshProjectDropdown', () => {
+            selectedValues.clear();
+            customDropdown.querySelectorAll('.option-checkbox').forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedValues.add(checkbox.value);
+                }
             });
-        }
-        
-        attachCheckboxListeners();
-        initializeSelectedValues();
+            updateDisplay();
+        });
+
+        // Initial setup
+        updateDisplay();
         // ==================== END SEARCHABLE DROPDOWN ====================
         
         // Function to clear all error messages
@@ -623,8 +623,11 @@
                     throw new Error('Failed to load initial data');
                 }
                 
+                const usersDataRaw = await usersRes.json();
                 const projectData = await projectRes.json();
-                const usersData = await usersRes.json();
+                
+                // Handle paginated results
+                const usersData = usersDataRaw.results || usersDataRaw;
                 
                 populateForm(projectData, usersData);
                 
@@ -695,9 +698,8 @@
             
             dropdownOptions.innerHTML = html;
             
-            // Re-attach listeners for dynamic elements
-            attachCheckboxListeners();
-            updateDisplay();
+            // Trigger display updates
+            window.dispatchEvent(new Event('refreshProjectDropdown'));
         }
         
         // Initial setup

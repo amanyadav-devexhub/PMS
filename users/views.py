@@ -53,12 +53,14 @@ from users.permissions import (
     can_view_all_tasks,
     can_view_projects,
     can_view_task,
+    can_view_user,
     can_start_task,
     can_resume_task,
     can_complete_task,
     dashboard_url_for,
     is_manager_like,
     has_any,
+    get_task_queryset,
 )
 from .forms import RoleForm, PermissionForm
 from Tasks.models import Task
@@ -177,10 +179,8 @@ def view_projects(request):
         page = request.GET.get("page", 1)
         page_size = request.GET.get("page_size", 10)
         
-        if can_view_all_projects(request.user):
-            projects = Projects.objects.all()
-        else:
-            projects = Projects.objects.filter(assigned_to=request.user)
+        from .permissions import get_projects_queryset
+        projects = get_projects_queryset(request.user)
 
         # Apply search filter
         if search_query:
@@ -620,7 +620,7 @@ def view_project_detail(request, project_id):
         tasks_page = request.GET.get('tasks_page', 1)
         tasks_page_size = request.GET.get('tasks_page_size', 10)
         
-        tasks = Task.objects.filter(project=project).order_by('-created_at')
+        tasks = get_task_queryset(request.user, queryset=Task.objects.filter(project=project))
         
         # Calculate statistics
         total_tasks = tasks.count()
@@ -698,7 +698,7 @@ def view_project_detail(request, project_id):
     
     # Regular request - return full template
     resources = project.resources.all()
-    tasks = Task.objects.filter(project=project).order_by('-created_at')
+    tasks = get_task_queryset(request.user, queryset=Task.objects.filter(project=project))
     
     from django.utils import timezone
     for task in tasks:
@@ -1072,11 +1072,11 @@ def dashboard(request):
             }
 
         # 2. Team Lead / Task Manager Data
-        elif can_add_task(user):
+        elif can_add_task(user) or can_manage_projects(user):
             data['dashboard_variant'] = 'manager'
-            my_projects = Projects.objects.filter(assigned_to=user)
-            my_project_ids = my_projects.values_list('id', flat=True)
-            tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+            from .permissions import get_projects_queryset
+            my_projects = get_projects_queryset(user)
+            tasks_from_my_projects = get_task_queryset(user)
             
             active_users = User.objects.filter(is_active=True).exclude(is_staff=True).exclude(is_superuser=True)
             team_members = [member for member in active_users if not is_manager_like(member)]
@@ -1100,8 +1100,9 @@ def dashboard(request):
         # 3. Employee / Contributor Data
         else:
             data['dashboard_variant'] = 'contributor'
-            tasks = Task.objects.filter(assigned_to=user)
-            projects = Projects.objects.filter(assigned_to=user)
+            tasks = get_task_queryset(user)
+            from .permissions import get_projects_queryset
+            projects = get_projects_queryset(user)
             
             data['stats'] = {
                 'tasks_count': tasks.count(),
@@ -1323,14 +1324,14 @@ def teamlead_dashboard(request):
         members_page = request.GET.get('members_page', 1)
         members_page_size = request.GET.get('members_page_size', 8)  # 8 members (2 rows of 4)
         
-        # Get ONLY projects assigned to this team lead
-        my_projects = Projects.objects.filter(assigned_to=request.user)
+        from .permissions import get_projects_queryset, get_task_queryset
+        my_projects = get_projects_queryset(request.user)
         
-        # Get IDs of these projects
+        # Get IDs of these projects for further stats
         my_project_ids = my_projects.values_list('id', flat=True)
         
-        # Get tasks ONLY from team lead's projects
-        tasks_from_my_projects = Task.objects.filter(project_id__in=my_project_ids)
+        # Get tasks based on permissions (usually restricted for TLs unless view_all is given)
+        tasks_from_my_projects = get_task_queryset(request.user)
         
         # Statistics - only from team lead's projects
         total_projects = my_projects.count()
@@ -1426,8 +1427,9 @@ def employee_dashboard(request):
 
     # Handle AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Tasks assigned to employee
-        tasks = Task.objects.filter(assigned_to=user)
+        from .permissions import get_task_queryset, get_projects_queryset
+        # Use permission-filtered querysets
+        tasks = get_task_queryset(user)
         tasks_count = tasks.count()
         ongoing_tasks = tasks.filter(status='ONGOING').count()
         completed_tasks = tasks.filter(status='COMPLETED').count()
@@ -1445,8 +1447,8 @@ def employee_dashboard(request):
                 'end_date': task.end_date.strftime('%b %d') if task.end_date else "No deadline"
             })
         
-        # Projects assigned to employee
-        projects = Projects.objects.filter(assigned_to=user)
+        # Projects based on permissions
+        projects = get_projects_queryset(user)
         projects_count = projects.count()
         ongoing_projects = projects.filter(status='ONGOING').count()
         pending_projects = projects.filter(status='PENDING').count()
@@ -1483,7 +1485,8 @@ def employee_projects(request):
         page = request.GET.get('page', 1)
         page_size = request.GET.get('page_size', 9)  # 9 for 3x3 grid
         
-        projects = Projects.objects.filter(assigned_to=request.user)
+        from .permissions import get_projects_queryset
+        projects = get_projects_queryset(request.user)
         
         # Apply search filter
         if search_query:
@@ -2847,24 +2850,8 @@ def task_dashboard(request):
         page_size = request.GET.get("page_size", 10)
         search = request.GET.get("search", "").strip()
         
-        if has_any(request.user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']):
-            tasks = Task.objects.all().order_by('-created_at')
-        elif can_manage_users(request.user):
-            # Admin gets all tasks
-            tasks = Task.objects.all().order_by('-created_at')
-        elif can_manage_projects(request.user):
-            # Team leads / Managers can view tasks from their projects
-            my_projects = Projects.objects.filter(assigned_to=request.user)
-            my_project_ids = my_projects.values_list('id', flat=True)
-            
-            # They also see tasks explicitly assigned to them in other projects
-            tasks = Task.objects.filter(
-                models.Q(project_id__in=my_project_ids) | 
-                models.Q(assigned_to=request.user)
-            ).distinct().order_by('-created_at')
-        else:
-            # Regular employee / contributor explicitly only sees tasks assigned to them
-            tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+        # Use centralized permission-filtered queryset
+        tasks = get_task_queryset(request.user)
 
         if search:
             tasks = tasks.filter(
@@ -2969,19 +2956,7 @@ def task_dashboard(request):
         })
     
     # Regular request - return full template with data
-    if has_any(request.user, ['Tasks.view_all_tasks', 'tasks.view_all_tasks']):
-        tasks = Task.objects.all().order_by('-created_at')
-    elif can_manage_users(request.user):
-        tasks = Task.objects.all().order_by('-created_at')
-    elif can_manage_projects(request.user):
-        my_projects = Projects.objects.filter(assigned_to=request.user)
-        my_project_ids = my_projects.values_list('id', flat=True)
-        tasks = Task.objects.filter(
-            models.Q(project_id__in=my_project_ids) | 
-            models.Q(assigned_to=request.user)
-        ).distinct().order_by('-created_at')
-    else:
-        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+    tasks = get_task_queryset(request.user)
 
     # Statistics
     total_tasks = tasks.count()
@@ -3650,35 +3625,36 @@ def create_department(request):
     return render(request, "create_department.html", {"action": "Create"})
 
 
-# Show all users in a department
+# Show all users in a department (HTML view)
 @jwt_or_session_required
 @permission_required(['users.view_department', 'users.add_department', 'users.change_department', 'users.delete_department'])
 def department_detail(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
-    users_in_dept = User.objects.filter(profile__department=department)
-
-    # AJAX response
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        users_list = [
-            {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "role": user.role,
-                "designation": user.profile.designation.name if user.profile.designation else "N/A"
-            }
-            for user in users_in_dept
-        ]
-        return JsonResponse({
-            "success": True,
-            "department": department.name,
-            "users": users_list
-        })
-
-    # Normal page render
     return render(request, "department_detail.html", {
-        "department": department,
-        "users": users_in_dept
+        "department": department
+    })
+
+# AJAX API for department members
+@jwt_or_session_required
+@permission_required(['users.view_department'])
+def department_members_api(request, dept_id):
+    department = get_object_or_404(Department, id=dept_id)
+    users_in_dept = User.objects.filter(profile__department=department)
+    
+    users_list = [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "designation": user.profile.designation.name if user.profile.designation else "N/A"
+        }
+        for user in users_in_dept
+    ]
+    return JsonResponse({
+        "success": True,
+        "department": department.name,
+        "users": users_list
     })
 
 
@@ -3759,38 +3735,40 @@ def create_designation(request):
 
 
 
-# Show all users in a designation
+# Show all users in a designation (HTML view)
 @jwt_or_session_required
 @permission_required(['users.view_designation', 'users.add_designation', 'users.change_designation', 'users.delete_designation'])
 def designation_detail(request, desig_id):
     designation = get_object_or_404(Designation, id=desig_id)
+    return render(request, "designation_detail.html", {
+        "designation": designation
+    })
+
+# AJAX API for designation members
+@jwt_or_session_required
+@permission_required(['users.view_designation'])
+def designation_members_api(request, desig_id):
+    designation = get_object_or_404(Designation, id=desig_id)
     users_in_desig = User.objects.filter(profile__designation=designation)
     
-    # Handle AJAX request
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        users_list = [
-            {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "role": user.role or "N/A",
-                "role_display": user.role or "N/A",
-                "department": user.profile.department.name if hasattr(user, 'profile') and user.profile.department else "N/A",
-                "full_name": user.get_full_name() or user.username
-            }
-            for user in users_in_desig
-        ]
-        return JsonResponse({
-            "success": True,
-            "designation": designation.name,
-            "designation_id": designation.id,
-            "users": users_list,
-            "total_users": len(users_list)
-        })
-    
-    return render(request, "designation_detail.html", {
-        "designation": designation,
-        "users": users_in_desig
+    users_list = [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role or "N/A",
+            "role_display": user.role or "N/A",
+            "department": user.profile.department.name if hasattr(user, 'profile') and user.profile.department else "N/A",
+            "full_name": user.get_full_name() or user.username
+        }
+        for user in users_in_desig
+    ]
+    return JsonResponse({
+        "success": True,
+        "designation": designation.name,
+        "designation_id": designation.id,
+        "users": users_list,
+        "total_users": len(users_list)
     })
 
 
@@ -4017,7 +3995,6 @@ def user_analytics(request):
     last_7_days = timezone.now() - timedelta(days=7)
     recent_completed = tasks.filter(status='COMPLETED', end_time__gte=last_7_days).count()
     avg_time = tasks.filter(total_time__isnull=False).aggregate(avg=Avg('total_time'))['avg']
-
     def format_duration(duration):
         if not duration:
             return "00:00:00"
@@ -4026,6 +4003,35 @@ def user_analytics(request):
         m = (total_seconds % 3600) // 60
         s = total_seconds % 60
         return f"{h:02d}:{m:02d}:{s:02d}"
+
+    # Calculate Efficiency Score
+    completed_tasks_with_time = tasks.filter(status='COMPLETED', total_time__isnull=False, estimated_time__gt=0)
+    avg_efficiency = 0
+    if completed_tasks_with_time.exists():
+        total_eff = 0
+        valid_count = 0
+        for t in completed_tasks_with_time:
+            actual_s = t.total_time.total_seconds()
+            if actual_s > 0:
+                eff = (t.estimated_time / actual_s) * 100
+                total_eff += min(eff, 100)
+                valid_count += 1
+        if valid_count > 0:
+            avg_efficiency = int(total_eff / valid_count)
+
+    # Fetch Recent Tasks detailing
+    recent_tasks = tasks.select_related('project').order_by('-created_at')[:8]
+    recent_tasks_details = []
+    for t in recent_tasks:
+        recent_tasks_details.append({
+            'id': t.id,
+            'name': t.name,
+            'project': t.project.name if t.project else "N/A",
+            'status': t.status,
+            'status_display': t.get_status_display(),
+            'time': format_duration(t.total_time),
+            'deadline': t.deadline.strftime('%Y-%m-%d %H:%M') if t.deadline else None,
+        })
 
     avg_time_formatted = format_duration(avg_time)
     projects_count = projects.count()
@@ -4048,11 +4054,13 @@ def user_analytics(request):
         'overdue': overdue,
         'projects': projects_count,
         'performance': performance,
+        'efficiency': avg_efficiency,
         'stroke_offset': stroke_offset,
         'recent_completed': recent_completed,
         'avg_time': avg_time_formatted,
         'remaining': remaining,
         'cards': cards,
+        'recent_tasks': recent_tasks_details,
     }
 
     # Return JSON if AJAX
@@ -4078,7 +4086,7 @@ def user_analytics(request):
         return JsonResponse({
             'success': True,
             'analytics': analytics,
-            'selected_user': selected_user_name,
+            'selected_user_display': selected_user_name,
             'selected_user_id': selected_user.id if selected_user else None,
             'users': users_list
         })

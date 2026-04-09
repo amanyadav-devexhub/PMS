@@ -862,7 +862,7 @@
                       <div class="flex justify-between items-start">
                           <div class="flex-1 cursor-pointer" onclick="${n.target_url ? `NotificationManager.markAsRead(${n.id}, '${n.target_url}')` : `NotificationManager.markAsRead(${n.id})`}">
                               <p class="text-xs text-slate-700 dark:text-slate-300">
-                                  ${n.target_url ? `<span class="hover:text-[#4a9d7e] hover:underline">${this.escapeHtml(n.message)}</span>` : this.escapeHtml(n.message)}
+                                  ${n.target_url ? `<span class="hover:text-[#4a9d7e] hover:underline ">${this.escapeHtml(n.message)}</span>` : this.escapeHtml(n.message)}
                               </p>
                               <p class="text-[10px] text-slate-400 mt-1">${this.formatDate(n.created_at)}</p>
                           </div>
