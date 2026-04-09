@@ -636,6 +636,18 @@
                 el.classList.remove('border-red-500', 'bg-red-50', 'dark:border-red-500', 'dark:bg-red-900/20');
             });
         }
+
+        // Clear error states on input change
+        document.querySelectorAll('input, select, textarea').forEach(input => {
+            input.addEventListener('input', function() {
+                this.classList.remove('border-red-500', 'bg-red-50', 'dark:border-red-500', 'dark:bg-red-900/20');
+                const errorDiv = this.parentElement.querySelector('.error-message');
+                if (errorDiv) {
+                    errorDiv.classList.add('hidden');
+                    errorDiv.innerHTML = '';
+                }
+            });
+        });
         
         function displayErrors(errors) {
             clearErrors();
@@ -671,6 +683,18 @@
         function validateDates() {
             const startDate = document.getElementById('start_date');
             const endDate = document.getElementById('end_date');
+            
+            // Clear existing error states for dates
+            if (startDate && endDate) {
+                startDate.classList.remove('border-red-500', 'bg-red-50', 'dark:border-red-500', 'dark:bg-red-900/20');
+                endDate.classList.remove('border-red-500', 'bg-red-50', 'dark:border-red-500', 'dark:bg-red-900/20');
+                const errorDiv = endDate.parentElement.querySelector('.error-message');
+                if (errorDiv) {
+                    errorDiv.classList.add('hidden');
+                    errorDiv.innerHTML = '';
+                }
+            }
+
             let isValid = true;
             if (startDate && endDate && startDate.value && endDate.value) {
                 if (startDate.value >= endDate.value) {

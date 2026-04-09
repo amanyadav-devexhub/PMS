@@ -70,7 +70,7 @@ class ProjectResource(models.Model):
     ]
     
     project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='resources')
-    resource_type = models.CharField(max_length=10, choices=RESOURCE_TYPE_CHOICES)
+    resource_type = models.CharField(max_length=10, choices=RESOURCE_TYPE_CHOICES, blank=True, null=True)
     title = models.CharField(max_length=255)
     text_content = models.TextField(blank=True, null=True)
     file = models.FileField(upload_to='project_resources/', blank=True, null=True)

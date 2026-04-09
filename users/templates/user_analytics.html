@@ -167,15 +167,7 @@
                     <span id="scoreBadge" class="px-3 py-1 bg-[#4a9d7e]/10 text-[#4a9d7e] rounded-full text-sm font-bold">Good</span>
                 </div>
                 
-                <div class="space-y-2">
-                    <div class="flex justify-between text-sm font-medium">
-                        <span class="text-slate-600 dark:text-slate-400">Completion Rate</span>
-                        <span id="completionRateText" class="text-slate-900 dark:text-white">{{ analytics.performance }}%</span>
-                    </div>
-                    <div class="h-3 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                        <div id="completionRateBar" class="h-full bg-gradient-to-r from-[#4a9d7e] to-[#68d391] transition-all duration-1000" style="width: 0%"></div>
-                    </div>
-                </div>
+              
 
                 <div class="grid grid-cols-2 gap-4 pt-2">
                     <div class="p-4 bg-slate-50 dark:bg-white/5 rounded-2xl">
@@ -480,8 +472,12 @@
 
         // Update Efficiency Gauge & Progress
         animateGauge(a.efficiency);
-        document.getElementById('completionRateText').textContent = a.performance + '%';
-        document.getElementById('completionRateBar').style.width = a.performance + '%';
+        const compText = document.getElementById('completionRateText');
+        if (compText) compText.textContent = a.performance + '%';
+        
+        const compBar = document.getElementById('completionRateBar');
+        if (compBar) compBar.style.width = a.performance + '%';
+        
         document.getElementById('avgTime').textContent = a.avg_time;
         document.getElementById('recentCompleted').innerHTML = `${a.recent_completed} <span class="text-[10px] font-normal text-slate-400">tasks</span>`;
 

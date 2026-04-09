@@ -146,6 +146,11 @@
       .chat-badge {
         transition: all 0.2s ease;
       }
+      .text-wrap{
+         max-width: 320px;
+  display: block;
+  word-break: break-all;
+      }
     </style>
     {% block extra_css %}{% endblock %}
   </head>
@@ -458,7 +463,7 @@
                     <button id="markAllReadBtn" class="text-[10px] text-[#4a9d7e] hover:underline">Mark all read</button>
                   </div>
                 </div>
-                <div id="notificationList" class="max-h-96 overflow-y-auto">
+                <div id="notificationList" class="max-h-96 overflow-y-auto text-wrap">
                   <div class="p-4 text-center text-slate-500">
                     <div
                       class="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#4a9d7e]"

@@ -2181,12 +2181,13 @@ def create_user(request):
             errors = {}
             
             # VALIDATION FOR EMPLOYEE ID
-            employee_id = request.POST.get('employee_id')
-            if not employee_id or not employee_id.strip():
+            employee_id = request.POST.get('employee_id', '').strip()
+            if not employee_id:
                 errors['employee_id'] = ['Employee ID is required.']
-            else:
-                if UserProfile.objects.filter(employee_id=employee_id.strip()).exists():
-                    errors['employee_id'] = ['Employee ID already exists. Please use a unique ID.']
+            elif not employee_id.isdigit():
+                errors['employee_id'] = ['Employee ID must contain only numbers (no alphabetic characters).']
+            elif UserProfile.objects.filter(employee_id=employee_id).exists():
+                errors['employee_id'] = ['Employee ID already exists. Please use a unique ID.']
             
             # PHONE VALIDATION
             phone = request.POST.get('phone', '').strip()
@@ -2354,7 +2355,14 @@ def create_user(request):
             
             # Profile form fields structure
             profile_fields = {
-                'employee_id': {'label': 'Employee ID', 'required': True, 'type': 'text', 'minlength': 2},
+                'employee_id': {
+                    'label': 'Employee ID', 
+                    'required': True, 
+                    'type': 'text', 
+                    'minlength': 2,
+                    'pattern': '[0-9]+',
+                    'help_text': 'Only numbers are allowed for Employee ID'
+                },
                 'phone': {'label': 'Phone', 'required': False, 'type': 'tel', 'pattern': '[6-9][0-9]{9}', 'maxlength': 10, 'help_text': '10 digits, starts with 6/7/8/9'},
                 'department': {'label': 'Department', 'required': True, 'type': 'select', 'options': list(departments)},
                 'designation': {'label': 'Designation', 'required': True, 'type': 'select', 'options': list(designations)},
