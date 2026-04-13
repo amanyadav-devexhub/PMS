@@ -152,6 +152,8 @@ def get_task_queryset(user, queryset=None):
     if queryset is None:
         queryset = Task.objects.all()
     
+    queryset = queryset.filter(is_deleted=False)
+    
     if can_view_all_tasks(user):
         return queryset.order_by('-created_at')
     
@@ -171,6 +173,8 @@ def get_projects_queryset(user, queryset=None):
     
     if queryset is None:
         queryset = Projects.objects.all()
+    
+    queryset = queryset.filter(is_deleted=False)
     
     if can_view_all_projects(user):
         return queryset.order_by('-start_date')

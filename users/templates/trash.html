@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Trash{% endblock %}
+{% block page_title %}Trash{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+    <div class="mb-6">
+        <button onclick="goBack()" class="back-btn-small">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+        </button>
+    </div>
+
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-red-50 dark:bg-red-900/20">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-trash-can text-red-500"></i>
+                <h2 class="text-lg font-semibold text-slate-800 dark:text-white">Trash</h2>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Items in trash will be automatically deleted after 15 days</p>
+        </div>
+
+        <!-- Deleted Projects -->
+        <div class="p-6">
+            <h3 class="text-md font-semibold text-slate-800 dark:text-white mb-4">
+                <i class="fa-solid fa-folder text-amber-500 mr-2"></i>
+                Deleted Projects
+                <span class="text-xs text-slate-500 ml-2">({{ deleted_projects.count }})</span>
+            </h3>
+            
+            {% if deleted_projects %}
+                <div class="space-y-3">
+                    {% for project in deleted_projects %}
+                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
+                        <div>
+                            <p class="font-medium text-slate-800 dark:text-white">{{ project.name }}</p>
+                            <p class="text-xs text-slate-500">Deleted: {{ project.deleted_at|date:"Y-m-d H:i" }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="restoreItem('project', {{ project.id }})" 
+                                    class="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition">
+                                <i class="fa-solid fa-arrow-rotate-left mr-1"></i> Restore
+                            </button>
+                            <button onclick="permanentDelete('project', {{ project.id }}, '{{ project.name|escapejs }}')" 
+                                    class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-lg transition">
+                                <i class="fa-solid fa-trash-can mr-1"></i> Delete Forever
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-sm text-slate-400 italic">No deleted projects</p>
+            {% endif %}
+        </div>
+
+        <!-- Deleted Tasks -->
+        <div class="p-6 border-t border-slate-200 dark:border-white/10">
+            <h3 class="text-md font-semibold text-slate-800 dark:text-white mb-4">
+                <i class="fa-solid fa-list-check text-blue-500 mr-2"></i>
+                Deleted Tasks
+                <span class="text-xs text-slate-500 ml-2">({{ deleted_tasks.count }})</span>
+            </h3>
+            
+            {% if deleted_tasks %}
+                <div class="space-y-3">
+                    {% for task in deleted_tasks %}
+                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
+                        <div>
+                            <p class="font-medium text-slate-800 dark:text-white">{{ task.name }}</p>
+                            <p class="text-xs text-slate-500">Project: {{ task.project.name }} | Deleted: {{ task.deleted_at|date:"Y-m-d H:i" }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="restoreItem('task', {{ task.id }})" 
+                                    class="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition">
+                                <i class="fa-solid fa-arrow-rotate-left mr-1"></i> Restore
+                            </button>
+                            <button onclick="permanentDelete('task', {{ task.id }}, '{{ task.name|escapejs }}')" 
+                                    class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-lg transition">
+                                <i class="fa-solid fa-trash-can mr-1"></i> Delete Forever
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-sm text-slate-400 italic">No deleted tasks</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showNotification(message, type) {
+    // You can use your existing notification system
+    alert(message);
+}
+
+function restoreItem(itemType, itemId) {
+    if (!confirm('Restore this item?')) return;
+    
+    fetch(`/trash/restore/${itemType}/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error');
+    });
+}
+
+function permanentDelete(itemType, itemId, itemName) {
+    if (!confirm(`⚠️ Permanently delete "${itemName}"? This action cannot be undone.`)) return;
+    
+    fetch(`/trash/permanent/${itemType}/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error');
+    });
+}
+
+function goBack() {
+    window.history.back();
+}
+</script>
+{% endblock %}

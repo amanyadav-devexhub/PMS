@@ -94,7 +94,7 @@
                 </div>
             </div>
 
-            <!-- Action Buttons - Edit Project -->
+            <!-- Action Buttons -->
             {% if can_change_projects %}
             <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-white/10">
                 <a href="{% url 'edit_projects' project.id %}"
@@ -106,6 +106,14 @@
                     </svg>
                     Edit Project
                 </a>
+                <!-- 🔽 NEW: Activity Log Button - Only show if user is project creator -->
+                {% if project.created_by == request.user %}
+                <a href="{% url 'activity_log_view' project.id %}"
+                    class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow hover:shadow-md transition font-medium">
+                    <i class="fa-solid fa-clock-rotate-left mr-2"></i>
+                    Activity Log
+                </a>
+                {% endif %}
             </div>
             {% elif request.user in project.assigned_to.all %}
             <div class="mt-6 pt-6 border-t border-gray-200 dark:border-white/10">
@@ -594,8 +602,9 @@
         nextBtn.disabled = currentPage >= totalPages;
     }
     
+    // 🔽 UPDATED deleteTask function with soft delete
     async function deleteTask(taskId, taskName) {
-        if (!confirm(`Are you sure you want to delete task "${taskName}"?`)) return;
+        if (!confirm(`Move task "${taskName}" to trash? You can restore it later from Trash.`)) return;
         
         const loadingOverlay = document.getElementById('tasksLoadingOverlay');
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
@@ -610,8 +619,8 @@
             
             const data = await response.json();
             
-            if (response.ok) {
-                showToast(`✅ Task deleted successfully`, 'success');
+            if (response.ok && data.success) {
+                showToast(`✅ Task "${taskName}" moved to trash`, 'success');
                 // Reload current page after deletion
                 await loadTasks(currentPage, currentPageSize);
             } else {

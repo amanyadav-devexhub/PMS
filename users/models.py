@@ -122,3 +122,34 @@ class UserProfile(models.Model):
     
     def __str__(self):
         return f"{self.user.username} Profile"
+    
+
+
+class ActivityLog(models.Model):
+        ACTION_CHOICES = (
+            ('created', 'Created'),
+            ('updated', 'Updated'),
+            ('deleted', 'Deleted'),
+            ('restored', 'Restored'),
+        )
+        
+        ENTITY_CHOICES = (
+            ('project', 'Project'),
+            ('task', 'Task'),
+        )
+        
+        user = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, related_name='activities')
+        action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+        entity_type = models.CharField(max_length=20, choices=ENTITY_CHOICES)
+        entity_id = models.PositiveIntegerField()
+        entity_name = models.CharField(max_length=255, blank=True, null=True)
+        old_value = models.TextField(blank=True, null=True)
+        new_value = models.TextField(blank=True, null=True)
+        ip_address = models.GenericIPAddressField(blank=True, null=True)
+        timestamp = models.DateTimeField(auto_now_add=True)
+        
+        def __str__(self):
+            return f"{self.user} {self.action} {self.entity_type} #{self.entity_id} at {self.timestamp}"
+        
+        class Meta:
+            ordering = ['-timestamp']

@@ -104,15 +104,3 @@ def mark_all_as_read(request):
     
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
-
-# @jwt_or_session_required
-# @csrf_exempt
-# def unread_count(request):
-#     """Get unread notifications count"""
-#     unread_count = request.user.notifications.filter(is_read=False).count()
-    
-#     return JsonResponse({
-#         'success': True,
-#         'unread_count': unread_count
-#     })
-

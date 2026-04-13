@@ -17,7 +17,7 @@ from django.http import HttpResponse
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-#  # Add this line
+
 
 @jwt_or_session_required
 def get_user_rooms(request):
@@ -39,6 +39,7 @@ def get_user_rooms(request):
         })
     
     return JsonResponse({'success': True, 'rooms': rooms_data})
+
 
 @jwt_or_session_required
 def chat_rooms(request):
@@ -79,6 +80,7 @@ def chat_rooms(request):
         'rooms': rooms_list,
         'users': users
     })
+
 
 @jwt_or_session_required
 def chat_room(request, room_id):
@@ -126,6 +128,7 @@ def chat_room(request, room_id):
         'participants': room.participants.exclude(id=request.user.id) if not room.is_group else room.participants.all()
     })
 
+
 @jwt_or_session_required
 def create_direct_room(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
@@ -145,6 +148,8 @@ def create_direct_room(request, user_id):
             room.save()
 
     return JsonResponse({'room_id': room.id})
+
+
 @csrf_exempt
 @jwt_or_session_required
 @require_http_methods(["POST"])
@@ -190,8 +195,7 @@ def create_group_room(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-# views.py - Update get_messages function
-  # Add this line
+
 
 @jwt_or_session_required
 def get_messages(request, room_id):
@@ -242,6 +246,7 @@ def get_messages(request, room_id):
         })
     
     return JsonResponse({'messages': messages_data})
+
 
 
 @csrf_exempt
@@ -305,6 +310,8 @@ def send_message(request, room_id):
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
 
+
+
 @jwt_or_session_required
 def search_users(request):
     """Search for users to add to chat or start conversation"""
@@ -339,7 +346,8 @@ def search_users(request):
         })
     
     return JsonResponse({'users': users_data})
-#  # Add this line
+
+
 
 @csrf_exempt
 @jwt_or_session_required
@@ -401,7 +409,8 @@ def mark_messages_read(request, room_id):
             )
     
     return JsonResponse({'success': True, 'marked_count': updated})
-#  # Add this line
+
+
 
 @jwt_or_session_required
 def get_unread_counts(request):
@@ -421,7 +430,8 @@ def get_unread_counts(request):
         'unread_counts': unread_counts,
         'total_unread': total_unread
     })
-#  # Add this line
+
+
 
 @jwt_or_session_required
 def get_all_users(request):
@@ -438,7 +448,8 @@ def get_all_users(request):
         })
     
     return JsonResponse({'users': users_data})
-#  # Add this line
+
+
 
 @csrf_exempt 
 @jwt_or_session_required
@@ -538,7 +549,7 @@ def upload_file(request, room_id):
         'attachment': attachment_data
     })
 
-#  # Add this line
+
 
 @jwt_or_session_required
 def download_file(request, attachment_id):
@@ -553,6 +564,7 @@ def download_file(request, attachment_id):
     response = HttpResponse(attachment.file.read(), content_type=attachment.mime_type or 'application/octet-stream')
     response['Content-Disposition'] = f'attachment; filename="{attachment.filename}"'
     return response
+
 
 
 def determine_file_type(filename, mime_type):
@@ -584,6 +596,8 @@ def determine_file_type(filename, mime_type):
     else:
         return 'other'
 
+
+
 @jwt_or_session_required
 def list_projects(request):
     """List all projects for the user or all projects for admins"""
@@ -602,4 +616,4 @@ def list_projects(request):
             'name': p.name
         })
         
-    return JsonResponse({'projects': projects_data})
+    return JsonResponse({'projects': projects_data})

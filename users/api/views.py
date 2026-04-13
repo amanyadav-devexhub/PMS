@@ -4,14 +4,13 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
-from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
+
 
 from .serializers import (
     UserSerializer,
     LoginSerializer,
-    ProjectSerializer,
-    TaskSerializer,
+    
 )
 from projects.models import Projects
 from Tasks.models import Task
@@ -19,12 +18,12 @@ from users.permissions import (
     can_add_task,
     can_manage_projects,
     can_manage_users,
-    can_view_all_projects,
-    can_view_all_tasks,
+    # can_view_all_projects,
+    # can_view_all_tasks,
     can_view_task,
-    can_change_projects,
-    can_change_task,
-    can_manage_all_tasks,
+    # can_change_projects,
+    # can_change_task,
+    # can_manage_all_tasks,
     is_manager_like,
     get_task_queryset,
     get_projects_queryset,
@@ -36,7 +35,6 @@ User = get_user_model()
 # ──────────────────────────────────────────────
 #  AUTH ENDPOINTS
 # ──────────────────────────────────────────────
-
 class LoginAPIView(APIView):
     """POST /api/auth/login/  —  returns JWT access + refresh tokens"""
     permission_classes = [AllowAny]
@@ -145,112 +143,6 @@ class MeAPIView(APIView):
         return Response(UserSerializer(request.user).data)
 
 
-# ──────────────────────────────────────────────
-#  RESOURCE ENDPOINTS
-# ──────────────────────────────────────────────
-
-class ProjectPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-class TaskPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-
-
-class ProjectListAPIView(APIView):
-    """GET /api/projects/  —  permission-filtered project list with pagination and search"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-        search = request.query_params.get('search', '')
-
-        projects = get_projects_queryset(user)
-
-        if search:
-            projects = projects.filter(
-                Q(name__icontains=search) |
-                Q(description__icontains=search) |
-                Q(assigned_to__username__icontains=search) |
-                Q(assigned_to__first_name__icontains=search) |
-                Q(assigned_to__last_name__icontains=search)
-            ).distinct()
-
-        projects = projects.order_by('-start_date')
-        
-        paginator = ProjectPagination()
-        page = paginator.paginate_queryset(projects, request)
-        
-        if page is not None:
-            serializer = ProjectSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
-        serializer = ProjectSerializer(projects, many=True)
-        return Response({
-            'count': projects.count(),
-            'results': serializer.data,
-        })
-
-
-class ProjectDetailAPIView(APIView):
-    """
-    GET    /api/projects/<id>/  —  Retrieve project detail
-    PATCH  /api/projects/<id>/  —  Update project
-    DELETE /api/projects/<id>/  —  Delete project
-    """
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self, pk, user):
-        try:
-            project = Projects.objects.get(pk=pk)
-            # Permission check: can view detail if admin, assigned, or has global change permission
-            if can_view_all_projects(user) or can_change_projects(user):
-                return project
-            if project.assigned_to.filter(id=user.id).exists():
-                return project
-            return None
-        except Projects.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        project = self.get_object(pk, request.user)
-        if not project:
-            return Response({'error': 'Project not found or access denied'}, status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = ProjectSerializer(project)
-        return Response(serializer.data)
-
-    def patch(self, request, pk):
-        project = self.get_object(pk, request.user)
-        if not project:
-            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if not can_manage_projects(request.user):
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
-        # Handle ManyToMany assigned_to manually if needed, 
-        # but let's see if ProjectSerializer can be updated to support write.
-        serializer = ProjectSerializer(project, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'success': True, 'message': 'Project updated', 'project': serializer.data})
-        return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        project = self.get_object(pk, request.user)
-        if not project:
-            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if not can_manage_projects(request.user):
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
-        project.delete()
-        return Response({'success': True, 'message': 'Project deleted successfully'})
-
 
 
 class UserListAPIView(APIView):
@@ -269,122 +161,9 @@ class UserListAPIView(APIView):
         })
 
 
-class TaskListAPIView(APIView):
-    """GET /api/tasks/  —  filtered task list with pagination and project support"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-        project_id = request.query_params.get('project_id')
-        task_id = request.query_params.get('task_id')
-        assigned_to = request.query_params.get('assigned_to')
-        search = request.query_params.get('search', '')
-
-        # Use centralized permission-filtered queryset
-        tasks = get_task_queryset(user)
-        
-        if project_id:
-            tasks = tasks.filter(project_id=project_id)
-        
-        if task_id:
-            tasks = tasks.filter(id=task_id)
-            
-        if assigned_to:
-            tasks = tasks.filter(assigned_to__id=assigned_to)
-
-        if search:
-            tasks = tasks.filter(
-                Q(name__icontains=search) |
-                Q(description__icontains=search) |
-                Q(assigned_to__username__icontains=search)
-            ).distinct()
-
-        tasks = tasks.order_by('-created_at')
-        
-        paginator = TaskPagination()
-        page = paginator.paginate_queryset(tasks, request)
-        
-        if page is not None:
-            serializer = TaskSerializer(page, many=True)
-            response = paginator.get_paginated_response(serializer.data)
-            
-            # Add some stats if project_id is provided
-            if project_id:
-                try:
-                    project_tasks = Task.objects.filter(project_id=project_id)
-                    response.data.update({
-                        'total_tasks': project_tasks.count(),
-                        'pending_tasks': project_tasks.filter(status='PENDING').count(),
-                        'ongoing_tasks': project_tasks.filter(status='ONGOING').count(),
-                        'completed_tasks': project_tasks.filter(status='COMPLETED').count(),
-                    })
-                except (ValueError, TypeError):
-                    pass
-            return response
-
-        serializer = TaskSerializer(tasks, many=True)
-        return Response({
-            'count': tasks.count(),
-            'results': serializer.data,
-        })
-
-
-class TaskDetailAPIView(APIView):
-    """
-    GET    /api/tasks/<id>/  —  Retrieve task detail
-    PATCH  /api/tasks/<id>/  —  Update task
-    DELETE /api/tasks/<id>/  —  Delete task
-    """
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self, pk, user):
-        try:
-            task = Task.objects.get(pk=pk)
-            # Permission check: admin, manager of project, assigned to task, observer, or global change perm
-            if can_view_all_tasks(user) or can_change_task(user):
-                return task
-            if task.assigned_to.filter(id=user.id).exists() or task.observers.filter(id=user.id).exists():
-                return task
-            if task.project and task.project.assigned_to.filter(id=user.id).exists() and (can_add_task(user) or can_manage_projects(user)):
-                return task
-            return None
-        except Task.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        task = self.get_object(pk, request.user)
-        if not task:
-            return Response({'error': 'Task not found or access denied'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = TaskSerializer(task)
-        return Response(serializer.data)
-
-    def patch(self, request, pk):
-        task = self.get_object(pk, request.user)
-        if not task:
-            return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Managers can update anything, assignees can update status/time (usually)
-        # But for simplicity, let's use the can_add_task / can_manage_projects logic
-        if not (can_add_task(request.user) or can_manage_projects(request.user)) and not task.assigned_to.filter(id=request.user.id).exists():
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = TaskSerializer(task, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'success': True, 'message': 'Task updated', 'task': serializer.data})
-        return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        task = self.get_object(pk, request.user)
-        if not task:
-            return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if not (can_add_task(request.user) or can_manage_projects(request.user)):
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
-        task.delete()
-        return Response({'success': True, 'message': 'Task deleted successfully'})
-
+# ============================================================================
+# DASHBOARD ENDPOINT
+# ============================================================================
 
 class DashboardAPIView(APIView):
     """GET /api/dashboard/  —  capability-based dashboard stats"""

@@ -1,0 +1,545 @@
+
+{% extends "base.html" %}
+
+{% block title %}Task Details{% endblock %}
+{% block page_title %}Task Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rich-text-content ul { list-style-type: disc !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content ol { list-style-type: decimal !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content p { margin-bottom: 0.75rem !important; }
+    .rich-text-content a { color: #4a9d7e !important; text-decoration: underline !important; }
+    .rich-text-content blockquote { border-left: 4px solid #4a9d7e !important; padding-left: 1rem !important; font-style: italic !important; margin: 1rem 0 !important; }
+    
+    .skeleton { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+    .dark .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="goBack()" class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+            Back
+        </button>
+    </div>
+    
+    <!-- Loading State (Skeleton) -->
+    <div id="loadingState">
+        <div class="bg-white dark:bg-[#111827] shadow-xl rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-[#1a1f2e] dark:to-[#111827] px-8 py-6 border-b border-slate-200 dark:border-white/10">
+                <div class="skeleton h-8 w-64 mb-2"></div>
+                <div class="skeleton h-4 w-24"></div>
+            </div>
+            <div class="p-8 space-y-6">
+                <div class="skeleton h-24 w-full"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="skeleton h-6 w-32"></div>
+                        <div class="skeleton h-6 w-48"></div>
+                        <div class="skeleton h-6 w-56"></div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="skeleton h-6 w-32"></div>
+                        <div class="skeleton h-6 w-52"></div>
+                    </div>
+                </div>
+                <div class="skeleton h-32 w-full"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Container - Hidden until loaded -->
+    <div id="contentContainer" class="hidden"></div>
+    
+</div>
+
+<script>
+// Get CSRF token
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Get task_id from URL
+const urlParams = new URLSearchParams(window.location.search);
+const taskId = urlParams.get('task_id');
+const employeeId = urlParams.get('employee_id');
+
+function escapeHtml(text) {
+    if (!text) return '—';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function renderTask(task) {
+    const statusColor = task.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                        task.status === 'ONGOING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+    
+    const timeDisplay = task.status === 'ONGOING' ? task.current_display_time :
+                        task.status === 'COMPLETED' ? task.total_time_display : '00:00:00';
+    
+    return `
+        <div class="bg-white dark:bg-[#111827] shadow-xl rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            <!-- Task Header -->
+            <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-[#1a1f2e] dark:to-[#111827] px-8 py-6 border-b border-slate-200 dark:border-white/10 flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-800 dark:text-white">${escapeHtml(task.name)}</h1>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">ID: ${task.id}</p>
+                </div>
+                <div>
+                    <span class="px-4 py-2 rounded-full text-sm font-semibold ${statusColor}">
+                        ${escapeHtml(task.status_display)}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 px-8 py-5 border-b border-slate-200 dark:border-white/10">
+                <div class="text-slate-700 dark:text-slate-300 rich-text-content max-w-none">
+                    ${task.description ? task.description : '<p class="italic text-slate-400">No description provided.</p>'}
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <!-- Left Column -->
+                    <div class="space-y-5">
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Task owner:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">
+                                    ${task.assigned_by.map(u => escapeHtml(u.name)).join(', ') || 'Saurav'}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Deadline:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">
+                                    ${task.deadline || task.end_date || 'Not set'}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Created:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">${escapeHtml(task.created_at)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Time tracking:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">
+                                    <span id="timer-${task.id}" class="font-mono bg-slate-100 dark:bg-[#1e293b] px-3 py-1 rounded-lg">
+                                        ${timeDisplay}
+                                    </span>
+                                    <span class="text-slate-500 dark:text-slate-400 ml-2">/ ${task.estimated_display}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="space-y-5">
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Assignee:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">
+                                    ${task.assigned_to.map(u => escapeHtml(u.name)).join(', ') || '<span class="text-slate-400">Unassigned</span>'}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Project:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">${escapeHtml(task.project.name)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-28 flex-shrink-0">
+                                <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Status:</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-slate-800 dark:text-slate-200">${escapeHtml(task.status_display)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observers -->
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Observers:</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex flex-wrap gap-2">
+                                ${task.observers.length > 0 ? task.observers.map(o => `
+                                    <span class="bg-slate-100 dark:bg-[#1e293b] px-4 py-2 rounded-full text-sm text-slate-700 dark:text-slate-300">
+                                        ${escapeHtml(o.name)}
+                                    </span>
+                                `).join('') : '<span class="text-slate-400 text-sm">No observers</span>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
+                    <div class="flex items-start">
+                        <div class="w-28 flex-shrink-0">
+                            <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Summary:</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-slate-800 dark:text-slate-200 font-semibold">Task Summary</h2>
+                                ${task.status === 'ONGOING' && !task.is_paused ? `
+                                <a href="/task/${task.id}/summary/add/" 
+                                   class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold shadow-md hover:shadow-lg transition">
+                                    +
+                                </a>
+                                ` : ''}
+                            </div>
+                            ${task.summary ? `
+                            <div class="mt-2 p-4 bg-slate-50 dark:bg-[#1e293b] rounded-xl border border-slate-200 dark:border-white/10">
+                                <p class="text-slate-700 dark:text-slate-300">${escapeHtml(task.summary)}</p>
+                            </div>
+                            ` : '<p class="text-slate-400 text-sm italic">No summary added yet.</p>'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                ${task.status !== 'COMPLETED' ? `
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end space-x-4">
+                    ${task.status === 'PENDING' ? `
+                        <button type="button" onclick="startTask(${task.id})" 
+                                class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-8 py-3 rounded-xl text-sm font-medium transition shadow-md hover:shadow-lg"
+                                id="start-btn-${task.id}">
+                            Start Task
+                        </button>
+                    ` : ''}
+                    
+                    ${task.status === 'ONGOING' ? `
+                        ${task.is_paused ? `
+                        <button type="button" onclick="resumeTask(${task.id})" 
+                                class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-8 py-3 rounded-xl text-sm font-medium transition"
+                                id="resume-btn-${task.id}">
+                            Resume Task
+                        </button>
+                        ` : `
+                        <button type="button" onclick="pauseTask(${task.id})" 
+                                class="bg-amber-500 hover:bg-amber-600 text-white px-8 py-3 rounded-xl text-sm font-medium transition"
+                                id="pause-btn-${task.id}">
+                            Pause Task
+                        </button>
+                        <button type="button" onclick="completeTask(${task.id})" 
+                                class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl text-sm font-medium transition"
+                                id="complete-btn-${task.id}">
+                            Complete Task
+                        </button>
+                        `}
+                    ` : ''}
+                </div>
+                ` : `
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end">
+                    <span class="text-sm text-slate-500 italic px-4 py-2 bg-slate-100 dark:bg-[#1e293b] rounded-lg">Task Completed</span>
+                </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+function loadTaskData() {
+    const loadingState = document.getElementById('loadingState');
+    const contentContainer = document.getElementById('contentContainer');
+    
+    // Make AJAX call to get JSON data
+    fetch(window.location.href, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadingState.classList.add('hidden');
+            contentContainer.classList.remove('hidden');
+            
+            if (data.task) {
+                // Single task view
+                contentContainer.innerHTML = renderTask(data.task);
+                startLiveTimer(data.task);
+            } else if (data.tasks) {
+                // Tasks list view
+                contentContainer.innerHTML = renderTasksList(data);
+            }
+        } else {
+            loadingState.innerHTML = `
+                <div class="bg-red-50 dark:bg-red-900/20 p-8 text-center rounded-xl">
+                    <i class="fa-solid fa-circle-exclamation text-red-500 text-3xl mb-3"></i>
+                    <p class="text-red-600 dark:text-red-400">${escapeHtml(data.error || 'Error loading task')}</p>
+                    <button onclick="location.reload()" class="mt-4 bg-[#4a9d7e] text-white px-4 py-2 rounded-lg">Retry</button>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingState.innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 p-8 text-center rounded-xl">
+                <i class="fa-solid fa-circle-exclamation text-red-500 text-3xl mb-3"></i>
+                <p class="text-red-600 dark:text-red-400">Network error. Please try again.</p>
+                <button onclick="location.reload()" class="mt-4 bg-[#4a9d7e] text-white px-4 py-2 rounded-lg">Retry</button>
+            </div>
+        `;
+    });
+}
+
+function startLiveTimer(task) {
+    if (task.status === 'ONGOING' && !task.is_paused && task.current_display_time) {
+        // Parse the current time
+        let [hours, minutes, seconds] = task.current_display_time.split(':').map(Number);
+        let totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        
+        const timerElement = document.getElementById(`timer-${task.id}`);
+        if (!timerElement) return;
+        
+        setInterval(() => {
+            totalSeconds++;
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            timerElement.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }, 1000);
+    }
+}
+
+function renderTasksList(data) {
+    // Implementation for tasks list view (if needed)
+    return `
+        <div class="bg-white dark:bg-[#111827] rounded-xl p-6">
+            <h2 class="text-xl font-bold mb-4">Tasks for ${escapeHtml(data.viewing_employee)}</h2>
+            <div class="space-y-3">
+                ${data.tasks.map(task => `
+                    <a href="/employee/tasks/?task_id=${task.id}" class="block p-4 border rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">${escapeHtml(task.name)}</span>
+                            <span class="text-sm px-2 py-1 rounded-full ${task.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : task.status === 'ONGOING' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}">
+                                ${escapeHtml(task.status_display)}
+                            </span>
+                        </div>
+                    </a>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Task action functions
+function startTask(taskId) {
+    const btn = document.getElementById(`start-btn-${taskId}`);
+    const originalText = btn?.textContent;
+    if (btn) {
+        btn.textContent = 'Starting...';
+        btn.disabled = true;
+    }
+    
+    fetch(`/task/${taskId}/start/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Something went wrong');
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        alert('Network error');
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+function pauseTask(taskId) {
+    const btn = document.getElementById(`pause-btn-${taskId}`);
+    const originalText = btn?.textContent;
+    if (btn) {
+        btn.textContent = 'Pausing...';
+        btn.disabled = true;
+    }
+    
+    fetch(`/task/${taskId}/pause/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Something went wrong');
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        alert('Network error');
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+function resumeTask(taskId) {
+    const btn = document.getElementById(`resume-btn-${taskId}`);
+    const originalText = btn?.textContent;
+    if (btn) {
+        btn.textContent = 'Resuming...';
+        btn.disabled = true;
+    }
+    
+    fetch(`/task/${taskId}/resume/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Something went wrong');
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        alert('Network error');
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+function completeTask(taskId) {
+    const btn = document.getElementById(`complete-btn-${taskId}`);
+    const originalText = btn?.textContent;
+    if (btn) {
+        btn.textContent = 'Completing...';
+        btn.disabled = true;
+    }
+    
+    fetch(`/task/${taskId}/complete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else if (data.redirect_url) {
+            if (confirm('Task needs a summary. Add it now?')) {
+                window.location.href = data.redirect_url;
+            } else if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        } else {
+            alert(data.error || 'Something went wrong');
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        alert('Network error');
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+function goBack() {
+    window.history.back();
+}
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', loadTaskData);
+</script>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+

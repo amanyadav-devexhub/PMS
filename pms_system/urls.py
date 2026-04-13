@@ -14,15 +14,26 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.urls import path , include
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path("", include("users.urls")),
-    path('api/', include('users.api.urls')),
-    path('tasks/', include('Tasks.urls')),
-    path('chat/', include('chat.urls')),
+    # =========================================================================
+    # HTML VIEWS (No prefixes - let each app handle its own routing)
+    # =========================================================================
+    path("", include("users.urls")),      # Users app (home, login, dashboard, user management)
+    path("", include("projects.urls")),   # Projects app (project CRUD)
+    path("", include("Tasks.urls")),      # Tasks app (task CRUD, workflow)
+    path("chat/", include("chat.urls")),  # Chat app
+    
+    # =========================================================================
+    # API ENDPOINTS (All under /api/)
+    # =========================================================================
+    path('api/', include('users.api.urls')),           # Auth, dashboard, users API
+    path('api/projects/', include('projects.api.urls')), # Projects API
+    path('api/tasks/', include('Tasks.api.urls')),     # Tasks API
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,6 +1,7 @@
 from django.db import models
 from users.models import User
 
+
 # Create your models here.
 
 class Projects(models.Model):
@@ -19,6 +20,14 @@ class Projects(models.Model):
         related_name="projects") 
     start_date = models.DateField()
     end_date = models.DateField()
+    # Add with your other fields
+    updated_by = models.ForeignKey(
+        'users.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='projects_updated'
+    )
     created_by = models.ForeignKey(
         User, 
         on_delete=models.SET_NULL, 
@@ -31,25 +40,8 @@ class Projects(models.Model):
         choices=STATUS_CHOICES,
         default='PENDING'
     )
-
-    # ## resource field
-    # resource_text = models.TextField(
-    #     blank=True,
-    #     null=True,
-    #     help_text="Notes or reference text"
-    # )
-
-    # resource_link = models.URLField(
-    #     blank=True,
-    #     null=True,
-    #     help_text="Reference URL"
-    # )
-
-    # resource_file = models.FileField(
-    #     upload_to='project_resources/',
-    #     blank=True,
-    #     null=True
-    # )
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.name
