@@ -64,7 +64,6 @@
 
 <div class="max-w-4xl mx-auto">
 
-    <!-- Back Button -->
     <div class="mb-6">
         <button onclick="goBack()" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition font-medium">
             <i class="fa-solid fa-arrow-left text-xs"></i>
@@ -72,10 +71,8 @@
         </button>
     </div>
 
-    <!-- Main Card -->
     <div class="bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
 
-        <!-- Card Header (Dynamic) -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d]">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-pen-to-square text-white/80 text-sm"></i>
@@ -90,7 +87,6 @@
             </div>
         </div>
 
-        <!-- Form Body -->
         <div class="p-6">
             <form method="POST" id="editTaskForm">
                 {% csrf_token %}
@@ -99,7 +95,6 @@
 
                 <div class="space-y-5">
 
-                    <!-- Task Name -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Task Name <span class="text-red-500">*</span>
@@ -108,7 +103,6 @@
                                class="w-full px-4 py-2.5 bg-white dark:bg-[#1a1f2e] border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-transparent text-sm text-gray-800 dark:text-white transition">
                     </div>
 
-                    <!-- Description -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Description
@@ -117,7 +111,6 @@
                         <input type="hidden" name="description" id="id_description">
                     </div>
 
-                    <!-- Project -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Project <span class="text-red-500">*</span>
@@ -128,7 +121,6 @@
                         </select>
                     </div>
 
-                    <!-- ===== TASK OWNER (Searchable Dropdown) ===== -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Task Owner <span class="text-red-500">*</span>
@@ -164,7 +156,6 @@
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">Select multiple task owners (Admins/Team Leads)</p>
                     </div>
 
-                    <!-- ===== ASSIGN TO (Searchable Dropdown) ===== -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Assign to <span class="text-red-500">*</span>
@@ -205,7 +196,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- Status -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Status <span class="text-red-500">*</span>
@@ -218,7 +208,7 @@
                         </select>
                     </div>
 
-                    <!-- Start and End Date -->
+    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -237,7 +227,7 @@
                         </div>
                     </div>
 
-                    <!-- Deadline with time -->
+    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Deadline <span class="text-gray-400 dark:text-gray-500 text-xs">(with time)</span>
@@ -246,7 +236,6 @@
                                class="w-full border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1a1f2e] text-gray-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
                     </div>
 
-                    <!-- Estimated Time -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Estimated Time <span class="text-red-500">*</span>
@@ -267,7 +256,6 @@
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">Enter hours and minutes (e.g., 2 hours 30 minutes)</p>
                     </div>
 
-                    <!-- ===== OBSERVERS (Searchable Dropdown) ===== -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Observers
@@ -310,7 +298,6 @@
 
                 </div>
 
-                <!-- Form Actions -->
                 <div class="flex items-center gap-4 pt-6 mt-6 border-t border-gray-200 dark:border-white/10">
                     <button type="submit"
                             class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-6 py-2.5 rounded-lg text-sm font-medium shadow transition flex items-center gap-2">
@@ -327,7 +314,6 @@
         </div>
     </div>
 
-    <!-- Task Info Card (Dynamic) -->
     <div id="taskInfoCard" class="hidden mt-6 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/30 p-4">
         <div class="flex items-start gap-3">
             <div class="bg-orange-100 dark:bg-orange-900/30 p-2 rounded-full">
@@ -349,7 +335,6 @@
 
 </div>
 
-<!-- JavaScript for Searchable Dropdowns -->
 <script>
     function createSearchableDropdown(config) {
         const {
@@ -397,7 +382,6 @@
                 });
             }
 
-            // Update hidden inputs
             if (hiddenContainer) {
                 hiddenContainer.innerHTML = '';
                 selectedValues.forEach(value => {
@@ -419,16 +403,12 @@
             }
         }
         
-        // --- EVENT LISTENERS (ATTACHED ONCE) ---
-
-        // Toggle on click
         selectedDisplay.addEventListener('click', (e) => {
             e.stopPropagation();
             const isCurrentlyOpen = dropdown.style.display === 'block';
             toggleDropdown(!isCurrentlyOpen);
         });
 
-        // Event Delegation for Checkboxes
         dropdown.addEventListener('change', (e) => {
             if (e.target.classList.contains(checkboxClass)) {
                 if (e.target.checked) {
@@ -440,7 +420,6 @@
             }
         });
 
-        // Event Delegation for Badge Removal
         selectedDisplay.addEventListener('click', (e) => {
             const removeBtn = e.target.closest('.remove-badge');
             if (removeBtn) {
@@ -453,7 +432,6 @@
             }
         });
 
-        // Search functionality
         if (searchInput) {
             searchInput.addEventListener('keyup', () => {
                 const searchTerm = searchInput.value.toLowerCase();
@@ -466,7 +444,6 @@
             });
         }
         
-        // Select All
         const selectAllBtn = document.getElementById(selectAllId);
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', () => {
@@ -484,7 +461,6 @@
             });
         }
         
-        // Clear All
         const clearAllBtn = document.getElementById(clearAllId);
         if (clearAllBtn) {
             clearAllBtn.addEventListener('click', () => {
@@ -494,14 +470,12 @@
             });
         }
         
-        // Close on click outside
         document.addEventListener('click', (e) => {
             if (!selectedDisplay.contains(e.target) && !dropdown.contains(e.target)) {
                 toggleDropdown(false);
             }
         });
         
-        // Listen for external data load
         window.addEventListener(`refreshDropdown_${name}`, () => {
             selectedValues.clear();
             dropdown.querySelectorAll(`.${checkboxClass}`).forEach(checkbox => {
@@ -512,7 +486,6 @@
             updateDisplay();
         });
 
-        // Initial update
         updateDisplay();
     }
     
@@ -523,7 +496,6 @@
         return div.innerHTML;
     }
     
-    // We only call this once users are loaded, but we define the configs
     const dropdownConfigs = [
         {
             name: 'assigned_by',
@@ -563,7 +535,6 @@
 
 </script>
 
-<!-- JavaScript for Date Validation and Estimated Time -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const startDate = document.getElementById('start_date');
@@ -615,7 +586,6 @@
         }
     });
 
-    // ==================== PAST DATE FREEZING ====================
 const today = new Date().toISOString().split('T')[0];
 
 function preventPastDates() {
@@ -649,7 +619,6 @@ preventPastDates();
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 
 <script>
-// ========== QUILL EDITOR INITIALIZATION ==========
 const quill = new Quill('#description-editor', {
     theme: 'snow',
     placeholder: 'Update task details...',
@@ -662,7 +631,6 @@ const quill = new Quill('#description-editor', {
     }
 });
 
-// Load existing content
 const initialDescription = document.getElementById('id_description').value;
 if (initialDescription) {
     quill.root.innerHTML = initialDescription;
@@ -675,7 +643,6 @@ if (initialDescription) {
     async function fetchTaskData() {
         showLoading(true);
         try {
-            // Fetch Users and Projects first (parallel)
             const [usersResponse, projectsResponse] = await Promise.all([
                 authFetch('/api/users/'),
                 authFetch('/api/projects/')
@@ -684,14 +651,36 @@ if (initialDescription) {
             const usersRes = await usersResponse.json();
             const projectsRes = await projectsResponse.json();
 
-            usersList = usersRes.results || usersRes;
-            projectsList = projectsRes.results || projectsRes;
+            // ✅ FIX: Ensure usersList is always an array
+            if (usersRes.results && Array.isArray(usersRes.results)) {
+                usersList = usersRes.results;
+            } else if (Array.isArray(usersRes)) {
+                usersList = usersRes;
+            } else if (usersRes.users && Array.isArray(usersRes.users)) {
+                usersList = usersRes.users;
+            } else {
+                usersList = [];
+                console.warn('Users API response:', usersRes);
+            }
+            
+            // ✅ FIX: Ensure projectsList is always an array
+            if (projectsRes.results && Array.isArray(projectsRes.results)) {
+                projectsList = projectsRes.results;
+            } else if (Array.isArray(projectsRes)) {
+                projectsList = projectsRes;
+            } else if (projectsRes.projects && Array.isArray(projectsRes.projects)) {
+                projectsList = projectsRes.projects;
+            } else {
+                projectsList = [];
+                console.warn('Projects API response:', projectsRes);
+            }
 
-            // Populate static dropdowns first
+            console.log('Users loaded:', usersList.length);
+            console.log('Projects loaded:', projectsList.length);
+
             populateProjectDropdown();
             populateSearchableDropdownChoices();
 
-            // Fetch the task itself
             const taskResponse = await authFetch(`/api/tasks/${taskId}/`);
             if (!taskResponse.ok) {
                 if (taskResponse.status === 404) throw new Error('Task not found.');
@@ -713,15 +702,30 @@ if (initialDescription) {
         const projectSelect = document.getElementById('id_project');
         if (!projectSelect) return;
         projectSelect.innerHTML = '<option value="">Select a project...</option>';
-        projectsList.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name;
-            projectSelect.appendChild(opt);
-        });
+        if (projectsList && projectsList.length > 0) {
+            projectsList.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                projectSelect.appendChild(opt);
+            });
+        }
     }
 
     function populateSearchableDropdownChoices() {
+        // ✅ Add safety check for usersList
+        if (!usersList || !Array.isArray(usersList) || usersList.length === 0) {
+            console.warn('No users available to populate dropdowns');
+            const dropdownContainers = ['ownerOptions', 'assigneeOptions', 'observerOptions'];
+            dropdownContainers.forEach(containerId => {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = '<div class="p-4 text-center text-sm text-gray-400">No users available</div>';
+                }
+            });
+            return;
+        }
+        
         const dropdownConfigs = [
             { id: 'ownerOptions', checkbox: 'owner-checkbox' },
             { id: 'assigneeOptions', checkbox: 'assignee-checkbox' },
@@ -751,7 +755,6 @@ if (initialDescription) {
             });
         });
 
-        // Initial initialization of dropdown logic (only once)
         if (!window.dropdownsInitialized) {
             initAllDropdowns();
             window.dropdownsInitialized = true;
@@ -765,7 +768,7 @@ if (initialDescription) {
         document.getElementById('taskHeaderCreated').textContent = new Date(task.created_at).toLocaleDateString();
         
         document.getElementById('id_name').value = task.name;
-        document.getElementById('id_project').value = task.project;
+        document.getElementById('id_project').value = String(task.project);
         document.getElementById('id_status').value = task.status;
         document.getElementById('start_date').value = task.start_date;
         document.getElementById('end_date').value = task.end_date;
@@ -774,19 +777,16 @@ if (initialDescription) {
             document.getElementById('id_deadline').value = task.deadline.slice(0, 16);
         }
 
-        // Description/Quill
         document.getElementById('id_description').value = task.description;
         if (quill) {
             quill.root.innerHTML = task.description || '';
         }
 
-        // Estimated Time
         const totalSecs = task.estimated_time || 3600;
         document.getElementById('estimated_hours').value = Math.floor(totalSecs / 3600);
         document.getElementById('estimated_minutes').value = Math.floor((totalSecs % 3600) / 60);
         document.getElementById('estimated_time').value = totalSecs;
 
-        // Relationships (Checkboxes) - Added safety checks
         if (task.assigned_by && Array.isArray(task.assigned_by)) {
             task.assigned_by.forEach(id => {
                 const cb = document.querySelector(`.owner-checkbox[value="${id}"]`);
@@ -806,12 +806,10 @@ if (initialDescription) {
             });
         }
 
-        // Trigger display updates using the new events
         dropdownConfigs.forEach(config => {
             window.dispatchEvent(new Event(`refreshDropdown_${config.name}`));
         });
 
-        // Info Card
         if (document.getElementById('infoCreated')) {
             document.getElementById('infoCreated').textContent = task.created_at ? new Date(task.created_at).toLocaleString() : 'N/A';
         }
@@ -824,7 +822,6 @@ if (initialDescription) {
             document.getElementById('taskInfoCard').classList.remove('hidden');
         }
 
-        // Cancel Button Link
         if (document.getElementById('cancelEditBtn')) {
             document.getElementById('cancelEditBtn').href = `/project/${task.project}/`;
         }
@@ -861,13 +858,11 @@ if (initialDescription) {
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
 
-            // Sync Quill content
             document.getElementById('id_description').value = quill.root.innerHTML;
 
             const formData = new FormData(this);
             const data = {};
             
-            // Convert FormData to JSON, handling multi-selects
             formData.forEach((value, key) => {
                 if (['assigned_to', 'assigned_by', 'observers'].includes(key)) {
                     if (!data[key]) data[key] = [];
@@ -877,7 +872,6 @@ if (initialDescription) {
                 }
             });
 
-            // Handle Estimated Time explicitly
             data['estimated_time'] = parseInt(document.getElementById('estimated_time').value);
 
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Updating...';

@@ -3,6 +3,7 @@ from Tasks.models import Task
 from users.models import User
 from projects.models import Projects
 from users.api.serializers import UserSerializer
+from django.utils import timezone
 
 
 
@@ -32,6 +33,7 @@ class TaskSerializer(serializers.ModelSerializer):
     time_display = serializers.SerializerMethodField()
     total_paused_duration_seconds = serializers.SerializerMethodField()
     truncated_name = serializers.SerializerMethodField()
+    is_paused = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -43,7 +45,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'start_date', 'end_date', 'status', 'status_display',
             'start_time', 'end_time', 'total_time', 'estimated_time', 
             'created_at', 'deadline', 'summary', 'time_display', 'total_paused_duration_seconds',
-            'truncated_name'
+            'truncated_name','is_paused'
         ]
         extra_kwargs = {
             'assigned_to': {'required': False},
@@ -52,12 +54,34 @@ class TaskSerializer(serializers.ModelSerializer):
         }
 
     def get_time_display(self, obj):
-        if obj.total_time:
+    
+    # For completed tasks
+        if obj.status == 'COMPLETED' and obj.total_time:
             total_seconds = int(obj.total_time.total_seconds())
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
+        # For ongoing tasks (including paused)
+        if obj.status == 'ONGOING' and obj.start_time:
+            now = timezone.now()
+            elapsed = now - obj.start_time
+            
+            if obj.total_paused_duration:
+                elapsed = elapsed - obj.total_paused_duration
+            
+            # If currently paused, subtract current pause duration
+            if obj.paused_time:
+                current_pause = now - obj.paused_time
+                elapsed = elapsed - current_pause
+            
+            total_seconds = int(elapsed.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
         return "00:00:00"
 
     def get_total_paused_duration_seconds(self, obj):
@@ -72,3 +96,6 @@ class TaskSerializer(serializers.ModelSerializer):
         if len(words) > 20:
             return " ".join(words[:20]) + "..."
         return obj.name
+
+    def get_is_paused(self, obj):  
+        return obj.paused_time is not None

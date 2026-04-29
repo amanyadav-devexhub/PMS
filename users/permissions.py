@@ -180,3 +180,9 @@ def get_projects_queryset(user, queryset=None):
         return queryset.order_by('-start_date')
     
     return queryset.filter(assigned_to=user).distinct().order_by('-start_date')
+
+
+
+def can_manage_permission_overrides(user):
+    """Check if user can manage user-specific permission overrides"""
+    return user.is_superuser or user.role == 'ADMIN'

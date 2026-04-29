@@ -1,178 +1,293 @@
 {% extends "base.html" %}
 
-{% block title %}View Projects{% endblock %}
+{% block title %}Projects · ReadyTask PMS{% endblock %}
 {% block page_title %}Projects{% endblock %}
 
 {% block content %}
 
 <div class="max-w-7xl mx-auto">
 
-    <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <!-- Header Section - Modern SaaS Style -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-            <h2 class="text-lg font-semibold text-slate-800 dark:text-white">
-                All Projects
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">View and manage all projects</p>
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fa-solid fa-folder-tree text-[#4a9d7e] text-lg"></i>
+                <span class="text-xs font-semibold text-[#4a9d7e] uppercase tracking-wider">Workspace</span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white tracking-tight">
+                Projects
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Manage and track all your projects from one central location
+            </p>
         </div>
 
         <!-- Add Project Button -->
         <div id="addProjectButtonContainer" style="display: none;">
             <a href="{% url 'create_project' %}"
-               class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
+               class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-[#4a9d7e]/20 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5">
                 <i class="fa-solid fa-plus text-xs"></i>
-                Add Project
+                <span>New Project</span>
             </a>
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="mb-5 flex flex-wrap gap-2">
-        <div class="relative flex-1 max-w-xs">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input type="text"
-                   id="searchInput"
-                   name="search"
-                   value="{{ search_query }}"
-                   placeholder="Search project or member..."
-                   class="w-full pl-8 pr-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent transition">
-        </div>
-        
-        <button type="button"
-                id="searchBtn"
-                class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-            <i class="fa-solid fa-search text-xs"></i>
-            Search
-        </button>
-        
-        <button type="button"
-                id="clearSearchBtn"
-                class="inline-flex items-center gap-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition hidden">
-            <i class="fa-solid fa-times text-xs"></i>
-            Clear
-        </button>
-    </div>
-
-    <!-- Projects Table Card -->
-    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
-
-        <!-- Table -->
-        <div class="overflow-x-auto">
-            <table class="min-w-full">
-                <thead class="bg-slate-50 dark:bg-white/5">
-                    <tr>
-                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">#</th>
-                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Project Name</th>
-                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Assigned To</th>
-                        <th class="text-left px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                        <th class="text-center px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="projects-table-body">
-                    <!-- Data will be loaded via AJAX/jQuery -->
-                    <tr>
-                        <td colspan="5" class="py-20 text-center">
-                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-[#4a9d7e]"></div>
-                            <p class="mt-4 text-sm text-slate-500 dark:text-slate-400 font-medium">Loading projects...</p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Pagination Controls -->
-    <div class="mt-6 flex flex-wrap justify-between items-center gap-4">
-        <div class="text-xs text-slate-500 dark:text-slate-400" id="showingInfo">
-            Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span> projects
-        </div>
-        
-        <div class="flex gap-2 items-center">
-            <!-- Page Size Selector -->
-            <select id="pageSizeSelect" class="border border-slate-300 dark:border-white/10 rounded-lg px-2 py-1 text-sm bg-white dark:bg-[#1e293b] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#4a9d7e]">
-                <option value="10">10 per page</option>
-                <option value="25">25 per page</option>
-                <option value="50">50 per page</option>
-                <option value="100">100 per page</option>
-            </select>
+    <!-- Search and Filter Bar -->
+    <div class="mb-8">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text"
+                       id="searchInput"
+                       name="search"
+                       value="{{ search_query }}"
+                       placeholder="Search projects by name, member, or status..."
+                       class="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4a9d7e]/30 focus:border-[#4a9d7e] transition-all">
+            </div>
             
-            <!-- Pagination Buttons -->
-            <button id="prevPageBtn" 
-                    class="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    disabled>
-                <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                Prev
+            <div class="flex gap-2">
+                <button type="button"
+                        id="searchBtn"
+                        class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg">
+                    <i class="fa-solid fa-search text-xs"></i>
+                    <span class="hidden sm:inline">Search</span>
+                </button>
+                
+                <button type="button"
+                        id="clearSearchBtn"
+                        class="inline-flex items-center gap-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-slate-300 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200 hidden">
+                    <i class="fa-solid fa-times text-xs"></i>
+                    <span class="hidden sm:inline">Clear</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="statsContainer" style="display: none;">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm hover:shadow-md transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Total Projects</p>
+                    <p class="text-2xl font-bold text-slate-800 dark:text-white" id="statTotalProjects">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                    <i class="fa-solid fa-folder text-[#4a9d7e] text-lg"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm hover:shadow-md transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">In Progress</p>
+                    <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="statOngoingProjects">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                    <i class="fa-solid fa-play-circle text-blue-500 text-lg"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm hover:shadow-md transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Pending</p>
+                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400" id="statPendingProjects">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                    <i class="fa-solid fa-clock text-amber-500 text-lg"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm hover:shadow-md transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Completed</p>
+                    <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="statCompletedProjects">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                    <i class="fa-solid fa-check-circle text-emerald-500 text-lg"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="flex justify-end mb-4">
+        <div class="inline-flex rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111827] p-1">
+            <button id="gridViewBtn" class="view-toggle-btn active px-4 py-2 rounded-lg text-sm font-medium transition-all bg-[#4a9d7e] text-white">
+                <i class="fa-solid fa-grid-2 mr-2"></i>Grid
             </button>
-            
-            <span id="pageIndicator" class="text-xs text-slate-500 dark:text-slate-400 mx-2">
-                Page 1 of 1
-            </span>
-            
-            <button id="nextPageBtn" 
-                    class="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    disabled>
-                Next
-                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            <button id="listViewBtn" class="view-toggle-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-500 dark:text-slate-400">
+                <i class="fa-solid fa-table-list mr-2"></i>List
             </button>
         </div>
     </div>
 
+    <!-- Projects Grid View (Card Layout) -->
+    <div id="gridView" class="grid-view">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="projects-grid">
+            <div class="col-span-full text-center py-16">
+                <div class="flex flex-col items-center justify-center">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-3 border-slate-200 border-t-[#4a9d7e]"></div>
+                    <p class="mt-4 text-sm text-slate-500">Loading projects...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="gridPagination" class="flex justify-center mt-8 hidden">
+            <button id="loadMoreBtn" class="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
+                <i class="fa-solid fa-arrow-down text-xs"></i>
+                Load More
+            </button>
+        </div>
+    </div>
+
+    <!-- Projects List View (Table Layout) -->
+    <div id="listView" class="list-view hidden">
+        <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="bg-slate-50/80 dark:bg-white/5">
+                        <tr class="border-b border-slate-200 dark:border-white/10">
+                            <th class="text-left px-6 py-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">#</th>
+                            <th class="text-left px-6 py-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Project</th>
+                            <th class="text-left px-6 py-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Team</th>
+                            <th class="text-left px-6 py-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                            <th class="text-center px-6 py-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-white/5" id="projects-table-body">
+                        <tr>
+                            <td colspan="5" class="py-16 text-center">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-3 border-slate-200 border-t-[#4a9d7e]"></div>
+                                    <p class="mt-3 text-sm text-slate-500">Loading projects...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="text-xs text-slate-500" id="showingInfo">
+                        Showing 0 - 0 of 0 projects
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <select id="pageSizeSelect" class="border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-[#1e293b] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#4a9d7e] cursor-pointer">
+                            <option value="6">6 per page</option>
+                            <option value="12" selected>12 per page</option>
+                            <option value="24">24 per page</option>
+                            <option value="48">48 per page</option>
+                        </select>
+                        
+                        <div class="flex items-center gap-1">
+                            <button id="prevPageBtn" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all" disabled>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <span id="pageIndicator" class="text-xs text-slate-600 dark:text-slate-400 min-w-[80px] text-center font-medium">Page 1 of 1</span>
+                            <button id="nextPageBtn" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all" disabled>
+                                <i class="fa-solid fa-chevron-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- AJAX JavaScript with Pagination -->
+<!-- Toast Notification Container -->
+<div id="notificationContainer" class="fixed top-20 right-5 z-50 w-80 space-y-2 pointer-events-none"></div>
+
 <script>
     const canAddProjects = {{ can_add_projects|yesno:"true,false" }};
     const canDeleteProjects = {{ can_delete_projects|yesno:"true,false" }};
 
-    // Get JWT token from localStorage
+    let currentView = 'grid';
+    let currentPage = 1;
+    let currentPageSize = 9;
+    let currentSearchQuery = '';
+    let allProjectsCache = [];
+    let totalPages = 1;
+
     function getAccessToken() {
         return localStorage.getItem('access_token');
     }
     
-    // Show/hide buttons based on permission flags
     function updateButtonVisibility() {
-        const canAdd = canAddProjects;
-        const canDelete = canDeleteProjects;
-        
-        // Show/hide Add Project button (visible for ADMIN and TEAM_LEAD)
         const addButtonContainer = document.getElementById('addProjectButtonContainer');
         if (addButtonContainer) {
             addButtonContainer.style.display = canAddProjects ? 'block' : 'none';
         }
-        
-        const deleteButtons = document.querySelectorAll('.delete-project-btn');
-        deleteButtons.forEach(btn => {
-            btn.style.display = canDeleteProjects ? 'inline-flex' : 'none';
-        });
     }
     
-    // Pagination variables
-    let currentPage = 1;
-    let currentPageSize = 10;
-    let currentSearchQuery = '';
+    function updateStats(projects) {
+        const statsContainer = document.getElementById('statsContainer');
+        if (!statsContainer) return;
+        
+        if (!projects || projects.length === 0) {
+            statsContainer.style.display = 'none';
+            return;
+        }
+        
+        statsContainer.style.display = 'grid';
+        
+        let total = projects.length;
+        let ongoing = 0;
+        let pending = 0;
+        let completed = 0;
+        
+        projects.forEach(project => {
+            if (project.status === 'ONGOING') ongoing++;
+            else if (project.status === 'PENDING') pending++;
+            else if (project.status === 'COMPLETED') completed++;
+        });
+        
+        const statTotal = document.getElementById('statTotalProjects');
+        const statOngoing = document.getElementById('statOngoingProjects');
+        const statPending = document.getElementById('statPendingProjects');
+        const statCompleted = document.getElementById('statCompletedProjects');
+        
+        if (statTotal) statTotal.textContent = total;
+        if (statOngoing) statOngoing.textContent = ongoing;
+        if (statPending) statPending.textContent = pending;
+        if (statCompleted) statCompleted.textContent = completed;
+    }
     
     function showNotification(message, type = 'success') {
         const notificationContainer = document.getElementById('notificationContainer');
         if (!notificationContainer) return;
         
         const notification = document.createElement('div');
-        notification.className = `mb-3 p-3 rounded-lg shadow-lg transform transition-all duration-300 toast-notification ${
-            type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+        notification.className = `mb-3 p-4 rounded-xl shadow-lg transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto ${
+            type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
         } text-white`;
         notification.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
-                    <span class="text-sm">${escapeHtml(message)}</span>
+                    <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} text-sm"></i>
+                    <span class="text-sm font-medium">${escapeHtml(message)}</span>
                 </div>
-                <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200">
-                    <i class="fa-solid fa-xmark"></i>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-white/80 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
                 </button>
             </div>
         `;
         notificationContainer.appendChild(notification);
-        setTimeout(() => notification.remove(), 5000);
+        
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full', 'opacity-0');
+            notification.classList.add('translate-x-0', 'opacity-100');
+        }, 10);
+        
+        setTimeout(() => {
+            notification.classList.remove('translate-x-0', 'opacity-100');
+            notification.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
     }
     
     function escapeHtml(text) {
@@ -182,71 +297,146 @@
         return div.innerHTML;
     }
     
-    function loadProjects(search = '', page = 1, pageSize = 10) {
-        currentSearchQuery = search;
-        currentPage = page;
-        currentPageSize = pageSize;
-
-        const url = new URL('/api/projects/', window.location.origin);
-        url.searchParams.append('page', page);
-        url.searchParams.append('page_size', pageSize);
-        if (search) url.searchParams.append('search', search);
-
-        const tableBody = document.getElementById('projects-table-body');
+    function getStatusColor(status) {
+        switch (status) {
+            case 'PENDING': return { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800/30', dot: 'bg-amber-500' };
+            case 'ONGOING': return { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-800/30', dot: 'bg-blue-500' };
+            case 'COMPLETED': return { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800/30', dot: 'bg-emerald-500' };
+            default: return { bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400' };
+        }
+    }
+    
+    function renderProjectCard(project) {
+        const statusStyle = getStatusColor(project.status);
+        const viewDetailUrl = `/project/${project.id}/`;
         
-        authFetch(url.toString())
-            .then(response => response.json())
-            .then(data => {
-                // DRF returns 'results' for paginated data
-                const projects = data.results || data.projects || [];
-                const total = data.count || data.total || 0;
-                
-                renderProjectsTable(projects);
-                
-                // Update pagination info
-                const totalPages = Math.ceil(total / pageSize);
-                updatePaginationUI({
-                    has_previous: !!data.previous,
-                    has_next: !!data.next,
-                    current_page: page,
-                    total_pages: totalPages,
-                    previous_page_number: page - 1,
-                    next_page_number: page + 1
-                });
-                
-                updateButtonVisibility();
-                
-                const startIndex = (page - 1) * pageSize + 1;
-                const endIndex = Math.min(page * pageSize, total);
-                const showingInfo = document.getElementById('showingInfo');
-                if (showingInfo) {
-                    showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${total} projects`;
-                }
-                
-                const clearBtn = document.getElementById('clearSearchBtn');
-                if (search) {
-                    clearBtn.classList.remove('hidden');
-                } else {
-                    clearBtn.classList.add('hidden');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading projects:', error);
-                if (error !== 'No token' && error.message !== 'Unauthorized') {
-                    showNotification('Error loading projects. Please try again.', 'error');
-                }
+        let assigneesHtml = '';
+        if (project.assigned_to_details && project.assigned_to_details.length > 0) {
+            const displayAssignees = project.assigned_to_details.slice(0, 4);
+            assigneesHtml = '<div class="flex -space-x-2 mt-3">';
+            displayAssignees.forEach(assignee => {
+                assigneesHtml += `
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-[#111827]" title="${escapeHtml(assignee.full_name || assignee.username)}">
+                        ${escapeHtml((assignee.full_name || assignee.username).charAt(0).toUpperCase())}
+                    </div>
+                `;
             });
+            if (project.assigned_to_details.length > 4) {
+                assigneesHtml += `
+                    <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xs font-medium text-slate-600 dark:text-slate-400 ring-2 ring-white dark:ring-[#111827]">
+                        +${project.assigned_to_details.length - 4}
+                    </div>
+                `;
+            }
+            assigneesHtml += '</div>';
+        } else {
+            assigneesHtml = '<p class="text-xs text-slate-400 mt-3">No members assigned</p>';
+        }
+        
+        return `
+            <div class="group bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-white/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden project-card" data-project-id="${project.id}">
+                <div class="h-1.5 w-full ${statusStyle.bg}"></div>
+                
+                <div class="p-5">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4a9d7e]/10 to-[#4a9d7e]/5 flex items-center justify-center">
+                            <i class="fa-solid fa-folder text-[#4a9d7e] text-lg"></i>
+                        </div>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text} border ${statusStyle.border}">
+                            <span class="w-1.5 h-1.5 rounded-full ${statusStyle.dot}"></span>
+                            ${escapeHtml(project.status_display || project.status)}
+                        </span>
+                    </div>
+                    
+                    <a href="${viewDetailUrl}" class="block">
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white hover:text-[#4a9d7e] transition-colors line-clamp-1" title="${escapeHtml(project.name)}">
+                            ${escapeHtml(project.name.length > 35 ? project.name.substring(0, 35) + '...' : project.name)}
+                        </h3>
+                    </a>
+                    
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
+                        ${project.description ? escapeHtml(project.description.substring(0, 100)) + (project.description.length > 100 ? '...' : '') : 'No description provided.'}
+                    </p>
+                    
+                    <div class="flex items-center gap-3 mt-3 text-xs text-slate-400">
+                        <span class="flex items-center gap-1">
+                            <i class="fa-regular fa-calendar-alt text-[10px]"></i>
+                            ${project.start_date || 'N/A'}
+                        </span>
+                        <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        <span class="flex items-center gap-1">
+                            <i class="fa-regular fa-flag-checkered text-[10px]"></i>
+                            ${project.end_date || 'N/A'}
+                        </span>
+                    </div>
+                    
+                    ${assigneesHtml}
+                    
+                    <div class="my-4 h-px bg-slate-100 dark:bg-white/5"></div>
+                    
+                    <div class="flex items-center justify-between">
+                        <a href="${viewDetailUrl}" class="text-sm font-medium text-[#4a9d7e] hover:text-[#3d8a6d] transition-colors inline-flex items-center gap-1">
+                            View Details
+                            <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+                        </a>
+                        
+                        ${canDeleteProjects ? `
+                        <button type="button" 
+                                onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all delete-project-btn"
+                                title="Delete Project">
+                            <i class="fa-regular fa-trash-alt text-sm"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    function renderProjectsGrid(projects) {
+        const grid = document.getElementById('projects-grid');
+        if (!grid) return;
+        
+        if (!projects || projects.length === 0) {
+            grid.innerHTML = `
+                <div class="col-span-full text-center py-16">
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fa-regular fa-folder-open text-5xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                        <p class="text-slate-500 font-medium">No projects found</p>
+                        <p class="text-xs text-slate-400 mt-1">Try adjusting your search or create a new project</p>
+                        ${canAddProjects ? `
+                        <a href="{% url 'create_project' %}" class="mt-4 inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            Create Project
+                        </a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        projects.forEach(project => {
+            html += renderProjectCard(project);
+        });
+        grid.innerHTML = html;
     }
     
     function renderProjectsTable(projects) {
         const tableBody = document.getElementById('projects-table-body');
+        if (!tableBody) return;
         
         if (!projects || projects.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center py-12 text-slate-500 dark:text-slate-400">
-                        <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
-                        No projects found.
+                    <td colspan="5" class="py-16 text-center">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fa-regular fa-folder-open text-5xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                            <p class="text-slate-500 font-medium">No projects found</p>
+                            <p class="text-xs text-slate-400 mt-1">Try adjusting your search</p>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -257,33 +447,65 @@
         projects.forEach((project, index) => {
             const counter = (currentPage - 1) * currentPageSize + index + 1;
             const viewDetailUrl = `/project/${project.id}/`;
+            const statusStyle = getStatusColor(project.status);
+            
+            let assigneesHtml = '';
+            if (project.assigned_to_details && project.assigned_to_details.length > 0) {
+                const displayAssignees = project.assigned_to_details.slice(0, 3);
+                assigneesHtml = '<div class="flex -space-x-2">';
+                displayAssignees.forEach(assignee => {
+                    assigneesHtml += `
+                        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-[#111827]">
+                            ${escapeHtml((assignee.full_name || assignee.username).charAt(0).toUpperCase())}
+                        </div>
+                    `;
+                });
+                if (project.assigned_to_details.length > 3) {
+                    assigneesHtml += `
+                        <div class="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xs font-medium text-slate-600 dark:text-slate-400 ring-2 ring-white dark:ring-[#111827]">
+                            +${project.assigned_to_details.length - 3}
+                        </div>
+                    `;
+                }
+                assigneesHtml += '</div>';
+            } else {
+                assigneesHtml = '<span class="text-xs text-slate-400">—</span>';
+            }
             
             html += `
-                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition" id="project-row-${project.id}">
-                    <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">${counter}</td>
-                    <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-white"><span class="block max-w-[200px] truncate" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span></td>
-                    <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">
-                        ${project.assigned_to_details ? project.assigned_to_details.map(u => escapeHtml(u.full_name)).join(', ') : 'Not assigned'}
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-150 group">
+                    <td class="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 font-mono">${counter}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#4a9d7e]/10 to-[#4a9d7e]/5 flex items-center justify-center">
+                                <i class="fa-solid fa-folder text-[#4a9d7e] text-sm"></i>
+                            </div>
+                            <div>
+                                <a href="${viewDetailUrl}" class="font-semibold text-slate-800 dark:text-white hover:text-[#4a9d7e] transition-colors line-clamp-1 max-w-[200px] md:max-w-xs">
+                                    ${escapeHtml(project.name.length > 40 ? project.name.substring(0, 40) + '...' : project.name)}
+                                </a>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <i class="fa-regular fa-calendar-alt text-[10px] text-slate-400"></i>
+                                    <span class="text-[10px] text-slate-400">${project.start_date || 'N/A'} → ${project.end_date || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
                     </td>
-                    <td class="px-5 py-3">
-                        <span class="${project.status_class || getStatusClass(project.status)} inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                    <td class="px-6 py-4">${assigneesHtml}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text} border ${statusStyle.border}">
+                            <span class="w-1.5 h-1.5 rounded-full ${statusStyle.dot}"></span>
                             ${escapeHtml(project.status_display || project.status)}
                         </span>
                     </td>
-                    <td class="px-5 py-3 text-center">
+                    <td class="px-6 py-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            <a href="${viewDetailUrl}"
-                               class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition">
-                                <i class="fa-regular fa-eye text-[10px]"></i>
-                                View
+                            <a href="${viewDetailUrl}" class="w-8 h-8 flex items-center justify-center rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" title="View Project">
+                                <i class="fa-regular fa-eye text-sm"></i>
                             </a>
                             ${canDeleteProjects ? `
-                            <button type="button" 
-                                    onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')"
-                                    class="inline-flex items-center gap-1 text-red-600 hover:text-red-700 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 px-2.5 py-1 rounded-lg text-[10px] font-medium transition"
-                                    id="delete-project-${project.id}">
-                                <i class="fa-solid fa-trash text-[10px]"></i>
-                                Delete
+                            <button type="button" onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')" class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all delete-project-btn" title="Delete Project">
+                                <i class="fa-regular fa-trash-alt text-sm"></i>
                             </button>
                             ` : ''}
                         </div>
@@ -295,152 +517,303 @@
         tableBody.innerHTML = html;
     }
     
-    function updatePaginationUI(data) {
-        const prevBtn = document.getElementById('prevPageBtn');
-        const nextBtn = document.getElementById('nextPageBtn');
-        const pageIndicator = document.getElementById('pageIndicator');
+    function loadData() {
+        const url = new URL('/api/projects/', window.location.origin);
+        url.searchParams.append('page', 1);
+        url.searchParams.append('page_size', 100);
+        if (currentSearchQuery) url.searchParams.append('search', currentSearchQuery);
+
+        const gridContainer = document.getElementById('projects-grid');
+        const tableBody = document.getElementById('projects-table-body');
         
-        if (prevBtn) {
-            prevBtn.disabled = !data.has_previous;
-            if (data.has_previous) {
-                prevBtn.onclick = () => loadProjects(currentSearchQuery, data.previous_page_number, currentPageSize);
-            }
+        if (currentView === 'grid' && gridContainer) {
+            gridContainer.innerHTML = `
+                <div class="col-span-full text-center py-16">
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="inline-block animate-spin rounded-full h-10 w-10 border-3 border-slate-200 border-t-[#4a9d7e]"></div>
+                        <p class="mt-4 text-sm text-slate-500">Loading projects...</p>
+                    </div>
+                </div>
+            `;
+        } else if (tableBody) {
+            tableBody.innerHTML = `
+                <tr><td colspan="5" class="py-16 text-center"><div class="flex flex-col items-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-3 border-slate-200 border-t-[#4a9d7e]"></div><p class="mt-3 text-sm text-slate-500">Loading projects...</p></div></td></tr>
+            `;
         }
         
-        if (nextBtn) {
-            nextBtn.disabled = !data.has_next;
-            if (data.has_next) {
-                nextBtn.onclick = () => loadProjects(currentSearchQuery, data.next_page_number, currentPageSize);
-            }
-        }
-        
-        if (pageIndicator) {
-            pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+        authFetch(url.toString())
+            .then(response => response.json())
+            .then(data => {
+                const projects = data.results || data.projects || [];
+                allProjectsCache = projects;
+                
+                updateStats(projects);
+                
+                const total = projects.length;
+                totalPages = Math.ceil(total / currentPageSize);
+                
+                const start = (currentPage - 1) * currentPageSize;
+                const end = start + currentPageSize;
+                const paginatedProjects = projects.slice(start, end);
+                
+                if (currentView === 'grid') {
+                    renderProjectsGrid(paginatedProjects);
+                    const gridPagination = document.getElementById('gridPagination');
+                    if (gridPagination) {
+                        if (totalPages > 1 && currentPage < totalPages) {
+                            gridPagination.classList.remove('hidden');
+                        } else {
+                            gridPagination.classList.add('hidden');
+                        }
+                    }
+                } else {
+                    renderProjectsTable(paginatedProjects);
+                    
+                    const startIndex = (currentPage - 1) * currentPageSize + 1;
+                    const endIndex = Math.min(currentPage * currentPageSize, total);
+                    
+                    const showingInfo = document.getElementById('showingInfo');
+                    if (showingInfo) showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${total} projects`;
+                    
+                    const pageIndicator = document.getElementById('pageIndicator');
+                    if (pageIndicator) pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+                    
+                    const prevBtn = document.getElementById('prevPageBtn');
+                    const nextBtn = document.getElementById('nextPageBtn');
+                    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+                    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+                }
+                
+                updateButtonVisibility();
+                
+                const clearBtn = document.getElementById('clearSearchBtn');
+                if (clearBtn) {
+                    if (currentSearchQuery) {
+                        clearBtn.classList.remove('hidden');
+                    } else {
+                        clearBtn.classList.add('hidden');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading projects:', error);
+                if (currentView === 'grid' && gridContainer) {
+                    gridContainer.innerHTML = `
+                        <div class="col-span-full text-center py-16">
+                            <div class="flex flex-col items-center">
+                                <i class="fa-solid fa-circle-exclamation text-4xl text-rose-500 mb-3"></i>
+                                <p class="text-slate-500">Failed to load projects</p>
+                                <button onclick="loadData()" class="mt-3 text-sm text-[#4a9d7e] hover:underline">Try again</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                if (error !== 'No token' && error.message !== 'Unauthorized') {
+                    showNotification('Error loading projects. Please try again.', 'error');
+                }
+            });
+    }
+    
+    function loadMore() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadData();
         }
     }
     
     function deleteProject(projectId, projectName) {
-        if (!confirm(`Are you sure you want to delete project "${projectName}"? This will also delete ALL tasks under this project.`)) {
+        if (!confirm(`⚠️ Delete "${projectName}"?\n\nThis will move the project to trash. You can restore it within 15 days.`)) {
             return;
         }
         
-        const btn = document.getElementById(`delete-project-${projectId}`);
-        if (!btn) return;
-        
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Deleting...';
-        btn.disabled = true;
-        
         authFetch(`/api/projects/${projectId}/`, {
             method: 'DELETE',
-            headers: {
-                'X-CSRFToken': getCSRFToken()
-            }
+            headers: { 'X-CSRFToken': getCSRFToken() }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 showNotification(data.message, 'success');
-                loadProjects(currentSearchQuery, currentPage, currentPageSize);
+                currentPage = 1;
+                loadData();
             } else {
                 showNotification(data.error || 'Something went wrong', 'error');
-                btn.innerHTML = originalText;
-                btn.disabled = false;
             }
         })
         .catch(error => {
             showNotification('Network error. Please try again.', 'error');
             console.error('Error:', error);
-            btn.innerHTML = originalText;
-            btn.disabled = false;
         });
     }
-
-    function getStatusClass(status) {
-        switch (status) {
-            case 'PENDING': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
-            case 'ONGOING': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
-            case 'COMPLETED': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
-            default: return 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300';
-        }
+    
+    // Initialize View Toggle
+    function initViewToggle() {
+        const gridBtn = document.getElementById('gridViewBtn');
+        const listBtn = document.getElementById('listViewBtn');
+        const gridView = document.getElementById('gridView');
+        const listView = document.getElementById('listView');
+        const gridPagination = document.getElementById('gridPagination');
+        
+        if (!gridBtn || !listBtn || !gridView || !listView) return;
+        
+        gridBtn.addEventListener('click', function() {
+            currentView = 'grid';
+            currentPage = 1;
+            gridView.classList.remove('hidden');
+            listView.classList.add('hidden');
+            if (gridPagination) gridPagination.classList.remove('hidden');
+            
+            gridBtn.classList.add('bg-[#4a9d7e]', 'text-white');
+            gridBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+            listBtn.classList.remove('bg-[#4a9d7e]', 'text-white');
+            listBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+            
+            loadData();
+        });
+        
+        listBtn.addEventListener('click', function() {
+            currentView = 'list';
+            currentPage = 1;
+            gridView.classList.add('hidden');
+            listView.classList.remove('hidden');
+            if (gridPagination) gridPagination.classList.add('hidden');
+            
+            listBtn.classList.add('bg-[#4a9d7e]', 'text-white');
+            listBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+            gridBtn.classList.remove('bg-[#4a9d7e]', 'text-white');
+            gridBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+            
+            loadData();
+        });
     }
     
     // Event Listeners
-    document.addEventListener('DOMContentLoaded', function() {
-        const token = getAccessToken();
-        if (!token) {
-            window.location.href = '/render_login/';
-            return;
+    function initEventListeners() {
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', loadMore);
         }
         
-        updateButtonVisibility();
+        const prevBtn = document.getElementById('prevPageBtn');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadData();
+                }
+            });
+        }
         
-        const searchInput = document.getElementById('searchInput');
-        const searchBtn = document.getElementById('searchBtn');
-        const clearBtn = document.getElementById('clearSearchBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadData();
+                }
+            });
+        }
+        
         const pageSizeSelect = document.getElementById('pageSizeSelect');
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', function(e) {
+                currentPageSize = parseInt(e.target.value);
+                currentPage = 1;
+                loadData();
+            });
+        }
         
-        loadProjects('', 1, 10);
-        
+        const searchBtn = document.getElementById('searchBtn');
         if (searchBtn) {
             searchBtn.addEventListener('click', function() {
-                loadProjects(searchInput.value.trim(), 1, currentPageSize);
+                const searchInput = document.getElementById('searchInput');
+                currentSearchQuery = searchInput ? searchInput.value.trim() : '';
+                currentPage = 1;
+                loadData();
             });
         }
         
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                loadProjects('', 1, currentPageSize);
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', function() {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) searchInput.value = '';
+                currentSearchQuery = '';
+                currentPage = 1;
+                loadData();
             });
         }
         
+        const searchInput = document.getElementById('searchInput');
         if (searchInput) {
-            let debounceTimer;
+            let searchDebounce;
             searchInput.addEventListener('keyup', function(e) {
-                clearTimeout(debounceTimer);
-                const searchText = this.value.trim();
-                // Optionally keep the enter key for instant trigger
+                clearTimeout(searchDebounce);
                 if (e.key === 'Enter') {
-                    loadProjects(searchText, 1, currentPageSize);
+                    currentSearchQuery = this.value.trim();
+                    currentPage = 1;
+                    loadData();
                     return;
                 }
-                debounceTimer = setTimeout(() => {
-                    loadProjects(searchText, 1, currentPageSize);
-                }, 300);
+                searchDebounce = setTimeout(() => {
+                    currentSearchQuery = this.value.trim();
+                    currentPage = 1;
+                    loadData();
+                }, 400);
             });
         }
-        
-        if (pageSizeSelect) {
-            pageSizeSelect.addEventListener('change', function() {
-                currentPageSize = parseInt(this.value);
-                loadProjects(currentSearchQuery, 1, currentPageSize);
-            });
+    }
+    
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                    break;
+                }
+            }
         }
+        return cookieValue;
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!getAccessToken()) {
+            window.location.href = '/login/';
+            return;
+        }
+        updateButtonVisibility();
+        initViewToggle();
+        initEventListeners();
+        loadData();
     });
 </script>
 
 <style>
-    .toast-notification {
-        animation: slideIn 0.3s ease-out;
+    .line-clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+    
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
-
-    .fa-spin {
-        animation: fa-spin 1s infinite linear;
-    }
+    
     @keyframes fa-spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    .fa-spin {
+        animation: fa-spin 1s linear infinite;
     }
 </style>
 

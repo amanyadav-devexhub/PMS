@@ -9,13 +9,11 @@ from django.utils import timezone
 
 @jwt_or_session_required
 def all_notifications(request):
-    # Check if it's an AJAX request
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         
-        # Get all notifications for the user
         notifications = request.user.notifications.all().order_by('-created_at')
         
-        # Pagination parameters
         page = request.GET.get('page', 1)
         page_size = request.GET.get('page_size', 20)
         
@@ -25,7 +23,6 @@ def all_notifications(request):
         except:
             notifications_page = paginator.page(1)
         
-        # Prepare JSON response
         notifications_data = []
         for notif in notifications_page:
             local_time = timezone.localtime(notif.created_at)
@@ -48,12 +45,7 @@ def all_notifications(request):
             'unread_count': request.user.notifications.filter(is_read=False).count()
         })
     
-    # Regular request - return HTML template
     notifications = request.user.notifications.all().order_by('-created_at')
-    
-    # Optional: Mark all as read when viewing
-    # unread = notifications.filter(is_read=False)
-    # unread.update(is_read=True)
     
     paginator = Paginator(notifications, 20)
     page_number = request.GET.get('page')
@@ -68,8 +60,7 @@ def all_notifications(request):
 @jwt_or_session_required
 @csrf_exempt
 def mark_as_read(request, notif_id):
-    """Mark a specific notification as read"""
-    # Check if it's an AJAX request
+
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     notif = get_object_or_404(Notification, id=notif_id, user=request.user)
@@ -89,7 +80,7 @@ def mark_as_read(request, notif_id):
 @jwt_or_session_required
 @csrf_exempt
 def mark_all_as_read(request):
-    """Mark all notifications as read"""
+    
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     unread_count = request.user.notifications.filter(is_read=False).count()

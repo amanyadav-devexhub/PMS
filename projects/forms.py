@@ -17,7 +17,6 @@ ProjectResourceFormSet = inlineformset_factory(
     extra=1, can_delete=True
 )
 
-## Project form with date pickers and assigned_to as ModelMultipleChoiceField
 class ProjectForm(forms.ModelForm):
     start_date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'})
@@ -25,7 +24,7 @@ class ProjectForm(forms.ModelForm):
     end_date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'})
     )
-    # ✅ Explicitly set assigned_to as ModelMultipleChoiceField
+   
     assigned_to = forms.ModelMultipleChoiceField(
         queryset=User.objects.filter(is_active=True),
         widget=forms.SelectMultiple(attrs={

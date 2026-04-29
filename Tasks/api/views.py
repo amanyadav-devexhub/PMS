@@ -77,6 +77,79 @@ class TaskListAPIView(APIView):
             'count': tasks.count(),
             'results': serializer.data,
         })
+    
+    def post(self, request):
+        """Create a new task"""
+        user = request.user
+        
+        # Permission check
+        if not user.has_perm('Tasks.add_task'):
+            return Response(
+                {'error': 'You do not have permission to create tasks'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = TaskSerializer(data=request.data)
+        if serializer.is_valid():
+            task = serializer.save(created_by=user)
+            
+            # Handle assigned_to (ManyToMany)
+            if 'assigned_to' in request.data:
+                assigned_to_ids = request.data.get('assigned_to', [])
+                if assigned_to_ids:
+                    task.assigned_to.set(assigned_to_ids)
+            
+            # Handle assigned_by (ManyToMany)
+            if 'assigned_by' in request.data:
+                assigned_by_ids = request.data.get('assigned_by', [])
+                if assigned_by_ids:
+                    task.assigned_by.set(assigned_by_ids)
+                else:
+                    task.assigned_by.set([user])
+            
+            # Handle observers (ManyToMany)
+            if 'observers' in request.data:
+                observer_ids = request.data.get('observers', [])
+                if observer_ids:
+                    task.observers.set(observer_ids)
+            
+            # Activity log
+            from users.models import ActivityLog
+            ActivityLog.objects.create(
+                user=user,
+                action='created',
+                entity_type='task',
+                entity_id=task.id,
+                entity_name=task.name
+            )
+            
+            # Send notifications to assignees
+            from notifications.models import Notification
+            for employee in task.assigned_to.all():
+                Notification.objects.create(
+                    user=employee,
+                    message=f'Task "{task.name}" has been assigned to you',
+                    content_object=task
+                )
+            
+            # Send notifications to observers
+            assignee_names = ", ".join([u.get_full_name() or u.username for u in task.assigned_to.all()])
+            for observer in task.observers.all():
+                Notification.objects.create(
+                    user=observer,
+                    message=f'Task "{task.name}" has been assigned to {assignee_names}',
+                    content_object=task
+                )
+            
+            return Response(
+                TaskSerializer(task).data,
+                status=status.HTTP_201_CREATED
+            )
+        
+        return Response(
+            {'errors': serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class TaskDetailAPIView(APIView):
@@ -90,7 +163,7 @@ class TaskDetailAPIView(APIView):
     def get_object(self, pk, user):
         try:
             task = Task.objects.get(pk=pk)
-            # Permission check: admin, manager of project, assigned to task, observer, or global change perm
+            
             if can_view_all_tasks(user) or can_change_task(user):
                 return task
             if task.assigned_to.filter(id=user.id).exists() or task.observers.filter(id=user.id).exists():
@@ -113,7 +186,7 @@ class TaskDetailAPIView(APIView):
         if not task:
             return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
         
-        # 🔒 OWNERSHIP CHECK: Task owner OR project creator can edit
+      
         is_task_owner = task.assigned_by.filter(id=request.user.id).exists()
         is_project_creator = task.project.created_by == request.user
         is_admin_override = request.user.is_superuser
@@ -124,14 +197,14 @@ class TaskDetailAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Optional: Also check if user has edit permission (for safety)
+        
         if not (can_change_task(request.user) or can_manage_projects(request.user)) and not is_admin_override:
             return Response(
                 {'error': 'You do not have permission to edit tasks'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # ========== ✅ ADD THIS SECTION - Capture old values safely ==========
+        
         old_data = {
             'name': task.name,
             'description': task.description,
@@ -142,18 +215,16 @@ class TaskDetailAPIView(APIView):
             'estimated_time': task.estimated_time,
         }
         
-        # Capture ManyToMany for logging
+       
         old_assigned_to = [user.email for user in task.assigned_to.all()]
         old_assigned_by = [user.email for user in task.assigned_by.all()]
         old_observers = [user.email for user in task.observers.all()]
-        # ========== END OF ADDED SECTION ==========
+       
 
         serializer = TaskSerializer(task, data=request.data, partial=True)
         if serializer.is_valid():
             updated_task = serializer.save()
             
-            # ========== ✅ ADD THIS SECTION - Handle ManyToMany fields safely ==========
-            # Only update if the field exists in the request
             if 'assigned_to' in request.data:
                 assigned_to_ids = request.data.get('assigned_to', [])
                 if assigned_to_ids:
@@ -174,9 +245,7 @@ class TaskDetailAPIView(APIView):
                     updated_task.observers.set(observer_ids)
                 else:
                     updated_task.observers.clear()
-            # ========== END OF ADDED SECTION ==========
-            
-            # ========== ✅ ADD THIS SECTION - Capture new values for logging ==========
+    
             new_data = {
                 'name': updated_task.name,
                 'description': updated_task.description,
@@ -191,7 +260,7 @@ class TaskDetailAPIView(APIView):
             new_assigned_by = [user.email for user in updated_task.assigned_by.all()]
             new_observers = [user.email for user in updated_task.observers.all()]
             
-            # Find changes
+           
             changes = []
             for field in old_data:
                 if old_data[field] != new_data[field]:
@@ -205,9 +274,7 @@ class TaskDetailAPIView(APIView):
                 changes.append(f"observers: {old_observers} → {new_observers}")
             
             change_summary = ', '.join(changes) if changes else 'No visible changes'
-            # ========== END OF ADDED SECTION ==========
-            
-            # 📝 LOG TO ACTIVITY LOG
+        
             from users.models import ActivityLog
             ActivityLog.objects.create(
                 user=request.user,
@@ -217,13 +284,13 @@ class TaskDetailAPIView(APIView):
                 entity_name=updated_task.name
             )
             
-            # ========== ✅ MODIFY THIS RETURN - Add change summary ==========
+          
             return Response({
                 'success': True, 
                 'message': f'Task updated successfully. Changes: {change_summary}', 
                 'task': serializer.data
             })
-            # ========== END OF MODIFIED SECTION ==========
+           
         
         return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -232,7 +299,7 @@ class TaskDetailAPIView(APIView):
         if not task:
             return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
         
-        # 🔒 OWNERSHIP CHECK: Task owner OR project creator can delete
+   
         is_task_owner = task.assigned_by.filter(id=request.user.id).exists()
         is_project_creator = task.project.created_by == request.user
         
@@ -242,13 +309,13 @@ class TaskDetailAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # ✅ SOFT DELETE
+        
         from django.utils import timezone
         task.is_deleted = True
         task.deleted_at = timezone.now()
         task.save()
         
-        # 📝 LOG TO ACTIVITY LOG
+        
         from users.models import ActivityLog
         ActivityLog.objects.create(
             user=request.user,

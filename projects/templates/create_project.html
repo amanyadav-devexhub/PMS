@@ -794,27 +794,28 @@
         attachRemoveListeners();
         updateResourceCount();
         
-        // Form submission
+        
+        // Form submission - Sync Quill and submit
+        // Form submission - API call for JSON response
         form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            clearErrors();
-            if (!validateDates()) return;
-            
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
-            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            e.preventDefault();  // Stop normal form submission
             
             // Sync Quill content to hidden input
             if (document.getElementById('id_description')) {
                 document.getElementById('id_description').value = quill.root.innerHTML;
             }
-
-            const formData = new FormData(form);
-            const redirectUrl = form.dataset.redirectUrl;
-            formData.append('redirect_url', redirectUrl);
             
+            // Validate dates
+            if (!validateDates()) return;
+            
+            // Show loading overlay
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            
+            // Get CSRF token
             function getCSRFToken() {
                 let cookieValue = null;
                 if (document.cookie && document.cookie !== '') {
@@ -830,52 +831,80 @@
                 return cookieValue;
             }
             
+            // Build JSON data
+            const jsonData = {
+                name: document.querySelector('[name="name"]').value,
+                description: document.getElementById('id_description').value,
+                start_date: document.querySelector('[name="start_date"]').value,
+                end_date: document.querySelector('[name="end_date"]').value,
+                status: document.querySelector('[name="status"]').value,
+                assigned_to: Array.from(selectedValues).map(v => parseInt(v))
+            };
+            
             try {
-                const response = await fetch(window.location.href, {
+                const response = await fetch('/api/projects/', {
                     method: 'POST',
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': getCSRFToken()
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getAccessToken()}`
                     },
-                    body: formData
+                    body: JSON.stringify(jsonData)
                 });
                 
                 const data = await response.json();
                 
-                if (response.ok && data.success) {
-                    showNotification(data.message, 'success');
+                if (response.ok && data.id) {
+                    showNotification('✅ Project created successfully!', 'success');
+                    
+                    // Reset form
                     form.reset();
                     selectedValues.clear();
                     updateDisplay();
                     document.querySelectorAll('.option-checkbox').forEach(cb => cb.checked = false);
+                    quill.root.innerHTML = '';
                     
+                    // Reset resources
                     const resourceForms = document.querySelectorAll('.resource-form');
-                    for (let i = resourceForms.length - 1; i > 0; i--) resourceForms[i].remove();
+                    for (let i = resourceForms.length - 1; i > 0; i--) {
+                        resourceForms[i].remove();
+                    }
                     const firstForm = document.querySelector('.resource-form');
                     if (firstForm) {
                         firstForm.querySelectorAll('input, select, textarea').forEach(input => {
                             if (input.type !== 'hidden') input.value = '';
                         });
                     }
-                    totalForms.value = 1;
+                    if (totalForms) totalForms.value = 1;
                     updateResourceCount();
                     
-                    setTimeout(() => window.location.href = data.redirect_url || '/projects/', 1500);
+                    // Redirect after 1.5 seconds
+                    setTimeout(() => {
+                        window.location.href = '/projects/';
+                    }, 1500);
                 } else {
-                    if (data.errors) displayErrors(data.errors);
-                    showNotification(data.message || 'Error creating project.', 'error');
+                    if (data.errors) {
+                        displayErrors(data.errors);
+                    } else {
+                        showNotification(data.error || 'Error creating project', 'error');
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showNotification('An unexpected error occurred.', 'error');
-            } finally {
-                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                showNotification('Network error. Please try again.', 'error');
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
+            } finally {
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
             }
         });
+        
     });
     
     function escapeHtml(text) {

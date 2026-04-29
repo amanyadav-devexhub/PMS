@@ -16,17 +16,14 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Generic Foreign Key to link to Task or Project
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = GenericForeignKey('content_type', 'object_id')
 
-    # Fallback/Direct URL
     link = models.URLField(max_length=500, null=True, blank=True)
 
     @property
     def target_url(self):
-        """Returns the URL for the notification target"""
         if self.link:
             return self.link
         

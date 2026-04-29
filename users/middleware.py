@@ -4,7 +4,6 @@ from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFail
 
 
 class JWTAuthenticationMiddleware:
-    """Attach request.user from JWT in Authorization header or access_token cookie."""
 
     def __init__(self, get_response):
         self.get_response = get_response

@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
+from users.models import User
 
 from projects.models import Projects
 from .serializers import (
@@ -58,6 +59,63 @@ class ProjectListAPIView(APIView):
             'count': projects.count(),
             'results': serializer.data,
         })
+    
+    def post(self, request):
+        """Create a new project"""
+        user = request.user
+        
+        # Permission check
+        if not user.has_perm('projects.add_projects'):
+            return Response(
+                {'error': 'You do not have permission to create projects'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = ProjectSerializer(data=request.data)
+        if serializer.is_valid():
+            project = serializer.save(created_by=user)
+            
+            # Initialize assigned_to_ids as empty list
+            assigned_to_ids = []
+            
+            # Handle assigned_to if provided
+            if 'assigned_to' in request.data:
+                assigned_to_ids = request.data.get('assigned_to', [])
+                if assigned_to_ids:
+                    project.assigned_to.set(assigned_to_ids)
+            
+            # Activity log
+            from users.models import ActivityLog
+            ActivityLog.objects.create(
+                user=user,
+                action='created',
+                entity_type='project',
+                entity_id=project.id,
+                entity_name=project.name
+            )
+            
+            # Send notifications to assigned users (only if assigned_to_ids has values)
+            if assigned_to_ids:  # Now this variable is always defined
+                from notifications.models import Notification
+                for user_id in assigned_to_ids:
+                    assigned_user = User.objects.filter(id=user_id).first()
+                    if assigned_user:
+                        Notification.objects.create(
+                            user=assigned_user,
+                            message=f'📁 You have been assigned to project "{project.name}" by {request.user.get_full_name() or request.user.username}.',
+                            is_read=False,
+                            content_object=project
+                        )
+            
+            return Response(
+                ProjectSerializer(project).data,
+                status=status.HTTP_201_CREATED
+            )
+        
+        return Response(
+            {'errors': serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class ProjectDetailAPIView(APIView):

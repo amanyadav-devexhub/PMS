@@ -3,20 +3,16 @@
         {{ label }}
     </label>
     
-    <!-- Selected Items Display -->
     <div class="selected-items-display border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 min-h-[46px] cursor-pointer bg-white dark:bg-[#1e293b] flex flex-wrap gap-1.5 items-center transition focus-within:ring-2 focus-within:ring-[#4a9d7e]">
         <span class="select-placeholder text-slate-400 dark:text-slate-500 text-sm">{{ placeholder }}</span>
     </div>
     
-    <!-- Dropdown Icon -->
     <div class="absolute right-3 top-[38px] pointer-events-none">
         <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
     </div>
     
-    <!-- Dropdown List -->
     <div class="select-dropdown hidden absolute z-20 w-full mt-1 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
         
-        <!-- Search Bar -->
         <div class="sticky top-0 bg-white dark:bg-[#1e293b] p-2 border-b border-slate-200 dark:border-white/10">
             <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
@@ -25,7 +21,6 @@
             </div>
         </div>
         
-        <!-- Options List -->
         <div class="select-options-list max-h-52 overflow-y-auto custom-scrollbar">
             {% if queryset %}
                 {% for item in queryset %}
@@ -50,6 +45,5 @@
         </div>
     </div>
     
-    <!-- Hidden container for form submission -->
     <div class="hidden-inputs-container"></div>
 </div>

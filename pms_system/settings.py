@@ -12,39 +12,39 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-+3k3)_i2(=4$r0#x*v&6y#sejflgt4k-csoxhg0qryjo2#!qto'
 
-# SECURITY WARNING: don't run with debug turned on in production!
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Groq API Key
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+## Huggingface
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+
+
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
-# Application definition
-
 INSTALLED_APPS = [
     'daphne',
-    'django.contrib.admin',           # ← Add this (recommended)
+    'django.contrib.admin',           
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',        # ← Add this too
+    'django.contrib.sessions',       
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    'channels',                       # ← MUST ADD THIS
-    
+    'channels',                       
     'users.apps.UsersConfig',
     'projects',
     'Tasks',
     'chat',
+    'chatbot',
     'notifications',
     'widget_tweaks',
     'rest_framework',
@@ -63,14 +63,13 @@ CHANNEL_LAYERS = {
 ASGI_APPLICATION = 'pms_system.asgi.application'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',      # ← Must come early
+    'django.contrib.sessions.middleware.SessionMiddleware',     
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',   # ← Required for admin + auth
-    'django.contrib.messages.middleware.MessageMiddleware',      # ← Recommended
+    'django.contrib.auth.middleware.AuthenticationMiddleware',   
+    'django.contrib.messages.middleware.MessageMiddleware',     
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
-    # Your custom middleware (keep at the end)
     'users.middleware.JWTAuthenticationMiddleware',
 ]
 ROOT_URLCONF = 'pms_system.urls'
@@ -84,23 +83,23 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',        # ← Add this
-                'django.contrib.messages.context_processors.messages', # ← Add this
+                'django.contrib.auth.context_processors.auth',        
+                'django.contrib.messages.context_processors.messages', 
                 'users.context_processors.notification_count',
                 'users.context_processors.permission_flags',
             ],
         },
     },
 ]
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the CSRF cookie
+CSRF_COOKIE_HTTPONLY = False  
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
-CSRF_USE_SESSIONS = False  # Use cookie-based CSRF storage
-CSRF_COOKIE_NAME = 'csrftoken'  # Default name, but explicit is good
+CSRF_USE_SESSIONS = False  
+CSRF_COOKIE_NAME = 'csrftoken'  
 
-# Ensure CSRF cookie is set even for AJAX requests
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
-CSRF_COOKIE_AGE = 31449600  # 1 year (default)
+
+CSRF_COOKIE_SECURE = False  
+CSRF_COOKIE_AGE = 31449600  
 WSGI_APPLICATION = 'pms_system.wsgi.application'
 CHANNEL_LAYERS = {
     'default': {
@@ -111,8 +110,6 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
@@ -123,8 +120,6 @@ DATABASES = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -141,33 +136,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'Asia/Kolkata'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 AUTH_USER_MODEL = 'users.User'
-
-
-# Show emails in console instead of sending
 
 
 from datetime import timedelta
@@ -202,7 +180,6 @@ LOGIN_URL = "/login/"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-## settings for AI features
-import os
+
 
 

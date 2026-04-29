@@ -2,8 +2,6 @@ from django.db import models
 from users.models import User
 
 
-# Create your models here.
-
 class Projects(models.Model):
 
     STATUS_CHOICES = [
@@ -20,7 +18,7 @@ class Projects(models.Model):
         related_name="projects") 
     start_date = models.DateField()
     end_date = models.DateField()
-    # Add with your other fields
+    
     updated_by = models.ForeignKey(
         'users.User', 
         on_delete=models.SET_NULL, 
@@ -52,7 +50,6 @@ class Projects(models.Model):
         ]
 
     
-## ProjectResource Model
 class ProjectResource(models.Model):
     RESOURCE_TYPE_CHOICES = [
         ('TEXT', 'Text'),

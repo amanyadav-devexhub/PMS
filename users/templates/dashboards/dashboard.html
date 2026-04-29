@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+
+
+<div id="loadingOverlay"
+    class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-[#111827] rounded-xl p-6 shadow-xl flex items-center gap-3">
+        <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+        <span class="text-sm text-slate-600 dark:text-slate-300">Loading dashboard...</span>
+    </div>
+</div>
+
+<div id="dashboardContent" class="space-y-6">
+    <div class="flex justify-center items-center py-20">
+        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+        <span class="ml-3 text-sm text-slate-500">Loading dashboard...</span>
+    </div>
+</div>
+
+<script>
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
+    }
+
+    function loadDashboard(page = 1) {
+    loadingOverlay.classList.remove('hidden');
+
+    const url = new URL('/api/dashboard/', window.location.origin);
+    if (page > 1) {
+        url.searchParams.set('page', page);
+    }
+
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Authorization': `Bearer ${getAccessToken()}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderDashboard(data); 
+        loadingOverlay.classList.add('hidden');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('dashboardContent').innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+                <i class="fa-solid fa-circle-exclamation text-red-500 text-2xl mb-2"></i>
+                <p class="text-red-600 dark:text-red-400">Error loading dashboard. Please refresh the page.</p>
+            </div>
+        `;
+        loadingOverlay.classList.add('hidden');
+    });
+}
+
+    function renderDashboard(data) {
+        const container = document.getElementById('dashboardContent');
+        const userRole = data.role || 'User';
+        const userName = "{{ request.user.get_full_name|default:request.user.username }}";
+
+        let html = `
+    <div class="bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] text-white p-6 md:p-8 rounded-2xl shadow-lg mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-regular fa-hand-peace text-2xl"></i>
+                    <h1 class="text-xl md:text-2xl font-bold">Welcome back, ${escapeHtml(userName)}!</h1>
+                </div>
+                <p class="text-white/80 text-sm">${userRole} Dashboard • Manage your projects and tasks efficiently</p>
+            </div>
+        </div>
+    </div>
+`;
+
+        html += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">`;
+
+        if (data.dashboard_variant === 'owner') {
+            html += `
+                ${renderStatCard('Total Users', data.stats.total_users, '#4a9d7e', 'users', 'fa-users')}
+                ${renderStatCard('Active Users', data.stats.active_users, '#60a5fa', 'user-check', 'fa-user-check')}
+                ${renderStatCard('Total Projects', data.stats.total_projects, '#f59e0b', 'folder', 'fa-folder')}
+                ${renderStatCard('Total Tasks', data.stats.total_tasks, '#8b5cf6', 'clipboard', 'fa-clipboard-list')}
+                ${renderChatCard()}
+            `;
+        } else if (data.dashboard_variant === 'manager') {
+            html += `
+                ${renderStatCard('My Projects', data.stats.total_projects, '#60a5fa', 'folder', 'fa-folder')}
+                ${renderStatCard('Active Tasks', data.stats.ongoing_tasks, '#f59e0b', 'clock', 'fa-clock')}
+                ${renderStatCard('Completed', data.stats.completed_tasks, '#4a9d7e', 'check', 'fa-check-circle')}
+                ${renderStatCard('Team Members', data.stats.team_members || 0, '#8b5cf6', 'users', 'fa-users')}
+                ${renderChatCard()}
+            `;
+        } else {
+            html += `
+                ${renderStatCard('Assigned Tasks', data.stats.total_tasks, '#60a5fa', 'tasks', 'fa-clipboard-list')}
+                ${renderStatCard('Ongoing', data.stats.ongoing_tasks, '#f59e0b', 'play', 'fa-play-circle')}
+                ${renderStatCard('Completed', data.stats.completed_tasks, '#4a9d7e', 'check', 'fa-check-circle')}
+                ${renderStatCard('My Projects', data.stats.total_projects, '#8b5cf6', 'projects', 'fa-folder-open')}
+                ${renderChatCard()}
+            `;
+        }
+        html += `</div>`;
+
+        html += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">`;
+
+        html += `<div class="xl:col-span-2 space-y-6">`;
+
+        if (data.dashboard_variant === 'owner' && data.users) {
+            html += `
+            <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-users text-[#4a9d7e] text-sm"></i>
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Team Members</h3>
+                    </div>
+                    <a href="{% url 'admin_view_users' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] transition">View All →</a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 dark:bg-white/5">
+                            <tr>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">User</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">Email</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">Role</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-white/5">
+                            ${data.users.map(user => `
+                                <tr>
+                                    <td class="py-4 px-5  whitespace-nowrap">
+                                        <div class="w-8 h-8 rounded-full overflow-hidden mr-3">
+                                            ${user.profile_image
+                    ? `<img src="${user.profile_image}" class="w-full h-full object-cover" />`
+                    : `<div class="w-full h-full bg-[#eef6f2] text-[#4a9d7e] flex items-center justify-center font-bold text-xs">
+                                                    ${user.username[0].toUpperCase()}
+                                                </div>`
+                }
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-3 text-xs text-slate-500">${escapeHtml(user.email)}</td>
+                                    <td class="px-5 py-3">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-medium ${getRoleBadgeClass(user.role_tier)}">${user.role}</span>
+                                    </td>
+                                    <td class="px-5 py-3">
+                                        <span class="flex items-center gap-1.5 text-xs ${user.is_active ? 'text-green-600' : 'text-red-500'}">
+                                            <span class="w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-red-500'}"></span>
+                                            ${user.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${data.pagination && data.pagination.total_pages > 1 ? `
+                <div class="px-5 py-3 border-t border-slate-200 dark:border-white/5 flex items-center justify-between">
+                    <span class="text-xs text-slate-500">Page ${data.pagination.current_page} of ${data.pagination.total_pages} (${data.pagination.total} total)</span>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="loadDashboard(${data.pagination.current_page - 1})" 
+                                class="px-3 py-1 text-xs rounded border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50 text-slate-700 dark:text-slate-300" 
+                                ${!data.pagination.has_previous ? 'disabled' : ''}>Previous</button>
+                        <button type="button" onclick="loadDashboard(${data.pagination.current_page + 1})" 
+                                class="px-3 py-1 text-xs rounded border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50 text-slate-700 dark:text-slate-300" 
+                                ${!data.pagination.has_next ? 'disabled' : ''}>Next</button>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        }
+
+        if (data.dashboard_variant === 'manager' && data.recent_projects) {
+            html += `
+            <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-folder text-[#4a9d7e] text-sm"></i>
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Recent Projects</h3>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-white/5">
+                    ${data.recent_projects.map(p => `
+                        <div class="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                    <i class="fa-solid fa-folder-open text-blue-500 text-xs"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-medium text-slate-800 dark:text-white">${escapeHtml(p.name)}</h4>
+                                    <p class="text-[10px] text-slate-400">Due: ${p.end_date || 'N/A'}</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-[10px] font-medium ${getStatusBadgeClass(p.status)}">${p.status}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        }
+
+        if (data.dashboard_variant === 'contributor' && data.recent_tasks) {
+            html += `
+            <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-[#4a9d7e] text-sm"></i>
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Recent Tasks</h3>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-white/5">
+                    ${data.recent_tasks.map(t => `
+                        <div class="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                    <i class="fa-solid fa-tasks text-purple-500 text-xs"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-medium text-slate-800 dark:text-white" title="${escapeHtml(t.name)}">${escapeHtml(truncateWords(t.name, 20))}</h4>
+                                    <p class="text-[10px] text-slate-400">${escapeHtml(t.project_name)} • Due: ${t.end_date}</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-[10px] font-medium ${getTaskStatusBadgeClass(t.status)}">${t.status_display}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        }
+
+        html += `</div>`; 
+
+        html += `
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-regular fa-message text-[#4a9d7e] text-sm"></i>
+                    <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Recent Chats</h3>
+                </div>
+                <a href="{% url 'chat_rooms' %}" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] transition">View All →</a>
+            </div>
+            <div id="recentChatsContainer" class="p-4">
+                <div class="flex justify-center py-4">
+                    <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#4a9d7e]"></div>
+                    <span class="ml-2 text-xs text-slate-400">Loading chats...</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+        loadRecentChats();
+    }
+
+    function renderStatCard(title, value, color, key, icon) {
+        return `
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
+            <div class="flex items-center justify-between mb-2">
+                <div class="w-8 h-8 rounded-lg group-hover:scale-110 transition-transform duration-300" style="background: ${color}15;">
+                    <i class="fa-solid ${icon} text-sm flex items-center justify-center h-full" style="color: ${color};"></i>
+                </div>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">${key}</span>
+            </div>
+            <div class="text-2xl font-bold text-slate-800 dark:text-white">${value}</div>
+            <div class="text-[11px] text-slate-400 mt-1 font-medium group-hover:text-slate-500 transition-colors">${title}</div>
+        </div>
+    `;
+    }
+
+    function renderChatCard() {
+        return `
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/5 shadow-sm p-4 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
+            <div class="flex items-center justify-between mb-2">
+                <div class="w-8 h-8 rounded-lg bg-[#4a9d7e]15 group-hover:scale-110 transition-transform duration-300">
+                    <i class="fa-regular fa-message text-sm flex items-center justify-center h-full text-[#4a9d7e]"></i>
+                </div>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">chat</span>
+            </div>
+            <div class="text-2xl font-bold text-slate-800 dark:text-white" id="statUnreadCount">0</div>
+            <div class="text-[11px] text-slate-400 mt-1 font-medium">Unread Messages</div>
+            <a href="{% url 'chat_rooms' %}" class="mt-3 text-[11px] text-[#4a9d7e] hover:text-[#3d8a6d] font-bold inline-flex items-center gap-1 group/link">
+                Open Chat <i class="fa-solid fa-arrow-right text-[8px] group-hover/link:translate-x-1 transition-transform"></i>
+            </a>
+        </div>
+    `;
+    }
+
+function loadRecentChats() {
+    fetch('/chat/api/unread-count/', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Authorization': `Bearer ${getAccessToken()}`
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            updateDashboardChatUI(data.total_unread || 0);
+        }
+    })
+    .catch(err => {
+        console.error('Error loading chats:', err);
+    });
+}
+
+function updateDashboardChatUI(totalUnread) {
+    const statUnreadElement = document.getElementById('statUnreadCount');
+    if (statUnreadElement) statUnreadElement.innerText = totalUnread;
+    
+    const recentChatsContainer = document.getElementById('recentChatsContainer');
+    if (!recentChatsContainer) return;
+
+    if (totalUnread > 0) {
+        recentChatsContainer.innerHTML = `
+            <div class="bg-[#eef6f2] dark:bg-[#1a3a2a] rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-[#4a9d7e] dark:text-[#34d399]">📬 New Messages</p>
+                        <p class="text-2xl font-bold text-[#4a9d7e] dark:text-[#34d399] mt-1">${totalUnread}</p>
+                        <p class="text-xs text-[#4a9d7e]/70 dark:text-[#34d399]/70">unread conversation${totalUnread > 1 ? 's' : ''}</p>
+                    </div>
+                    <a href="/chat/" class="px-3 py-1.5 bg-[#4a9d7e] text-white text-xs rounded-lg hover:bg-[#3d8a6d] transition">
+                        Read
+                    </a>
+                </div>
+            </div>
+        `;
+    } else {
+        recentChatsContainer.innerHTML = `
+            <div class="text-center py-6">
+                <i class="fa-regular fa-comment-dots text-3xl text-slate-300 mb-2"></i>
+                <p class="text-sm text-slate-500">No new messages</p>
+                <a href="/chat/" class="text-xs text-[#4a9d7e] hover:text-[#3d8a6d] mt-2 inline-block">Start a conversation →</a>
+            </div>
+        `;
+    }
+}
+
+
+window.addEventListener('sidebarUpdate', (e) => {
+    if (e.detail && typeof e.detail.total_unread_count !== 'undefined') {
+        updateDashboardChatUI(e.detail.total_unread_count);
+    }
+});
+
+    function getRoleBadgeClass(tier) {
+        switch (tier) {
+            case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+            case 'manager': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'contributor': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+        }
+    }
+
+    function getStatusBadgeClass(status) {
+        switch (status) {
+            case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+        }
+    }
+
+    function getTaskStatusBadgeClass(status) {
+        switch (status) {
+            case 'ONGOING': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
+        }
+    }
+
+    function truncateWords(text, limit) {
+        if (!text) return '';
+        const words = text.split(/\s+/).filter(w => w.length > 0);
+        if (words.length > limit) {
+            return words.slice(0, limit).join(' ') + '...';
+        }
+        return text;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    loadDashboard();
+</script>
+{% endblock %}

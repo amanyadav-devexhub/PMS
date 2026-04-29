@@ -15,31 +15,25 @@ class UserRegisterForm(UserCreationForm):
         model = User
         fields = ['username', 'email','first_name', 'last_name', 'role', 'password1', 'password2']
 
-    # Remove password1 and password2 fields since we're not setting password
-    # Or make them optional
     password1 = forms.CharField(
         label='Password',
         widget=forms.PasswordInput,
-        required=False,  # Make it optional
+        required=False,  
         help_text='User will set this via activation link'
     )
     password2 = forms.CharField(
         label='Confirm Password',
         widget=forms.PasswordInput,
-        required=False,  # Make it optional
+        required=False,  
         help_text='User will set this via activation link'
     )
     
     def clean_password2(self):
-        # Bypass password validation since we're not using it
         return self.cleaned_data.get('password1', '')
     
     def clean(self):
-        # Skip password validation for admin creation
         return self.cleaned_data
 
-    
-    # Project creation form
 class ProjectForm(forms.ModelForm):
     start_date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'})
@@ -47,7 +41,7 @@ class ProjectForm(forms.ModelForm):
     end_date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'})
     )
-    # ✅ Explicitly set assigned_to as ModelMultipleChoiceField
+    
     assigned_to = forms.ModelMultipleChoiceField(
         queryset=User.objects.filter(is_active=True),
         widget=forms.SelectMultiple(attrs={
@@ -93,13 +87,11 @@ class UserProfileForm(forms.ModelForm):
             'designation': forms.Select(attrs={'class': 'w-full border rounded px-4 py-2'}),
         }
 
-         # Add validation for employee_id
     def clean_employee_id(self):
         employee_id = self.cleaned_data.get('employee_id')
         if not employee_id or not employee_id.strip():
             raise forms.ValidationError("Employee ID is required.")
         
-        # Check uniqueness (excluding current instance if editing)
         if self.instance and self.instance.pk:
             if UserProfile.objects.exclude(pk=self.instance.pk).filter(employee_id=employee_id.strip()).exists():
                 raise forms.ValidationError("Employee ID already exists.")
@@ -108,7 +100,6 @@ class UserProfileForm(forms.ModelForm):
                 raise forms.ValidationError("Employee ID already exists.")
         
         return employee_id.strip()
-
 
 from django.contrib.contenttypes.models import ContentType
 

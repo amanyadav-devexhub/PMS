@@ -29,7 +29,6 @@ def jwt_required(view_func):
         if not token:
             token = request.COOKIES.get('access_token')
 
-        # First, try JWT if token is present
         if token:
             try:
                 auth = JWTAuthentication()
@@ -39,14 +38,11 @@ def jwt_required(view_func):
                     request.user = user
                     return view_func(request, *args, **kwargs)
             except Exception:
-                # If JWT fails (expired, invalid), gracefully fall through to check session
                 pass
 
-        # Second, fallback to Django Session Authentication
         if request.user.is_authenticated:
             return view_func(request, *args, **kwargs)
             
-        # Authentication totally failed
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': False,
@@ -61,9 +57,7 @@ def jwt_required(view_func):
     return wrapped_view
 
 
-# Backward-compatible alias for existing views.
 jwt_or_session_required = jwt_required
-
 
 def allowed_roles(allowed_roles=[]):
     """
@@ -97,8 +91,6 @@ def allowed_roles(allowed_roles=[]):
         return wrapped_view
     return decorator
 
-
-## Role and Permission-based access control decorator
 def permission_required(perm_or_perms):
     """
     Permission-based access control decorator.
@@ -117,11 +109,9 @@ def permission_required(perm_or_perms):
                     }, status=401)
                 return redirect(reverse('login_page'))
 
-            # Superuser always passes
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
 
-            # Check permission via Role object
             if isinstance(perm_or_perms, (list, tuple)):
                 if any(request.user.has_perm(p) for p in perm_or_perms):
                     return view_func(request, *args, **kwargs)
@@ -129,7 +119,6 @@ def permission_required(perm_or_perms):
                 if request.user.has_perm(perm_or_perms):
                     return view_func(request, *args, **kwargs)
 
-            # Access denied
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,

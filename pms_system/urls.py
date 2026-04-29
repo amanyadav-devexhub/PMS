@@ -22,18 +22,18 @@ urlpatterns = [
     # =========================================================================
     # HTML VIEWS (No prefixes - let each app handle its own routing)
     # =========================================================================
-    path("", include("users.urls")),      # Users app (home, login, dashboard, user management)
-    path("", include("projects.urls")),   # Projects app (project CRUD)
-    path("", include("Tasks.urls")),      # Tasks app (task CRUD, workflow)
-    path("chat/", include("chat.urls")),  # Chat app
+    path("", include("users.urls")),      
+    path("", include("projects.urls")),  
+    path("", include("Tasks.urls")),     
+    path("chat/", include("chat.urls")), 
+    path("chatbot/", include("chatbot.urls")),
     
     # =========================================================================
     # API ENDPOINTS (All under /api/)
     # =========================================================================
-    path('api/', include('users.api.urls')),           # Auth, dashboard, users API
-    path('api/projects/', include('projects.api.urls')), # Projects API
-    path('api/tasks/', include('Tasks.api.urls')),     # Tasks API
+    path('api/', include('users.api.urls')),           
+    path('api/projects/', include('projects.api.urls')), 
+    path('api/tasks/', include('Tasks.api.urls')),     
 ]
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

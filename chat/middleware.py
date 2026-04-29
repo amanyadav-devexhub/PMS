@@ -13,13 +13,13 @@ class JWTAuthMiddleware:
         self.auth = JWTAuthentication()
 
     async def __call__(self, scope, receive, send):
-        # Default user is anonymous
+        
         scope['user'] = AnonymousUser()
         
-        # Try to extract token from various sources
+        
         token = None
         
-        # 1. From Cookies (most common for browser WebSockets)
+       
         headers = dict(scope.get('headers', []))
         if b'cookie' in headers:
             cookies = headers[b'cookie'].decode('utf-8')
@@ -30,13 +30,13 @@ class JWTAuthMiddleware:
                     parsed_cookies[key] = value
             token = parsed_cookies.get('access_token')
             
-        # 2. From query string (fallback)
+      
         if not token and scope.get('query_string'):
             query_string = scope['query_string'].decode('utf-8')
             params = urllib.parse.parse_qs(query_string)
             token = params.get('token', [None])[0]
 
-        # 3. From Authorization header (rare for browser WebSockets, but possible)
+       
         if not token and b'authorization' in headers:
             auth_header = headers[b'authorization'].decode('utf-8')
             if auth_header.startswith('Bearer '):

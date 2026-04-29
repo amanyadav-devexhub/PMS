@@ -21,7 +21,7 @@ from channels.layers import get_channel_layer
 
 @jwt_or_session_required
 def get_user_rooms(request):
-    """API endpoint to get all rooms for the current user"""
+    
     rooms = request.user.chat_rooms.all().order_by('-last_activity')
     
     rooms_data = []
@@ -43,7 +43,7 @@ def get_user_rooms(request):
 
 @jwt_or_session_required
 def chat_rooms(request):
-    """Display all chat rooms for the user with recent messages"""
+    
     rooms = request.user.chat_rooms.all()
     
     rooms_list = []
@@ -65,7 +65,7 @@ def chat_rooms(request):
     
     rooms_list.sort(key=lambda x: x['last_activity'] if x['last_activity'] else timezone.now() - timezone.timedelta(days=36500), reverse=True)
     
-    # Get users we already have DMs with to exclude them from the new chat list
+    
     has_dm_user_ids = set()
     for room in rooms:
         if not room.is_group:
@@ -73,7 +73,7 @@ def chat_rooms(request):
                 if p.id != request.user.id:
                     has_dm_user_ids.add(p.id)
                     
-    # Get all users for new chat, excluding those we already have a DM with
+    
     users = User.objects.exclude(id=request.user.id).exclude(id__in=has_dm_user_ids)[:100]
     
     return render(request, 'chat/rooms.html', {
@@ -86,7 +86,7 @@ def chat_rooms(request):
 def chat_room(request, room_id):
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
-    # Mark all messages as read when entering room
+    
     unread_messages = Message.objects.filter(room=room).exclude(sender=request.user).exclude(read_by=request.user)
     message_ids = list(unread_messages.values_list('id', flat=True))
     
@@ -94,7 +94,7 @@ def chat_room(request, room_id):
         for msg in unread_messages:
             msg.mark_as_read(request.user)
             
-        # Broadcast read receipt to room
+       
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{room_id}",
@@ -104,8 +104,7 @@ def chat_room(request, room_id):
                 'message_ids': message_ids
             }
         )
-        # Global sidebar updates will be handled by the client when it connects or via separate polling/socket
-        # But we can also broadcast it here for consistency
+       
         participants = list(room.participants.values_list('id', flat=True))
         for p_id in participants:
             async_to_sync(channel_layer.group_send)(
@@ -135,7 +134,7 @@ def create_direct_room(request, user_id):
     if other_user == request.user:
         return JsonResponse({'error': 'Cannot chat with yourself'}, status=400)
 
-    # Find existing direct chat room with exactly these two participants
+   
     room = ChatRoom.objects.filter(is_group=False, participants=request.user) \
                            .filter(participants=other_user).first()
 
@@ -154,7 +153,7 @@ def create_direct_room(request, user_id):
 @jwt_or_session_required
 @require_http_methods(["POST"])
 def create_group_room(request):
-    """Create a new group chat"""
+  
     try:
         data = json.loads(request.body)
         group_name = data.get('name', '').strip()
@@ -169,16 +168,16 @@ def create_group_room(request):
         
         from django.db import transaction
         with transaction.atomic():
-            # Create group room
+      
             room = ChatRoom.objects.create(
                 name=group_name,
                 is_group=True,
                 created_by=request.user,
                 description=description,
-                project_id=data.get('project_id')  # Link to project if provided
+                project_id=data.get('project_id')  
             )
             
-            # Add participants
+     
             room.participants.add(request.user)
             for participant_id in participant_ids:
                 try:
@@ -199,7 +198,7 @@ def create_group_room(request):
 
 @jwt_or_session_required
 def get_messages(request, room_id):
-    """Get messages for a room with pagination including attachments"""
+    
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     after_id = request.GET.get('after', 0)
@@ -219,7 +218,7 @@ def get_messages(request, room_id):
     
     messages_data = []
     for msg in messages:
-        # Build attachments data
+       
         attachments_data = []
         for att in msg.attachments.all():
             attachments_data.append({
@@ -242,7 +241,7 @@ def get_messages(request, room_id):
             'timestamp': msg.timestamp.isoformat(),
             'is_read': msg.is_read,
             'read_by': [user.id for user in msg.read_by.all()],
-            'attachments': attachments_data  # Add this line
+            'attachments': attachments_data  
         })
     
     return JsonResponse({'messages': messages_data})
@@ -253,7 +252,7 @@ def get_messages(request, room_id):
 @jwt_or_session_required
 @require_http_methods(["POST"])
 def send_message(request, room_id):
-    """Send message via HTTP fallback"""
+    
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     try:
@@ -265,10 +264,10 @@ def send_message(request, room_id):
         
         from django.db import transaction
         with transaction.atomic():
-            # Lock the room to prevent concurrent membership changes
+           
             room_locked = ChatRoom.objects.select_for_update().get(id=room_id)
             
-            # Double check membership inside transaction
+          
             if not room_locked.participants.filter(id=request.user.id).exists():
                 return JsonResponse({'success': False, 'error': 'Not a member'}, status=403)
                 
@@ -292,7 +291,7 @@ def send_message(request, room_id):
             'attachments': []
         }
         
-        # Broadcast to WebSocket group
+        
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{room_id}",
@@ -314,7 +313,6 @@ def send_message(request, room_id):
 
 @jwt_or_session_required
 def search_users(request):
-    """Search for users to add to chat or start conversation"""
     query = request.GET.get('q', '').strip()
     exclude_ids = request.GET.get('exclude', '')
     exclude_list = [int(id) for id in exclude_ids.split(',') if id]
@@ -353,7 +351,7 @@ def search_users(request):
 @jwt_or_session_required
 @require_http_methods(["POST"])
 def mark_messages_read(request, room_id):
-    """Mark messages as read"""
+    
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     messages = Message.objects.filter(room=room).exclude(sender=request.user).exclude(read_by=request.user)
@@ -365,7 +363,7 @@ def mark_messages_read(request, room_id):
         updated += 1
     
     if updated > 0:
-        # Broadcast read receipt to room
+      
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{room_id}",
@@ -376,13 +374,12 @@ def mark_messages_read(request, room_id):
             }
         )
         
-        # Update unread counts for participants
+        
         from .consumers import ChatConsumer
-        # We need a way to get participants and unread counts
-        # and broadcast to their global sidebars
+       
         participants = list(room.participants.values_list('id', flat=True))
         
-        # Get unread counts (Simplified version of consumers.py logic)
+        
         unread_counts = {}
         for p_id in participants:
             try:
@@ -391,7 +388,7 @@ def mark_messages_read(request, room_id):
             except: pass
 
         for p_id in participants:
-            # Get total unread count for user
+            
             total_unread = Message.objects.filter(
                 room__participants__id=p_id
             ).exclude(sender_id=p_id).exclude(read_by__id=p_id).distinct().count()
@@ -414,7 +411,7 @@ def mark_messages_read(request, room_id):
 
 @jwt_or_session_required
 def get_unread_counts(request):
-    """Get unread message counts for all rooms"""
+    
     rooms = request.user.chat_rooms.all()
     
     unread_counts = {}
@@ -435,7 +432,7 @@ def get_unread_counts(request):
 
 @jwt_or_session_required
 def get_all_users(request):
-    """Get all users for group creation"""
+    
     users = User.objects.exclude(id=request.user.id).filter(is_active=True)
     
     users_data = []
@@ -455,7 +452,7 @@ def get_all_users(request):
 @jwt_or_session_required
 @require_http_methods(["POST"])
 def upload_file(request, room_id):
-    """Upload a file attachment for a message"""
+    
     room = get_object_or_404(ChatRoom, id=room_id, participants=request.user)
     
     if 'file' not in request.FILES:
@@ -464,7 +461,6 @@ def upload_file(request, room_id):
     uploaded_file = request.FILES['file']
     message_text = request.POST.get('message', '').strip()
     
-    # Validate file size (max 25MB)
     if uploaded_file.size > 25 * 1024 * 1024:
         return JsonResponse({'error': 'File too large. Max 25MB'}, status=400)
     
@@ -472,21 +468,17 @@ def upload_file(request, room_id):
     with transaction.atomic():
         room_locked = ChatRoom.objects.select_for_update().get(id=room_id)
         
-        # Double check membership
         if not room_locked.participants.filter(id=request.user.id).exists():
             return JsonResponse({'success': False, 'error': 'Not a member'}, status=403)
 
-        # Create message
         message = Message.objects.create(
             room=room_locked,
             sender=request.user,
             content=message_text or ''
         )
         
-        # Determine file type
         file_type = determine_file_type(uploaded_file.name, uploaded_file.content_type)
         
-        # Create attachment
         attachment = MessageAttachment.objects.create(
             message=message,
             filename=uploaded_file.name,
@@ -495,10 +487,9 @@ def upload_file(request, room_id):
             mime_type=uploaded_file.content_type
         )
         
-        # Save the file
+      
         attachment.file.save(uploaded_file.name, uploaded_file)
         
-        # Create thumbnail for images
         if file_type == 'image':
             try:
                 img = Image.open(uploaded_file)
@@ -526,7 +517,7 @@ def upload_file(request, room_id):
         'mime_type': attachment.mime_type
     }
 
-    # Broadcast to WebSocket group
+  
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         f"chat_{room_id}",
@@ -553,10 +544,10 @@ def upload_file(request, room_id):
 
 @jwt_or_session_required
 def download_file(request, attachment_id):
-    """Download a file attachment"""
+   
     attachment = get_object_or_404(MessageAttachment, id=attachment_id)
     
-    # Check if user has access to this attachment (is participant in the room)
+   
     room = attachment.message.room
     if request.user not in room.participants.all():
         return JsonResponse({'error': 'Access denied'}, status=403)
@@ -600,13 +591,12 @@ def determine_file_type(filename, mime_type):
 
 @jwt_or_session_required
 def list_projects(request):
-    """List all projects for the user or all projects for admins"""
+    
     from projects.models import Projects
     
     if request.user.is_superuser:
         projects = Projects.objects.all()
     else:
-        # Get projects where user is assigned or is creator
         projects = Projects.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).distinct()
         
     projects_data = []

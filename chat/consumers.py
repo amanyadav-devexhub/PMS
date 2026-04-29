@@ -24,7 +24,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         self.room_id = self.scope['url_route']['kwargs']['room_id']
         
-        # Verify user is participant
+      
         if not await self.is_room_participant():
             await self.close()
             return
@@ -39,18 +39,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        # Update online status in Redis
         await self.update_online_status_redis(True)
         
-        # Broadcast online status
+      
         await self.broadcast_online_status(True)
 
     async def disconnect(self, close_code):
         if hasattr(self, 'user'):
-            # Update online status in Redis
+          
             await self.update_online_status_redis(False)
-            
-            # Broadcast online status
             await self.broadcast_online_status(False)
             
         if hasattr(self, 'room_group_name'):
@@ -62,10 +59,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def update_online_status_redis(self, is_online):
         """Update online status in Redis set"""
         try:
-            # We use the connection from the channel layer if possible
-            # Otherwise we'd need a separate redis client
-            # For now, let's assume we can get it or just rely on group broadcast
-            # until we implement a dedicated 'get_online_users' method.
+           
             pass
         except Exception:
             pass
@@ -95,15 +89,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             if not message_content or len(message_content) > 5000:
                 return
-                
-            # Save message to database
+          
             result = await self.save_message_atomic(message_content)
             
             if result['success']:
                 saved_message = result['message']
                 unread_counts = await self.get_unread_counts_for_participants()
                 
-                # Send message to room group
+              
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -121,7 +114,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 )
 
-                # TRIGGER GLOBAL SIDEBAR UPDATES
                 await self.broadcast_global_sidebar_update(saved_message, message_content, unread_counts)
             else:
                 await self.send(text_data=json.dumps({
@@ -161,7 +153,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         }
                     )
                     
-                    # TRIGGER GLOBAL SIDEBAR UPDATES
                     await self.broadcast_global_sidebar_update(saved_message, message_text or '[File]', unread_counts)
                 else:
                     await self.send(text_data=json.dumps({
@@ -194,7 +185,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         elif message_type == 'read_receipt':
             message_ids = data.get('message_ids', [])
             if not message_ids:
-                # If no IDs provided, mark ALL unread messages for this user in the room as read
                 message_ids = await self.get_unread_message_ids_for_user()
             
             if message_ids:
@@ -267,7 +257,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             from .models import Message
             User = get_user_model()
             user = User.objects.get(id=user_id)
-            # Count messages in rooms where user is participant, but hasn't read them
             return Message.objects.filter(
                 room__participants=user
             ).exclude(sender=user).exclude(read_by=user).distinct().count()
@@ -292,10 +281,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def save_message_atomic(self, content):
         try:
             with transaction.atomic():
-                # Lock the room to prevent concurrent updates to last_activity or participants
                 room = ChatRoom.objects.select_for_update().get(id=self.room_id)
                 
-                # Double check membership inside transaction
                 if not room.participants.filter(id=self.user.id).exists():
                     return {'success': False, 'error': 'Not a member of this room'}
                 
@@ -305,7 +292,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     content=content
                 )
                 
-                # Update room last activity
+               
                 room.last_activity = timezone.now()
                 room.save()
                 
@@ -322,7 +309,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if not room.participants.filter(id=self.user.id).exists():
                     return {'success': False, 'error': 'Not a member of this room'}
                 
-                # Decode base64
                 format, imgstr = file_data.split(';base64,') if ';base64,' in file_data else (None, file_data)
                 file_content = base64.b64decode(imgstr)
                 
@@ -391,8 +377,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def send_previous_messages(self, before_id=None):
         messages = await self.get_previous_messages(before_id=before_id)
         if not before_id:
-            # When connecting, send all initially loaded messages
-            for msg in reversed(messages): # Send in order
+           
+            for msg in reversed(messages): 
                 await self.send(text_data=json.dumps({
                     'type': 'chat_message',
                     'message': msg['content'],
@@ -405,7 +391,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'attachments': msg['attachments']
                 }))
         else:
-            # Fallback handled in receive 'load_more'
+            
             pass
 
     @database_sync_to_async
@@ -452,10 +438,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_unread_message_ids_for_user(self):
         try:
-            # Re-fetch room to avoid stale data
+          
             from .models import ChatRoom, Message
             room = ChatRoom.objects.get(id=self.room_id)
-            # Find messages in this room NOT sent by current user that current user hasn't read yet
             unread = Message.objects.filter(room=room).exclude(sender=self.user).exclude(read_by=self.user)
             return list(unread.values_list('id', flat=True))
         except Exception: return []
@@ -469,8 +454,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 for msg in messages:
                     msg.mark_as_read(self.user)
                 
-                # After marking as read, trigger a global update to refresh unread counts
-                # This handles the "Race Condition" where a user reads a message while another is sending one
                 return True
         except Exception: return False
 
@@ -478,7 +461,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Helper to broadcast read receipts and update unread counts globally"""
         unread_counts = await self.get_unread_counts_for_participants()
         
-        # Broadcast to room (standard read receipt)
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -488,7 +470,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-        # Broadcast to global sidebars (to update badges)
         participants = await self.get_room_participants()
         for p_id in participants:
             await self.channel_layer.group_send(
@@ -496,7 +477,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'sidebar_update',
                     'room_id': self.room_id,
-                    'last_message': None, # Don't update message text on read receipt
+                    'last_message': None, 
                     'last_activity': timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
                     'unread_count': unread_counts.get(str(p_id), unread_counts.get(p_id, 0)),
                     'total_unread_count': await self.get_total_unread_count_for_user(p_id)
@@ -516,7 +497,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception: return {}
 
 class ChatListConsumer(AsyncWebsocketConsumer):
-    """Consumer for global sidebar updates and unread counts"""
+   
     async def connect(self):
         self.user = self.scope["user"]
         if self.user.is_anonymous:
@@ -532,7 +513,6 @@ class ChatListConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
 
     async def sidebar_update(self, event):
-        """Receive sidebar update from channel layer and send to browser"""
         await self.send(text_data=json.dumps({
             'type': 'sidebar_update',
             'room_id': event['room_id'],
