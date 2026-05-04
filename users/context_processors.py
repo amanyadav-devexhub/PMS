@@ -11,6 +11,7 @@ from .permissions import (
     can_delete_projects,
     can_manage_departments,
     can_manage_designations,
+    can_manage_permission_overrides,
     can_manage_projects,
     can_manage_roles,
     can_manage_users,
@@ -23,7 +24,6 @@ from .permissions import (
     is_manager_like,
 )
 
-# notifications/context_processors.py
 from django.utils import timezone
 
 def notification_count(request):
@@ -34,7 +34,6 @@ def notification_count(request):
             user=request.user
         ).order_by('-created_at')[:5]
         
-        # Add formatted time to each notification
         for notif in recent_notifications:
             local_time = timezone.localtime(notif.created_at)
             notif.formatted_time = local_time.strftime('%Y-%m-%d %H:%M:%S')
@@ -67,6 +66,7 @@ def permission_flags(request):
             'can_change_projects': False,
             'can_view_projects': False,
             'can_view_all_projects': False,
+            'can_manage_permission_overrides': False,
             'can_add_task': False,
             'can_change_task': False,
             'can_delete_task': False,
@@ -89,6 +89,7 @@ def permission_flags(request):
         'can_delete_projects': can_delete_projects(user),
         'can_manage_projects': can_manage_projects(user),
         'can_change_projects': can_change_projects(user),
+        'can_manage_permission_overrides': can_manage_permission_overrides(user),
         'can_view_projects': can_view_projects(user),
         'can_view_all_projects': can_view_all_projects(user),
         'can_add_task': can_add_task(user),

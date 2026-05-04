@@ -1,0 +1,725 @@
+{% extends "base.html" %}
+
+{% block title %}Team Members{% endblock %}
+{% block page_title %}Team Members{% endblock %}
+
+{% block content %}
+
+<!-- Hero / Stats Cards Section -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <!-- Total Members Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm transition-all hover:shadow-md">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Members</p>
+                <p class="text-2xl font-bold text-slate-800 dark:text-white mt-1" id="totalMembersCount">--</p>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center">
+                <i class="fa-solid fa-users text-brand-primary text-lg"></i>
+            </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <span class="text-green-600 dark:text-green-400 font-medium">All team members</span>
+        </div>
+    </div>
+
+    <!-- Active Users Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm transition-all hover:shadow-md">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Active</p>
+                <p class="text-2xl font-bold text-slate-800 dark:text-white mt-1" id="activeUsersCount">--</p>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                <i class="fa-regular fa-circle-check text-emerald-600 dark:text-emerald-400 text-lg"></i>
+            </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <span class="text-emerald-600 dark:text-emerald-400 font-medium">●</span> Currently active members
+        </div>
+    </div>
+
+    <!-- Roles Count Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm transition-all hover:shadow-md">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Roles</p>
+                <p class="text-2xl font-bold text-slate-800 dark:text-white mt-1" id="rolesCount">--</p>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                <i class="fa-solid fa-shield-haltered text-amber-600 dark:text-amber-400 text-lg"></i>
+            </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <span class="text-amber-600 dark:text-amber-400 font-medium">●</span> Unique roles in organization
+        </div>
+    </div>
+
+    <!-- Inactive Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm transition-all hover:shadow-md">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Inactive</p>
+                <p class="text-2xl font-bold text-slate-800 dark:text-white mt-1" id="inactiveUsersCount">--</p>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <i class="fa-regular fa-clock text-slate-500 dark:text-slate-400 text-lg"></i>
+            </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <button id="filterInactiveBtn" class="text-brand-primary hover:underline">View all →</button>
+        </div>
+    </div>
+</div>
+
+<!-- Action Bar -->
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div class="flex items-center gap-2">
+        <div class="h-8 w-1 bg-brand-primary rounded-full"></div>
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Team Directory</h2>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+        {% if can_add_user %}
+        <a href="{% url 'create_user' %}"
+           class="inline-flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-white bg-brand-primary hover:bg-[#3d8a6d] rounded-lg transition shadow-sm">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+            Add Member
+        </a>
+        {% endif %}
+
+        <!-- Filter Dropdown -->
+        <div class="relative" id="roleFilterDropdown">
+            <button id="filterRoleBtn" class="inline-flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition">
+                <i class="fa-solid fa-filter text-[10px]"></i>
+                Role
+                <i class="fa-solid fa-chevron-down text-[8px]"></i>
+            </button>
+            <div id="roleFilterMenu" class="hidden absolute left-0 mt-2 w-56 bg-white dark:bg-[#1e293b] rounded-lg shadow-lg border border-slate-200 dark:border-white/10 z-20 py-1 max-h-64 overflow-y-auto">
+                <button data-role="" class="role-filter-option w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition font-medium">All Roles</button>
+            </div>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="relative" id="statusFilterDropdown">
+            <button id="filterStatusBtn" class="inline-flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition">
+                <i class="fa-solid fa-circle-dot text-[10px]"></i>
+                Status
+                <i class="fa-solid fa-chevron-down text-[8px]"></i>
+            </button>
+            <div id="statusFilterMenu" class="hidden absolute left-0 mt-2 w-40 bg-white dark:bg-[#1e293b] rounded-lg shadow-lg border border-slate-200 dark:border-white/10 z-20 py-1">
+                <button data-status="" class="status-filter-option w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition">All</button>
+                <button data-status="active" class="status-filter-option w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition">Active</button>
+                <button data-status="inactive" class="status-filter-option w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition">Inactive</button>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="flex items-center gap-2">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"></i>
+                <input type="text" id="searchInput" placeholder="Search username, email or role..."
+                       class="pl-8 pr-3 py-2 bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-[13px] outline-none focus:border-brand-primary w-56 md:w-72 transition">
+            </div>
+            <button id="searchBtn" type="button"
+                    class="px-3 py-2 text-[13px] font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition">
+                Search
+            </button>
+            <button id="clearBtn" type="button"
+                    class="px-3 py-2 text-[13px] font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition hidden">
+                Clear
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-lg flex items-center gap-3">
+        <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-brand-primary"></div>
+        <span class="text-sm text-slate-600 dark:text-slate-300">Loading...</span>
+    </div>
+</div>
+
+<!-- Users Table (Modern Card Style) -->
+<div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left">
+            <thead class="bg-[#f6f7f9] dark:bg-white/5 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
+                <tr>
+                    <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wider">#</th>
+                    <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wider">User</th>
+                    <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wider">Role</th>
+                    <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableBody" class="divide-y divide-slate-100 dark:divide-white/5">
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400 text-sm">
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fa-regular fa-user fa-2x text-slate-300"></i>
+                            <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-brand-primary"></div>
+                            <span>Loading team members...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination Section -->
+<div class="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
+    <div class="text-slate-500 dark:text-slate-400 text-xs bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-full" id="showingInfo">
+        Showing 0 members
+    </div>
+
+    <div class="flex items-center gap-4">
+        <!-- Page Size Selector -->
+        <select id="pageSizeSelect" class="bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-brand-primary cursor-pointer">
+            <option value="10">10 per page</option>
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+        </select>
+
+        <!-- Pagination Buttons -->
+        <div class="flex items-center gap-1">
+            <button id="prevPageBtn"
+                    class="px-3 py-1.5 rounded-lg bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+                <i class="fa-solid fa-chevron-left text-[9px]"></i> Prev
+            </button>
+            <span id="pageIndicator" class="text-xs text-slate-600 dark:text-slate-400 mx-2 min-w-[90px] text-center font-medium">
+                Page 1 of 1
+            </span>
+            <button id="nextPageBtn"
+                    class="px-3 py-1.5 rounded-lg bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+                Next <i class="fa-solid fa-chevron-right text-[9px]"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Permission flags
+    const canDeleteUser = {{ can_delete_user|yesno:"true,false" }};
+    const canChangeUser = {{ can_change_user|yesno:"true,false" }};
+
+    // State variables
+    let currentPage = 1;
+    let currentPageSize = 10;
+    let currentSearchQuery = '';
+    let currentRoleFilter = '';
+    let currentStatusFilter = '';
+    
+    // Store all users data for filtering (client-side)
+    let allUsersData = [];
+    let filteredUsersData = [];
+    let uniqueRoles = new Map();
+
+    // Helper: Show notification
+    function showNotification(message, type = 'success') {
+        const container = document.getElementById('globalNotificationContainer');
+        if (!container) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-5 right-5 z-50 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 toast-notification`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid ${type === 'success' ? 'fa-circle-check text-green-500' : 'fa-circle-exclamation text-red-500'} text-sm"></i>
+                    <span class="text-sm text-slate-700 dark:text-slate-300">${escapeHtml(message)}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xs"></i></button>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+            return;
+        }
+
+        const notification = document.createElement('div');
+        notification.className = `mb-3 p-4 rounded-lg shadow-lg pointer-events-auto transform transition-all duration-300 translate-x-full opacity-0 ${
+            type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
+        } text-white`;
+        notification.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-2"></i>
+                    <span class="text-sm font-medium">${escapeHtml(message)}</span>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-white/80 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(notification);
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full', 'opacity-0');
+            notification.classList.add('translate-x-0', 'opacity-100');
+        }, 10);
+        setTimeout(() => {
+            notification.classList.remove('translate-x-0', 'opacity-100');
+            notification.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function getAccessToken() {
+        return localStorage.getItem('access_token');
+    }
+
+    // Load all users (no pagination for stats and filtering)
+    function loadAllUsers() {
+        const url = new URL('/api/users/', window.location.origin);
+        url.searchParams.set('page_size', 1000); // Get all users for stats
+        
+        const token = getAccessToken();
+        
+        return fetch(url, {
+            headers: { 
+                'X-Requested-With': 'XMLHttpRequest',
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.users) {
+                allUsersData = data.users;
+                calculateStats(allUsersData);
+                updateRoleFilterDropdown(allUsersData);
+                return allUsersData;
+            }
+            return [];
+        })
+        .catch(error => {
+            console.error('Error loading all users:', error);
+            return [];
+        });
+    }
+
+    function calculateStats(users) {
+        const total = users.length;
+        const active = users.filter(u => u.is_active).length;
+        const inactive = total - active;
+        
+        // Count unique roles
+        const rolesSet = new Set();
+        users.forEach(user => {
+            if (user.role_display) {
+                rolesSet.add(user.role_display);
+            }
+        });
+        const uniqueRoleCount = rolesSet.size;
+        
+        // Update UI
+        const totalEl = document.getElementById('totalMembersCount');
+        const activeEl = document.getElementById('activeUsersCount');
+        const inactiveEl = document.getElementById('inactiveUsersCount');
+        const rolesEl = document.getElementById('rolesCount');
+        
+        if (totalEl) totalEl.textContent = total;
+        if (activeEl) activeEl.textContent = active;
+        if (inactiveEl) inactiveEl.textContent = inactive;
+        if (rolesEl) rolesEl.textContent = uniqueRoleCount;
+    }
+
+    function updateRoleFilterDropdown(users) {
+        const menu = document.getElementById('roleFilterMenu');
+        if (!menu) return;
+        
+        // Clear existing options except "All Roles"
+        const options = menu.querySelectorAll('.role-filter-option');
+        for (let i = options.length - 1; i >= 1; i--) {
+            options[i].remove();
+        }
+        
+        // Get unique roles from users
+        const rolesMap = new Map();
+        users.forEach(user => {
+            if (user.role_display && !rolesMap.has(user.role_display)) {
+                rolesMap.set(user.role_display, {
+                    name: user.role_display,
+                    id: user.role_id || user.role_display
+                });
+            }
+        });
+        
+        // Sort roles alphabetically
+        const sortedRoles = Array.from(rolesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        
+        sortedRoles.forEach(role => {
+            const btn = document.createElement('button');
+            btn.setAttribute('data-role', role.id);
+            btn.setAttribute('data-role-name', role.name);
+            btn.className = 'role-filter-option w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition';
+            btn.textContent = role.name;
+            btn.onclick = () => {
+                currentRoleFilter = role.name;
+                updateFilterButtonUI('role', role.name);
+                applyFiltersAndRender();
+                document.getElementById('roleFilterMenu').classList.add('hidden');
+            };
+            menu.appendChild(btn);
+        });
+    }
+
+    function applyFiltersAndRender() {
+        // Start with all users
+        let filtered = [...allUsersData];
+        
+        // Apply search filter
+        if (currentSearchQuery) {
+            const query = currentSearchQuery.toLowerCase();
+            filtered = filtered.filter(user => 
+                user.username?.toLowerCase().includes(query) ||
+                user.email?.toLowerCase().includes(query) ||
+                user.role_display?.toLowerCase().includes(query) ||
+                user.full_name?.toLowerCase().includes(query)
+            );
+        }
+        
+        // Apply role filter
+        if (currentRoleFilter) {
+            filtered = filtered.filter(user => 
+                user.role_display === currentRoleFilter
+            );
+        }
+        
+        // Apply status filter
+        if (currentStatusFilter === 'active') {
+            filtered = filtered.filter(user => user.is_active === true);
+        } else if (currentStatusFilter === 'inactive') {
+            filtered = filtered.filter(user => user.is_active === false);
+        }
+        
+        filteredUsersData = filtered;
+        
+        // Update pagination based on filtered results
+        const totalFiltered = filteredUsersData.length;
+        const totalPages = Math.ceil(totalFiltered / currentPageSize);
+        
+        // Reset to page 1 if current page is invalid
+        if (currentPage > totalPages && totalPages > 0) {
+            currentPage = 1;
+        }
+        
+        // Get current page data
+        const startIndex = (currentPage - 1) * currentPageSize;
+        const endIndex = startIndex + currentPageSize;
+        const pageUsers = filteredUsersData.slice(startIndex, endIndex);
+        
+        // Render the page
+        renderUsers(pageUsers, totalFiltered, currentPage, totalPages);
+        updatePaginationUI(totalFiltered, currentPage, totalPages);
+        
+        // Update showing info
+        const start = totalFiltered === 0 ? 0 : startIndex + 1;
+        const end = Math.min(endIndex, totalFiltered);
+        const showingInfo = document.getElementById('showingInfo');
+        if (showingInfo) {
+            showingInfo.innerHTML = `<i class="fa-regular fa-user mr-1"></i> Showing ${start} - ${end} of ${totalFiltered} members`;
+        }
+        
+        // Toggle clear button
+        const clearBtn = document.getElementById('clearBtn');
+        if (currentSearchQuery) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+    }
+
+    function renderUsers(users, total, page, totalPages) {
+        const tbody = document.getElementById('usersTableBody');
+        if (!users || users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400 text-sm">
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fa-regular fa-face-smile-wink text-3xl text-slate-300"></i>
+                            <span>No team members found</span>
+                            <span class="text-xs">Try adjusting your search or filters</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        users.forEach((user, index) => {
+            const counter = (page - 1) * currentPageSize + index + 1;
+            const statusHtml = user.is_active
+                ? '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"><i class="fa-solid fa-circle text-[4px]"></i> Active</span>'
+                : '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"><i class="fa-regular fa-circle text-[4px]"></i> Inactive</span>';
+
+            const roleColorClass = user.role_class || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+            
+            html += `
+            <tr class="group hover:bg-slate-50 dark:hover:bg-white/5 transition duration-150" id="user-row-${user.id}">
+                <td class="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs font-mono">${counter}</td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand-primary/20 to-brand-primary/10 flex items-center justify-center text-brand-primary font-semibold text-sm">
+                            ${user.avatar_initials || (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+                        </div>
+                        <div>
+                            <div class="font-medium text-slate-800 dark:text-white text-sm">${escapeHtml(user.full_name || user.username)}</div>
+                            <div class="text-[11px] text-slate-400">${escapeHtml(user.email || '')}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium ${roleColorClass}">
+                        ${escapeHtml(user.role_display || 'No Role')}
+                    </span>
+                </td>
+                <td class="px-6 py-4">${statusHtml}</td>
+                <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2 opacity-70 group-hover:opacity-100 transition">
+                        <a href="${user.view_url || '#'}"
+                           class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10 transition shadow-sm">
+                            <i class="fa-regular fa-eye text-[10px]"></i> View
+                        </a>
+                        ${canDeleteUser ? `
+                        <button type="button"
+                                onclick="deleteUser(${user.id}, '${escapeHtml(user.username)}')"
+                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-white/5 border border-red-200 dark:border-red-900/30 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition shadow-sm">
+                            <i class="fa-regular fa-trash-can text-[10px]"></i> Delete
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    function updatePaginationUI(totalItems, currentPageNum, totalPagesNum) {
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        if (prevBtn) {
+            prevBtn.disabled = currentPageNum <= 1;
+            prevBtn.onclick = () => {
+                if (currentPageNum > 1) {
+                    currentPage--;
+                    applyFiltersAndRender();
+                }
+            };
+        }
+
+        if (nextBtn) {
+            nextBtn.disabled = currentPageNum >= totalPagesNum;
+            nextBtn.onclick = () => {
+                if (currentPageNum < totalPagesNum) {
+                    currentPage++;
+                    applyFiltersAndRender();
+                }
+            };
+        }
+
+        if (pageIndicator) {
+            pageIndicator.textContent = `Page ${currentPageNum} of ${totalPagesNum || 1}`;
+        }
+    }
+
+    function updateFilterButtonUI(type, value) {
+        if (type === 'role') {
+            const btn = document.getElementById('filterRoleBtn');
+            if (!value || value === 'All Roles') {
+                btn.innerHTML = `<i class="fa-solid fa-filter text-[10px]"></i> Role <i class="fa-solid fa-chevron-down text-[8px]"></i>`;
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-filter text-[10px]"></i> ${escapeHtml(value)} <i class="fa-solid fa-chevron-down text-[8px] ml-1"></i>`;
+            }
+        } else if (type === 'status') {
+            const btn = document.getElementById('filterStatusBtn');
+            if (!value || value === 'All') {
+                btn.innerHTML = `<i class="fa-solid fa-circle-dot text-[10px]"></i> Status <i class="fa-solid fa-chevron-down text-[8px]"></i>`;
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-circle-dot text-[10px]"></i> ${value} <i class="fa-solid fa-chevron-down text-[8px] ml-1"></i>`;
+            }
+        }
+    }
+
+    // Delete user function
+    function deleteUser(userId, username) {
+        if (!confirm(`⚠️ Are you sure you want to delete user "${username}"?\nThis action cannot be undone and will remove all associated data.`)) return;
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.remove('hidden');
+
+        fetch(`/user/${userId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Authorization': `Bearer ${getAccessToken()}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message || 'User deleted successfully', 'success');
+                // Reload all users data
+                loadAllUsers().then(() => {
+                    currentPage = 1;
+                    applyFiltersAndRender();
+                });
+            } else {
+                if (data.error && (data.error.includes('permission') || data.error.includes('Permission'))) {
+                    if (window.showAccessDeniedModal) {
+                        window.showAccessDeniedModal(data.error);
+                    } else {
+                        showNotification(data.error, 'error');
+                    }
+                } else {
+                    showNotification(data.error || 'Error deleting user', 'error');
+                }
+            }
+            loadingOverlay.classList.add('hidden');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Network error. Please try again.', 'error');
+            loadingOverlay.classList.add('hidden');
+        });
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const pageSizeSelect = document.getElementById('pageSizeSelect');
+        
+        // Filter dropdown toggles
+        const roleFilterBtn = document.getElementById('filterRoleBtn');
+        const statusFilterBtn = document.getElementById('filterStatusBtn');
+        const roleFilterMenu = document.getElementById('roleFilterMenu');
+        const statusFilterMenu = document.getElementById('statusFilterMenu');
+        
+        if (roleFilterBtn && roleFilterMenu) {
+            roleFilterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                roleFilterMenu.classList.toggle('hidden');
+                statusFilterMenu?.classList.add('hidden');
+            });
+        }
+        
+        if (statusFilterBtn && statusFilterMenu) {
+            statusFilterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                statusFilterMenu.classList.toggle('hidden');
+                roleFilterMenu?.classList.add('hidden');
+            });
+        }
+        
+        // Status filter options
+        document.querySelectorAll('.status-filter-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const status = btn.getAttribute('data-status');
+                currentStatusFilter = status;
+                const displayText = btn.textContent;
+                updateFilterButtonUI('status', displayText);
+                currentPage = 1;
+                applyFiltersAndRender();
+                statusFilterMenu.classList.add('hidden');
+            });
+        });
+        
+        // Close dropdowns on click outside
+        document.addEventListener('click', (e) => {
+            if (!roleFilterBtn?.contains(e.target) && roleFilterMenu) roleFilterMenu.classList.add('hidden');
+            if (!statusFilterBtn?.contains(e.target) && statusFilterMenu) statusFilterMenu.classList.add('hidden');
+        });
+        
+        // Filter inactive button
+        const filterInactiveBtn = document.getElementById('filterInactiveBtn');
+        if (filterInactiveBtn) {
+            filterInactiveBtn.addEventListener('click', () => {
+                currentStatusFilter = 'inactive';
+                currentRoleFilter = '';
+                currentSearchQuery = '';
+                searchInput.value = '';
+                updateFilterButtonUI('status', 'Inactive');
+                updateFilterButtonUI('role', 'All Roles');
+                currentPage = 1;
+                applyFiltersAndRender();
+            });
+        }
+
+        // Load all users data first
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.remove('hidden');
+        
+        loadAllUsers().then(() => {
+            applyFiltersAndRender();
+            loadingOverlay.classList.add('hidden');
+        }).catch(() => {
+            loadingOverlay.classList.add('hidden');
+        });
+
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function () {
+                currentSearchQuery = searchInput.value.trim();
+                currentPage = 1;
+                applyFiltersAndRender();
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                currentSearchQuery = '';
+                currentRoleFilter = '';
+                currentStatusFilter = '';
+                updateFilterButtonUI('role', 'All Roles');
+                updateFilterButtonUI('status', 'All');
+                currentPage = 1;
+                applyFiltersAndRender();
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    currentSearchQuery = searchInput.value.trim();
+                    currentPage = 1;
+                    applyFiltersAndRender();
+                }
+            });
+        }
+
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', function () {
+                currentPageSize = parseInt(this.value);
+                currentPage = 1;
+                applyFiltersAndRender();
+            });
+        }
+    });
+    
+    window.deleteUser = deleteUser;
+</script>
+
+{% endblock %}

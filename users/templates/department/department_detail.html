@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Department Members{% endblock %}
+{% block page_title %}Department: <span id="deptName">Loading...</span>{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div>
+        <button onclick="goBack()" class="back-btn-small">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+        </button>
+    </div>
+
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="w-10 h-10 border-2 border-[#4a9d7e] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <div id="departmentUsers" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+</div>
+
+<script>
+const deptId = {{ department.id }};
+
+function loadDepartmentUsers(deptId) {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    loadingOverlay.classList.remove('hidden');
+    
+    fetch(`/department/${deptId}/members/api/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Department name already set from context, but update from API for consistency
+            document.getElementById('deptName').innerText = data.department;
+
+            const container = document.getElementById('departmentUsers');
+            container.innerHTML = '';
+
+            if(data.users.length > 0){
+                data.users.forEach(user => {
+                    const card = document.createElement('a');
+                    card.href = `/user/${user.id}/`;
+                    card.className = "group block bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-5 hover:border-[#4a9d7e] dark:hover:border-[#4a9d7e]/50 hover:shadow-lg transition-all duration-200";
+                    card.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=4a9d7e&color=fff&size=40&bold=true"
+                                class="w-10 h-10 rounded-full object-cover">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-base font-semibold text-slate-800 dark:text-white truncate group-hover:text-[#4a9d7e] transition-colors">${escapeHtml(user.username)}</h3>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${escapeHtml(user.email)}</p>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    <span class="text-xs px-2 py-0.5 bg-[#eef6f2] dark:bg-[#1a3a2a] text-[#4a9d7e] rounded-full">${escapeHtml(user.role)}</span>
+                                    <span class="text-xs px-2 py-0.5 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 rounded-full">${escapeHtml(user.designation)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <i class="fa-regular fa-users text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                        <p class="text-slate-500 dark:text-slate-400">No users found in this department.</p>
+                    </div>
+                `;
+            }
+        }
+        loadingOverlay.classList.add('hidden');
+    })
+    .catch(err => {
+        console.error("Error loading department users:", err);
+        loadingOverlay.classList.add('hidden');
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function goBack() {
+    window.history.back();
+}
+
+// Load department name from API as well
+function loadDepartmentName() {
+    const token = localStorage.getItem('access_token');
+    fetch(`/api/departments/${deptId}/`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('deptName').innerText = data.name;
+        }
+    })
+    .catch(err => console.error('Error loading department name:', err));
+}
+
+loadDepartmentName();
+loadDepartmentUsers(deptId);
+</script>
+{% endblock %}

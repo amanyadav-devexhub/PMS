@@ -12,16 +12,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
         self.user = self.scope["user"]
-        
-        # Reject unauthenticated users
+    
         if self.user.is_anonymous:
             await self.close()
             return
         
-        # Create unique group for this user
         self.user_group_name = f"notifications_{self.user.id}"
         
-        # Add user to their personal notification group
         await self.channel_layer.group_add(
             self.user_group_name,
             self.channel_name
@@ -29,18 +26,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         
-        # Send unread count on connection
         await self.send_unread_count()
     
     async def disconnect(self, close_code):
-        # Remove from notification group
         await self.channel_layer.group_discard(
             self.user_group_name,
             self.channel_name
         )
     
     async def receive(self, text_data):
-        """Handle messages from client"""
         data = json.loads(text_data)
         action = data.get('action')
         
@@ -63,7 +57,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.send_notifications(page, page_size)
     
     async def notification_message(self, event):
-        """Send notification to WebSocket"""
+        
         await self.send(text_data=json.dumps({
             'type': 'new_notification',
             'notification': {
@@ -77,14 +71,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         }))
     
     async def unread_count_update(self, event):
-        """Send unread count update"""
+       
         await self.send(text_data=json.dumps({
             'type': 'unread_count_update',
             'unread_count': event['unread_count']
         }))
     
     async def notification_read_update(self, event):
-        """Notify when a notification is read"""
+       
         await self.send(text_data=json.dumps({
             'type': 'notification_read',
             'notification_id': event['notification_id'],
@@ -92,7 +86,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         }))
     
     async def send_unread_count(self):
-        """Send current unread count to client"""
         count = await self.get_unread_count()
         await self.send(text_data=json.dumps({
             'type': 'unread_count',
@@ -100,7 +93,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         }))
     
     async def send_notifications(self, page, page_size):
-        """Send paginated notifications to client"""
         notifications_data = await self.get_notifications(page, page_size)
         await self.send(text_data=json.dumps({
             'type': 'notifications_list',

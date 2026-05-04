@@ -10,10 +10,9 @@
 {% block content %}
 <div class="flex h-full bg-slate-50 dark:bg-[#0f1117] overflow-hidden" >
     
-    <!-- Sidebar: Chat List -->
+
     <div class="w-full md:w-[400px] bg-white dark:bg-[#111827] border-r border-slate-200 dark:border-white/5 flex flex-shrink-0 flex-col h-full shadow-lg z-20">
         
-        <!-- Header -->
         <div class="p-6 bg-white dark:bg-[#111827] border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Messages</h1>
@@ -24,7 +23,6 @@
             </button>
         </div>
 
-        <!-- Search -->
         <div class="px-6 py-4">
             <div class="relative group">
                 <input type="text" id="searchChats" placeholder="Search conversations..."
@@ -33,7 +31,6 @@
             </div>
         </div>
 
-        <!-- Scrollable List -->
         <div class="flex-1 overflow-y-auto custom-scroll px-3 pb-6">
             <div id="chatList" class="space-y-1">
                 {% for room in rooms %}
@@ -43,7 +40,7 @@
                    data-last-activity="{{ room.last_activity|date:'U' }}">
                     
                     <div class="flex items-center gap-4">
-                        <!-- Avatar -->
+                     
                         <div class="relative flex-shrink-0">
                             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-[#4a9d7e]/10 transform group-hover:rotate-3 transition-transform">
                                 {{ room.avatar_initial }}
@@ -53,7 +50,6 @@
                             {% endif %}
                         </div>
 
-                        <!-- Info -->
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-baseline mb-1">
                                 <h3 class="font-bold text-slate-800 dark:text-white text-sm truncate group-hover:text-[#4a9d7e] transition-colors">{{ room.display_name }}</h3>
@@ -80,7 +76,6 @@
                             </p>
                         </div>
 
-                        <!-- Badge -->
                         <div class="flex-shrink-0 badge-container">
                             {% if room.unread_count > 0 %}
                             <span class="unread-badge flex h-6 w-6 items-center justify-center rounded-full bg-[#4a9d7e] text-[10px] font-black text-white shadow-lg shadow-[#4a9d7e]/30">
@@ -93,7 +88,6 @@
                 {% endfor %}
             </div>
 
-            <!-- Suggested Contacts -->
             {% if users %}
             <div class="mt-10 px-3">
                 <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">New Connections</h2>
@@ -116,9 +110,8 @@
         </div>
     </div>
 
-    <!-- Empty State / Welcome Area -->
     <div class="hidden md:flex flex-1 flex-col items-center justify-center relative p-12 overflow-hidden bg-white dark:bg-[#111827]">
-        <!-- Abstract Decorations -->
+      
         <div class="absolute top-0 right-0 w-96 h-96 bg-[#4a9d7e]/5 rounded-full blur-3xl -mr-48 -mt-48"></div>
         <div class="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl -ml-48 -mb-48"></div>
         
@@ -148,7 +141,6 @@
     </div>
 </div>
 
-<!-- Moderated Group Modal -->
 <div id="newChatModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-6">
     <div class="bg-white dark:bg-[#111827] rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 dark:border-white/10 transform transition-all scale-100">
         
@@ -160,7 +152,7 @@
         </div>
         
         <div class="p-8 space-y-6">
-            <!-- Group Details -->
+           
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 text-left block">Group Identity</label>
@@ -171,7 +163,7 @@
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 text-left block">Project Association</label>
                     <select id="groupProjectSelect" class="w-full bg-slate-50 dark:bg-[#0f1117] border-0 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[#4a9d7e]/20 focus:bg-white transition-all text-sm font-medium">
                         <option value="">No Project Link</option>
-                        <!-- Populated by JS -->
+                     
                     </select>
                 </div>
             </div>
@@ -181,8 +173,7 @@
                 <textarea id="groupDescription" placeholder="Optional: What is this group for?" rows="2"
                           class="w-full bg-slate-50 dark:bg-[#0f1117] border-0 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-[#4a9d7e]/20 focus:bg-white transition-all text-sm font-medium resize-none"></textarea>
             </div>
-
-            <!-- Participant Selection -->
+          
             <div class="space-y-4">
                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 text-left block">Add Members</label>
                 <div class="relative">
@@ -194,7 +185,7 @@
                 <div id="selectedParticipants" class="flex flex-wrap gap-2 empty:hidden py-1"></div>
                 
                 <div id="groupSearchResults" class="max-h-48 overflow-y-auto custom-scroll space-y-1 pr-2">
-                    <!-- Results -->
+                 
                 </div>
             </div>
             
@@ -206,11 +197,9 @@
 </div>
 
 <script>
-// --- CORE CONSTANTS ---
 const csrftoken = "{{ csrf_token }}";
 let selectedParticipants = [];
 
-// --- REAL-TIME SIDEBAR SYNC (FROM BASE.HTML) ---
 window.addEventListener('sidebarUpdate', (e) => {
     if (e.detail && e.detail.type === 'sidebar_update') {
         updateRoomInSidebar(e.detail);
@@ -221,11 +210,9 @@ function updateRoomInSidebar(data) {
     const roomEl = document.querySelector(`[data-room-id="${data.room_id}"]`);
     if (!roomEl) return;
 
-    // Update last message
     const msgEl = roomEl.querySelector('.last-message-text');
     if (msgEl) msgEl.textContent = `${data.last_message_sender}: ${data.last_message}`;
 
-    // Update unread count
     let badge = roomEl.querySelector('.unread-badge');
     if (data.unread_count > 0) {
         if (!badge) {
@@ -241,10 +228,8 @@ function updateRoomInSidebar(data) {
         badge.remove();
     }
 
-    // Update data attribute for sorting (convert to seconds)
     roomEl.dataset.lastActivity = Math.floor(new Date(data.last_activity).getTime() / 1000);
 
-    // Move to top
     const list = document.getElementById('chatList');
     if (list) {
         list.prepend(roomEl);
@@ -253,16 +238,13 @@ function updateRoomInSidebar(data) {
     }
 }
 
-// connectSidebarWS(); removed - handled by base.html
 
-// --- UTILS ---
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// --- MODAL LOGIC ---
 const modal = document.getElementById('newChatModal');
 document.getElementById('newChatBtn').onclick = () => {
     modal.classList.remove('hidden');
@@ -282,7 +264,6 @@ function resetModal() {
     document.getElementById('groupDescription').value = '';
 }
 
-// --- PROJECTS ---
 function loadProjects() {
     fetch('/chat/api/projects/') 
         .then(res => res.json())
@@ -297,7 +278,6 @@ function loadProjects() {
         }).catch(() => {});
 }
 
-// --- USERS ---
 function loadAllUsers() {
     fetch('/chat/api/users/')
         .then(res => res.json())
@@ -359,7 +339,7 @@ function removeParticipant(id) {
     updateSelectedUI();
 }
 
-// --- CREATE GROUP ---
+
 document.getElementById('createGroupBtn').onclick = () => {
     const name = document.getElementById('groupNameInput').value.trim();
     if (!name || selectedParticipants.length < 2) return alert("Group name and at least 2 members required.");
@@ -387,9 +367,9 @@ function startChat(userId) {
     });
 }
 
-// --- INITIALISE ---
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Sort chat list
+   
     const list = document.getElementById('chatList');
     if (list) {
         const items = Array.from(list.children);
