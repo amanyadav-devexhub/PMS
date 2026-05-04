@@ -1,0 +1,914 @@
+{% extends "base.html" %}
+
+{% block title %}Project Details · ReadyTask PMS{% endblock %}
+{% block page_title %}Project Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rich-text-content ul { list-style-type: disc !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content ol { list-style-type: decimal !important; margin-left: 1.5rem !important; margin-bottom: 1rem !important; }
+    .rich-text-content p { margin-bottom: 0.75rem !important; }
+    .rich-text-content a { color: #4a9d7e !important; text-decoration: underline !important; }
+    
+    /* Kanban card styles */
+    .kanban-task-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kanban-task-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Active tab styles */
+    .active-tab {
+        background-color: white !important;
+        color: #4a9d7e !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .dark .active-tab {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #34d399 !important;
+    }
+    
+    /* Custom scrollbar */
+    .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+    .dark .custom-scroll::-webkit-scrollbar-track {
+        background: #1e293b;
+    }
+    .dark .custom-scroll::-webkit-scrollbar-thumb {
+        background: #475569;
+    }
+    
+    /* Line clamp utilities */
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6">
+
+    <!-- Back Navigation -->
+    <div class="mb-6">
+        <button onclick="goBack()"
+            class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition font-medium">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+            Back to Projects
+        </button>
+    </div>
+
+    <!-- Project Header Card - Modern Redesign -->
+    <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden mb-8">
+        <!-- Colored Top Bar (Status Indicator) -->
+        <div id="projectTopBar" class="h-1.5 w-full bg-slate-200 dark:bg-slate-700"></div>
+
+        <div class="p-6 md:p-8">
+            <!-- Title and Status Row -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa-solid fa-folder text-[#4a9d7e] text-sm"></i>
+                        <span class="text-xs font-medium text-[#4a9d7e] uppercase tracking-wider">Project</span>
+                    </div>
+                    <h1 id="projectName" class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">Loading project...</h1>
+                    <div id="projectDescription" class="text-sm text-slate-600 dark:text-slate-400 mt-3 rich-text-content max-w-2xl">
+                        <!-- Description will be loaded -->
+                    </div>
+                </div>
+                <div>
+                    <span id="projectStatusBadge" class="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/5 text-slate-500">
+                        Loading...
+                    </span>
+                </div>
+            </div>
+
+            <!-- Info Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                <!-- Team Members Card -->
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-7 h-7 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                            <i class="fa-solid fa-users text-[#4a9d7e] text-xs"></i>
+                        </div>
+                        <p class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Team Members</p>
+                    </div>
+                    <div id="projectTeamMembers" class="flex flex-wrap gap-1.5">
+                        <span class="text-xs text-slate-400 dark:text-slate-500 italic">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Timeline Card -->
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-7 h-7 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                            <i class="fa-regular fa-calendar text-[#4a9d7e] text-xs"></i>
+                        </div>
+                        <p class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Timeline</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm">
+                        <span id="projectStartDate" class="font-medium text-slate-700 dark:text-slate-300">...</span>
+                        <i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>
+                        <span id="projectEndDate" class="font-medium text-slate-700 dark:text-slate-300">...</span>
+                    </div>
+                </div>
+
+                <!-- Duration Card -->
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-7 h-7 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                            <i class="fa-regular fa-clock text-[#4a9d7e] text-xs"></i>
+                        </div>
+                        <p class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Duration</p>
+                    </div>
+                    <div class="text-sm">
+                        <span id="projectDuration" class="font-medium text-slate-700 dark:text-slate-300">...</span>
+                    </div>
+                </div>
+
+                <!-- Project ID Card -->
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-7 h-7 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                            <i class="fa-solid fa-hashtag text-[#4a9d7e] text-xs"></i>
+                        </div>
+                        <p class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Project ID</p>
+                    </div>
+                    <div class="text-sm">
+                        <span id="projectDisplayId" class="font-medium text-slate-700 dark:text-slate-300 font-mono">#{{ project.id }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            {% if can_change_projects %}
+            <div class="flex flex-wrap gap-3 mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
+                <a href="{% url 'edit_projects' project.id %}"
+                    class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200">
+                    <i class="fa-solid fa-pen text-xs"></i>
+                    Edit Project
+                </a>
+                {% if project.created_by == request.user %}
+                <a href="{% url 'activity_log_view' project.id %}"
+                    class="inline-flex items-center gap-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200">
+                    <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                    Activity Log
+                </a>
+                {% endif %}
+            </div>
+            {% elif request.user in project.assigned_to.all %}
+            <div class="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
+                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-white/5 p-3 rounded-xl">
+                    <i class="fa-solid fa-circle-info text-[#4a9d7e]"></i>
+                    {% if project.created_by %}
+                    You can view this project but cannot edit it (created by {{ project.created_by.get_full_name|default:project.created_by.username }})
+                    {% else %}
+                    You can view this project but cannot edit it
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tasks Section -->
+    {% if is_manager_like %}
+    <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+        <div class="p-6">
+            <!-- Section Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fa-solid fa-list-check text-[#4a9d7e] text-sm"></i>
+                        <span class="text-xs font-semibold text-[#4a9d7e] uppercase tracking-wider">Tasks</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-800 dark:text-white">Project Tasks</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage and track all tasks for this project</p>
+                </div>
+                
+                <!-- Tabs & Actions -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex bg-slate-100 dark:bg-white/5 rounded-xl p-1">
+                        <button onclick="switchView('list')" id="btnViewList" 
+                            class="view-tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition active-tab shadow-sm">
+                            <i class="fa-solid fa-table-list text-xs"></i>
+                            <span class="hidden sm:inline">List</span>
+                        </button>
+                        <button onclick="switchView('kanban')" id="btnViewKanban" 
+                            class="view-tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                            <i class="fa-solid fa-chalkboard text-xs"></i>
+                            <span class="hidden sm:inline">Kanban</span>
+                        </button>
+                        <button onclick="switchView('analytics')" id="btnViewAnalytics" 
+                            class="view-tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                            <i class="fa-solid fa-chart-pie text-xs"></i>
+                            <span class="hidden sm:inline">Analytics</span>
+                        </button>
+                    </div>
+                    
+                    {% if can_add_task %}
+                    <a href="{% url 'assign_task' %}?project={{ project.id }}"
+                        class="inline-flex items-center gap-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">Add Task</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Task Stats Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center hover:shadow-md transition-all">
+                    <span id="statTotalTasks" class="text-2xl font-bold text-[#4a9d7e]">{{ total_tasks|default:0 }}</span>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Tasks</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center hover:shadow-md transition-all">
+                    <span id="statPendingTasks" class="text-2xl font-bold text-amber-600 dark:text-amber-400">{{ pending_tasks|default:0 }}</span>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pending</p>
+                </div>
+                <div class="bg-slate-50 dark:bg-white/5 rounded-xl p-4 text-center hover:shadow-md transition-all">
+                    <span id="statOngoingTasks" class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ ongoing_tasks|default:0 }}</span>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">In Progress</p>
+                </div>
+                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-900/10 rounded-xl p-4 text-center border border-emerald-200 dark:border-emerald-800/30 hover:shadow-md transition-all">
+                    <span id="statCompletedTasks" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {{ completed_tasks|default:0 }}
+                    </span>
+                    <p class="text-xs font-medium text-emerald-700 dark:text-emerald-400 mt-1">Completed</p>
+                </div>
+            </div>
+
+            <!-- Loading Overlay -->
+            <div id="tasksLoadingOverlay" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div class="bg-white dark:bg-[#111827] rounded-xl p-6 shadow-xl flex items-center gap-3 border border-slate-200 dark:border-white/10">
+                    <div class="animate-spin rounded-full h-6 w-6 border-2 border-[#4a9d7e] border-t-transparent"></div>
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">Loading tasks...</span>
+                </div>
+            </div>
+
+            <!-- VIEW CONTAINERS -->
+            
+            <!-- 1. List View -->
+            <div id="viewList" class="project-view">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-slate-50 dark:bg-white/5 rounded-lg">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Task</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Assigned To</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Deadline</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Time</th>
+                                <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody" class="divide-y divide-slate-100 dark:divide-white/5">
+                            <!-- Tasks loaded via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Controls -->
+                <div class="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="text-xs text-slate-500" id="tasksShowingInfo">
+                        Showing <span id="tasksStartCount">0</span> - <span id="tasksEndCount">0</span> of <span id="tasksTotalCount">0</span> tasks
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="tasksPageSizeSelect" class="border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a1f2e] text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-sm">
+                            <option value="10">10 per page</option>
+                            <option value="25">25 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                        <button id="tasksPrevPageBtn"
+                            class="px-3 py-1 bg-slate-100 dark:bg-white/10 rounded-lg hover:bg-slate-200 dark:hover:bg-white/20 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            disabled>← Prev</button>
+                        <span id="tasksPageIndicator" class="text-sm text-slate-600 dark:text-slate-400 mx-2">Page 1 of 1</span>
+                        <button id="tasksNextPageBtn"
+                            class="px-3 py-1 bg-slate-100 dark:bg-white/10 rounded-lg hover:bg-slate-200 dark:hover:bg-white/20 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            disabled>Next →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Kanban Board View -->
+            <div id="viewKanban" class="project-view hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-x-auto pb-4 custom-scroll">
+                    <!-- Pending Column -->
+                    <div class="kanban-column flex flex-col min-w-[280px]">
+                        <div class="flex items-center justify-between mb-4 px-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                                <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Pending</h3>
+                                <span id="countPending" class="bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500">0</span>
+                            </div>
+                        </div>
+                        <div id="kanbanPending" class="space-y-3 min-h-[200px] p-2 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-white/10 overflow-y-auto max-h-[600px] custom-scroll">
+                        </div>
+                    </div>
+
+                    <!-- Ongoing Column -->
+                    <div class="kanban-column flex flex-col min-w-[280px]">
+                        <div class="flex items-center justify-between mb-4 px-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">In Progress</h3>
+                                <span id="countOngoing" class="bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500">0</span>
+                            </div>
+                        </div>
+                        <div id="kanbanOngoing" class="space-y-3 min-h-[200px] p-2 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-white/10 overflow-y-auto max-h-[600px] custom-scroll">
+                        </div>
+                    </div>
+
+                    <!-- Completed Column -->
+                    <div class="kanban-column flex flex-col min-w-[280px]">
+                        <div class="flex items-center justify-between mb-4 px-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Completed</h3>
+                                <span id="countCompleted" class="bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500">0</span>
+                            </div>
+                        </div>
+                        <div id="kanbanCompleted" class="space-y-3 min-h-[200px] p-2 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-white/10 overflow-y-auto max-h-[600px] custom-scroll">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Analytics View -->
+            <div id="viewAnalytics" class="project-view hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Status Distribution Chart -->
+                    <div class="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-100 dark:border-white/5">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Task Status Distribution</h3>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Breakdown of tasks by their current state</p>
+                            </div>
+                            <i class="fa-solid fa-chart-pie text-slate-400"></i>
+                        </div>
+                        <div class="relative h-[250px] w-full flex items-center justify-center">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Task Performance Stats -->
+                    <div class="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-100 dark:border-white/5">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Completion Metrics</h3>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Key performance indicators for this project</p>
+                            </div>
+                            <i class="fa-solid fa-gauge-high text-slate-400"></i>
+                        </div>
+                        
+                        <div class="space-y-6">
+                            <!-- Progress Bar -->
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Project Completion</span>
+                                    <span id="completionPercent" class="text-xs font-bold text-[#4a9d7e]">0%</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                                    <div id="completionBar" class="h-full bg-[#4a9d7e] transition-all duration-1000 rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Stat Grid -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-white dark:bg-[#111827] p-4 rounded-xl shadow-sm border border-slate-100 dark:border-white/5">
+                                    <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Time Spent</p>
+                                    <h4 id="analyticsTotalTime" class="text-lg font-bold text-slate-800 dark:text-white font-mono">00:00:00</h4>
+                                </div>
+                                <div class="bg-white dark:bg-[#111827] p-4 rounded-xl shadow-sm border border-slate-100 dark:border-white/5">
+                                    <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Overdue Tasks</p>
+                                    <h4 id="analyticsOverdueTasks" class="text-lg font-bold text-red-500">0</h4>
+                                </div>
+                            </div>
+
+                            <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20">
+                                <p class="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                                    <i class="fa-solid fa-circle-info mr-1.5"></i>
+                                    Keep track of your project's health by monitoring task status distribution and completion rates regularly.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Toast Notification -->
+<div id="toastMessage" class="fixed top-20 right-5 z-50 hidden transform transition-all duration-300 translate-x-full">
+    <div class="bg-white dark:bg-[#1e293b] rounded-xl shadow-lg border-l-4 p-4 min-w-[300px] border-slate-200 dark:border-white/10">
+        <div class="flex items-center gap-3">
+            <div id="toastIcon" class="text-xl"></div>
+            <div class="flex-1">
+                <p id="toastText" class="text-sm font-medium text-slate-800 dark:text-slate-200"></p>
+            </div>
+            <button onclick="hideToast()" class="text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Helper functions
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function truncateWords(text, limit) {
+        if (!text) return '';
+        const words = text.split(/\s+/).filter(w => w.length > 0);
+        if (words.length > limit) {
+            return words.slice(0, limit).join(' ') + '...';
+        }
+        return text;
+    }
+
+    function goBack() {
+        window.history.back();
+    }
+
+    let currentPage = 1;
+    let currentPageSize = 10;
+    let totalPages = 1;
+    let projectId = {{ project.id }};
+    let currentView = 'list';
+    let statusChart = null;
+    let allTasks = [];
+
+    // Toast functions
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toastMessage');
+        const toastText = document.getElementById('toastText');
+        const toastIcon = document.getElementById('toastIcon');
+        const borderDiv = toast.querySelector('.border-l-4');
+        
+        if (type === 'success') {
+            toastIcon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+            borderDiv.className = 'border-l-4 border-emerald-500';
+        } else if (type === 'error') {
+            toastIcon.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
+            borderDiv.className = 'border-l-4 border-red-500';
+        } else {
+            toastIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-yellow-500"></i>';
+            borderDiv.className = 'border-l-4 border-yellow-500';
+        }
+        
+        toastText.textContent = message;
+        toast.classList.remove('hidden', 'translate-x-full');
+        toast.classList.add('translate-x-0');
+        
+        setTimeout(() => { hideToast(); }, 3000);
+    }
+    
+    function hideToast() {
+        const toast = document.getElementById('toastMessage');
+        toast.classList.add('translate-x-full');
+        setTimeout(() => { toast.classList.add('hidden'); }, 300);
+    }
+
+    // Load tasks
+    async function loadTasks(page = 1, pageSize = 10) {
+        // Check if task elements exist in the DOM (for users without task access)
+        const statTotalTasks = document.getElementById('statTotalTasks');
+        if (!statTotalTasks) {
+            console.log('Task section not available for this user');
+            return;
+        }
+        
+        const loadingOverlay = document.getElementById('tasksLoadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        
+        try {
+            const url = new URL('/api/tasks/', window.location.origin);
+            url.searchParams.append('project_id', projectId);
+            url.searchParams.append('page', page);
+            url.searchParams.append('page_size', pageSize);
+            
+            const response = await authFetch(url.toString());
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Update stat cards with null checks
+                const totalEl = document.getElementById('statTotalTasks');
+                if (totalEl) totalEl.textContent = data.total_tasks || data.count;
+                
+                const pendingEl = document.getElementById('statPendingTasks');
+                if (pendingEl) pendingEl.textContent = data.pending_tasks || 0;
+                
+                const ongoingEl = document.getElementById('statOngoingTasks');
+                if (ongoingEl) ongoingEl.textContent = data.ongoing_tasks || 0;
+                
+                const completedEl = document.getElementById('statCompletedTasks');
+                if (completedEl) completedEl.textContent = data.completed_tasks || 0;
+                
+                const tasks = data.results || [];
+                const total = data.count || tasks.length;
+                
+                totalPages = Math.ceil(total / pageSize);
+                currentPage = page;
+                currentPageSize = pageSize;
+                
+                renderTasks(tasks);
+                updatePaginationUI();
+            }
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+            if (error !== 'No token' && error.message !== 'Unauthorized') {
+                showToast('Network error while loading tasks', 'error');
+            }
+        } finally {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }
+    }
+    
+    function renderTasks(tasks) {
+        const tableBody = document.getElementById('tasksTableBody');
+        if (!tableBody) return;
+        
+        if (!tasks || tasks.length === 0) {
+            tableBody.innerHTML = `
+                <tr><td colspan="6" class="px-4 py-12 text-center">
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fa-regular fa-clipboard text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-slate-500 font-medium">No tasks yet</p>
+                        <p class="text-xs text-slate-400 mt-1">Click "Add Task" to create your first task</p>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+        
+        let html = '';
+        tasks.forEach(task => {
+            const statusClass = getStatusClass(task.status);
+            const statusLabel = task.status_display || task.status;
+            
+            let assigneesHtml = '';
+            if (task.assigned_to_details && task.assigned_to_details.length > 0) {
+                assigneesHtml = '<div class="flex flex-wrap gap-1">';
+                task.assigned_to_details.slice(0, 2).forEach(assignee => {
+                    assigneesHtml += `<span class="bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-lg text-[10px] font-medium">${escapeHtml(assignee.full_name)}</span>`;
+                });
+                if (task.assigned_to_details.length > 2) {
+                    assigneesHtml += `<span class="bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-lg text-[10px] font-medium">+${task.assigned_to_details.length - 2}</span>`;
+                }
+                assigneesHtml += '</div>';
+            } else {
+                assigneesHtml = '<span class="text-xs text-slate-400">Not assigned</span>';
+            }
+            
+            html += `
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-150">
+                    <td class="px-4 py-3">
+                        <div class="font-medium text-slate-800 dark:text-white text-sm" title="${escapeHtml(task.name)}">${escapeHtml(truncateWords(task.name, 15))}</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">ID: ${task.id}</div>
+                    </td>
+                    <td class="px-4 py-3">${assigneesHtml}</td>
+                    <td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusClass}">${statusLabel}</span></td>
+                    <td class="px-4 py-3">${task.deadline ? `<span class="text-xs text-slate-600 dark:text-slate-400 font-mono">${formatApiDate(task.deadline)}</span>` : '<span class="text-xs text-slate-400 italic">No deadline</span>'}</td>
+                    <td class="px-4 py-3"><span class="text-xs text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded">${escapeHtml(task.time_display || '00:00:00')}</span></td>
+                    <td class="px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1">
+                            <a href="/employee/tasks/?task_id=${task.id}" class="w-7 h-7 flex items-center justify-center rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View"><i class="fa-regular fa-eye text-xs"></i></a>
+                            <a href="/task/${task.id}/edit/" class="w-7 h-7 flex items-center justify-center rounded-lg text-[#4a9d7e] hover:bg-[#eef6f2] transition" title="Edit"><i class="fa-solid fa-pen text-xs"></i></a>
+                            <button type="button" onclick="deleteTask(${task.id}, '${escapeHtml(task.name)}')" class="w-7 h-7 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition" title="Delete"><i class="fa-regular fa-trash-alt text-xs"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+        tableBody.innerHTML = html;
+    }
+    
+    function updatePaginationUI() {
+        const totalTasksElem = document.getElementById('statTotalTasks');
+        const totalTasks = totalTasksElem ? parseInt(totalTasksElem.textContent) || 0 : 0;
+        
+        const startCount = (currentPage - 1) * currentPageSize + 1;
+        const endCount = Math.min(currentPage * currentPageSize, totalTasks);
+        
+        const tasksStartCount = document.getElementById('tasksStartCount');
+        const tasksEndCount = document.getElementById('tasksEndCount');
+        const tasksTotalCount = document.getElementById('tasksTotalCount');
+        const tasksPageIndicator = document.getElementById('tasksPageIndicator');
+        const tasksPrevBtn = document.getElementById('tasksPrevPageBtn');
+        const tasksNextBtn = document.getElementById('tasksNextPageBtn');
+        
+        if (tasksStartCount) tasksStartCount.textContent = startCount;
+        if (tasksEndCount) tasksEndCount.textContent = endCount;
+        if (tasksTotalCount) tasksTotalCount.textContent = totalTasks;
+        if (tasksPageIndicator) tasksPageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+        
+        if (tasksPrevBtn) tasksPrevBtn.disabled = currentPage <= 1;
+        if (tasksNextBtn) tasksNextBtn.disabled = currentPage >= totalPages;
+    }
+    
+    async function deleteTask(taskId, taskName) {
+        if (!confirm(`Move task "${taskName}" to trash? You can restore it later from Trash.`)) return;
+        
+        const loadingOverlay = document.getElementById('tasksLoadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        
+        try {
+            const response = await authFetch(`/api/tasks/${taskId}/`, { method: 'DELETE', headers: { 'X-CSRFToken': getCSRFToken() } });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                showToast(`✅ Task "${taskName}" moved to trash`, 'success');
+                await loadTasks(currentPage, currentPageSize);
+            } else { showToast(`❌ ${data.error || 'Something went wrong'}`, 'error'); }
+        } catch (error) {
+            if (error !== 'No token' && error.message !== 'Unauthorized') { showToast('Network error. Please try again.', 'error'); }
+        } finally {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }
+    }
+    
+    function getStatusClass(status) {
+        switch (status) {
+            case 'PENDING': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+            case 'ONGOING': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+            case 'COMPLETED': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+            default: return 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300';
+        }
+    }
+
+    function formatApiDate(dateStr) {
+        if (!dateStr) return '';
+        try { const date = new Date(dateStr); return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+        catch (e) { return dateStr; }
+    }
+
+    async function fetchProjectDetails() {
+        try {
+            const response = await authFetch(`/api/projects/${projectId}/`);
+            if (!response.ok) throw new Error('Failed to load project details');
+            const data = await response.json();
+            populateProjectHeader(data);
+        } catch (error) {
+            console.error('Error fetching project:', error);
+            showToast('Failed to load project details', 'error');
+        }
+    }
+
+    function populateProjectHeader(project) {
+        document.getElementById('projectName').textContent = project.name;
+        document.getElementById('projectDescription').innerHTML = project.description || '<p class="italic text-slate-400">No description provided.</p>';
+        document.getElementById('projectDisplayId').textContent = `#${project.id}`;
+        
+        const start = new Date(project.start_date);
+        const end = new Date(project.end_date);
+        const options = { month: 'short', day: 'numeric', year: 'numeric' };
+        document.getElementById('projectStartDate').textContent = start.toLocaleDateString('en-US', options);
+        document.getElementById('projectEndDate').textContent = end.toLocaleDateString('en-US', options);
+        
+        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+        document.getElementById('projectDuration').textContent = `${diffDays} days`;
+        
+        const badge = document.getElementById('projectStatusBadge');
+        const topBar = document.getElementById('projectTopBar');
+        badge.textContent = project.status_display || project.status;
+        badge.className = 'inline-flex px-3 py-1.5 rounded-full text-xs font-semibold ';
+        topBar.className = 'h-1.5 w-full ';
+        
+        if (project.status === 'PENDING') {
+            badge.classList.add('bg-amber-100', 'dark:bg-amber-900/30', 'text-amber-700', 'dark:text-amber-400');
+            topBar.classList.add('bg-amber-500');
+        } else if (project.status === 'ONGOING') {
+            badge.classList.add('bg-blue-100', 'dark:bg-blue-900/30', 'text-blue-700', 'dark:text-blue-400');
+            topBar.classList.add('bg-blue-500');
+        } else {
+            badge.classList.add('bg-emerald-100', 'dark:bg-emerald-900/30', 'text-emerald-700', 'dark:text-emerald-400');
+            topBar.classList.add('bg-emerald-500');
+        }
+        
+        const teamContainer = document.getElementById('projectTeamMembers');
+        teamContainer.innerHTML = '';
+        if (project.assigned_to_details && project.assigned_to_details.length > 0) {
+            project.assigned_to_details.forEach(user => {
+                const span = document.createElement('span');
+                span.className = 'bg-white dark:bg-[#1a1f2e] px-2.5 py-1 rounded-lg text-xs text-slate-700 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-white/5';
+                span.textContent = user.full_name;
+                teamContainer.appendChild(span);
+            });
+        } else {
+            teamContainer.innerHTML = '<span class="text-xs text-slate-400">Not assigned</span>';
+        }
+    }
+
+    // View switching
+    async function switchView(view) {
+        currentView = view;
+        
+        document.querySelectorAll('.view-tab-btn').forEach(btn => {
+            btn.classList.remove('active-tab', 'shadow-sm');
+            btn.classList.add('text-slate-500', 'dark:text-slate-400');
+        });
+        
+        const activeBtn = document.getElementById(`btnView${view.charAt(0).toUpperCase() + view.slice(1)}`);
+        if (activeBtn) {
+            activeBtn.classList.add('active-tab', 'shadow-sm');
+            activeBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+        }
+        
+        document.querySelectorAll('.project-view').forEach(el => el.classList.add('hidden'));
+        const viewContainer = document.getElementById(`view${view.charAt(0).toUpperCase() + view.slice(1)}`);
+        if (viewContainer) viewContainer.classList.remove('hidden');
+        
+        if (view === 'kanban' || view === 'analytics') { await loadAllProjectTasks(); }
+        if (view === 'kanban') renderKanban();
+        if (view === 'analytics') initAnalytics();
+    }
+
+    async function loadAllProjectTasks() {
+        const loadingOverlay = document.getElementById('tasksLoadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        try {
+            const url = new URL('/api/tasks/', window.location.origin);
+            url.searchParams.append('project_id', projectId);
+            url.searchParams.append('page_size', 100);
+            const response = await authFetch(url.toString());
+            const data = await response.json();
+            if (response.ok) { allTasks = data.results || []; }
+        } catch (error) { console.error('Error loading all tasks:', error); }
+        finally { if (loadingOverlay) loadingOverlay.classList.add('hidden'); }
+    }
+
+    function renderKanban() {
+        const containers = {
+            PENDING: document.getElementById('kanbanPending'),
+            ONGOING: document.getElementById('kanbanOngoing'),
+            COMPLETED: document.getElementById('kanbanCompleted')
+        };
+        
+        Object.values(containers).forEach(c => { if (c) c.innerHTML = ''; });
+        
+        const counts = { PENDING: 0, ONGOING: 0, COMPLETED: 0 };
+        
+        allTasks.forEach(task => {
+            const status = task.status;
+            counts[status] = (counts[status] || 0) + 1;
+            const container = containers[status];
+            if (!container) return;
+            
+            const card = document.createElement('div');
+            card.className = 'kanban-task-card bg-white dark:bg-[#111827] p-4 rounded-xl shadow-sm border border-slate-100 dark:border-white/5 cursor-pointer hover:shadow-md transition-all';
+            card.onclick = () => window.location.href = `/employee/tasks/?task_id=${task.id}`;
+            
+            let assigneesHtml = '';
+            if (task.assigned_to_details && task.assigned_to_details.length > 0) {
+                assigneesHtml = '<div class="flex -space-x-2 mt-3">';
+                task.assigned_to_details.slice(0, 3).forEach(a => {
+                    assigneesHtml += `<div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#4a9d7e] to-[#3d8a6d] flex items-center justify-center text-white text-[9px] font-bold ring-2 ring-white dark:ring-[#111827]" title="${a.full_name}">${a.full_name.charAt(0).toUpperCase()}</div>`;
+                });
+                if (task.assigned_to_details.length > 3) {
+                    assigneesHtml += `<div class="w-6 h-6 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-[9px] font-medium text-slate-600 ring-2 ring-white dark:ring-[#111827]">+${task.assigned_to_details.length - 3}</div>`;
+                }
+                assigneesHtml += '</div>';
+            }
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2"><span class="text-[9px] font-bold text-slate-400">#${task.id}</span></div>
+                <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-200 line-clamp-2 mb-2">${escapeHtml(task.name)}</h4>
+                <div class="flex items-center gap-2 text-[10px] text-slate-500"><i class="fa-regular fa-calendar text-[9px]"></i><span>${task.deadline ? formatApiDate(task.deadline) : 'No date'}</span></div>
+                ${assigneesHtml}
+            `;
+            container.appendChild(card);
+        });
+        
+        const countPending = document.getElementById('countPending');
+        const countOngoing = document.getElementById('countOngoing');
+        const countCompleted = document.getElementById('countCompleted');
+        
+        if (countPending) countPending.textContent = counts.PENDING;
+        if (countOngoing) countOngoing.textContent = counts.ONGOING;
+        if (countCompleted) countCompleted.textContent = counts.COMPLETED;
+        
+        if (counts.PENDING === 0 && containers.PENDING) containers.PENDING.innerHTML = '<div class="py-10 text-center text-[10px] text-slate-400 italic">No pending tasks</div>';
+        if (counts.ONGOING === 0 && containers.ONGOING) containers.ONGOING.innerHTML = '<div class="py-10 text-center text-[10px] text-slate-400 italic">No tasks in progress</div>';
+        if (counts.COMPLETED === 0 && containers.COMPLETED) containers.COMPLETED.innerHTML = '<div class="py-10 text-center text-[10px] text-slate-400 italic">No completed tasks</div>';
+    }
+
+    function initAnalytics() {
+        const counts = { PENDING: 0, ONGOING: 0, COMPLETED: 0 };
+        let totalSeconds = 0;
+        let overdueCount = 0;
+        const now = new Date();
+        
+        allTasks.forEach(t => {
+            counts[t.status]++;
+            if (t.status === 'COMPLETED' && t.time_display) {
+                const parts = t.time_display.split(':');
+                totalSeconds += parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+            }
+            if (t.status !== 'COMPLETED' && t.deadline && new Date(t.deadline) < now) overdueCount++;
+        });
+        
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        
+        const analyticsTotalTime = document.getElementById('analyticsTotalTime');
+        const analyticsOverdueTasks = document.getElementById('analyticsOverdueTasks');
+        const completionPercent = document.getElementById('completionPercent');
+        const completionBar = document.getElementById('completionBar');
+        
+        if (analyticsTotalTime) analyticsTotalTime.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        if (analyticsOverdueTasks) analyticsOverdueTasks.textContent = overdueCount;
+        
+        const total = allTasks.length;
+        const percent = total > 0 ? Math.round((counts.COMPLETED / total) * 100) : 0;
+        if (completionPercent) completionPercent.textContent = percent + '%';
+        if (completionBar) completionBar.style.width = percent + '%';
+        
+        if (statusChart) statusChart.destroy();
+        const ctx = document.getElementById('statusChart');
+        if (ctx) {
+            const context = ctx.getContext('2d');
+            const isDark = document.documentElement.classList.contains('dark');
+            
+            statusChart = new Chart(context, {
+                type: 'doughnut',
+                data: { labels: ['Pending', 'In Progress', 'Completed'], datasets: [{ data: [counts.PENDING, counts.ONGOING, counts.COMPLETED], backgroundColor: ['#fbbf24', '#3b82f6', '#10b981'], borderWidth: 0, hoverOffset: 10 }] },
+                options: { cutout: '75%', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: isDark ? '#94a3b8' : '#64748b', padding: 20, font: { size: 11 } } } } }
+            });
+        }
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchProjectDetails();
+        
+        // Only load tasks if the task section exists in the DOM
+        if (document.getElementById('statTotalTasks')) {
+            loadTasks(1, 10);
+            
+            const tasksPageSizeSelect = document.getElementById('tasksPageSizeSelect');
+            const tasksPrevPageBtn = document.getElementById('tasksPrevPageBtn');
+            const tasksNextPageBtn = document.getElementById('tasksNextPageBtn');
+            
+            if (tasksPageSizeSelect) {
+                tasksPageSizeSelect.addEventListener('change', function(e) {
+                    currentPageSize = parseInt(e.target.value);
+                    loadTasks(1, currentPageSize);
+                });
+            }
+            
+            if (tasksPrevPageBtn) {
+                tasksPrevPageBtn.addEventListener('click', () => { 
+                    if (currentPage > 1) loadTasks(currentPage - 1, currentPageSize); 
+                });
+            }
+            
+            if (tasksNextPageBtn) {
+                tasksNextPageBtn.addEventListener('click', () => { 
+                    if (currentPage < totalPages) loadTasks(currentPage + 1, currentPageSize); 
+                });
+            }
+        }
+    });
+</script>
+
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin { animation: spin 1s linear infinite; }
+    #tasksLoadingOverlay { transition: all 0.3s ease; }
+    #toastMessage { transition: transform 0.3s ease; }
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+
+{% endblock %}

@@ -1,7 +1,6 @@
 from django.db import models
 from users.models import User
 
-# Create your models here.
 
 class Projects(models.Model):
 
@@ -19,6 +18,14 @@ class Projects(models.Model):
         related_name="projects") 
     start_date = models.DateField()
     end_date = models.DateField()
+    
+    updated_by = models.ForeignKey(
+        'users.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='projects_updated'
+    )
     created_by = models.ForeignKey(
         User, 
         on_delete=models.SET_NULL, 
@@ -31,31 +38,18 @@ class Projects(models.Model):
         choices=STATUS_CHOICES,
         default='PENDING'
     )
-
-    # ## resource field
-    # resource_text = models.TextField(
-    #     blank=True,
-    #     null=True,
-    #     help_text="Notes or reference text"
-    # )
-
-    # resource_link = models.URLField(
-    #     blank=True,
-    #     null=True,
-    #     help_text="Reference URL"
-    # )
-
-    # resource_file = models.FileField(
-    #     upload_to='project_resources/',
-    #     blank=True,
-    #     null=True
-    # )
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.name
     
+    class Meta:
+        permissions = [
+            ("view_all_projects", "Can view all projects"),
+        ]
+
     
-## ProjectResource Model
 class ProjectResource(models.Model):
     RESOURCE_TYPE_CHOICES = [
         ('TEXT', 'Text'),
@@ -65,7 +59,7 @@ class ProjectResource(models.Model):
     ]
     
     project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='resources')
-    resource_type = models.CharField(max_length=10, choices=RESOURCE_TYPE_CHOICES)
+    resource_type = models.CharField(max_length=10, choices=RESOURCE_TYPE_CHOICES, blank=True, null=True)
     title = models.CharField(max_length=255)
     text_content = models.TextField(blank=True, null=True)
     file = models.FileField(upload_to='project_resources/', blank=True, null=True)

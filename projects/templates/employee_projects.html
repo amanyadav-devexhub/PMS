@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% block title %}My Projects{% endblock %}
+{% block page_title %}My Projects{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="goBack()" class="back-btn-small">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+        </button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">My Projects</h1>
+            <p class="text-gray-500 mt-1">View and manage all projects assigned to you</p>
+        </div>
+        <div class="mt-4 md:mt-0">
+            <span id="projectCount" class="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-sm font-medium">
+                0 Projects
+            </span>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-blue-500">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-gray-500">Total Projects</p>
+                    <h3 id="totalProjects" class="text-2xl font-bold text-gray-800">0</h3>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-green-500">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-gray-500">In Progress</p>
+                    <h3 id="ongoingProjects" class="text-2xl font-bold text-gray-800">0</h3>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5 border-l-4 border-purple-500">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-gray-500">Completed</p>
+                    <h3 id="completedProjects" class="text-2xl font-bold text-gray-800">0</h3>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="mb-6">
+        <div class="relative">
+            <input type="text" id="searchInput" placeholder="Search projects by name..."
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none">
+            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Projects Grid -->
+    <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Loading State -->
+        <div id="loadingState" class="col-span-3 text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600 mx-auto"></div>
+            <p class="text-gray-500 mt-4">Loading your projects...</p>
+        </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="mt-8 flex justify-between items-center">
+        <div class="text-sm text-gray-600" id="showingInfo">
+            Showing <span id="startCount">0</span> - <span id="endCount">0</span> of <span id="totalCount">0</span>
+            projects
+        </div>
+
+        <div class="flex gap-2 items-center">
+            <!-- Page Size Selector -->
+            <select id="pageSizeSelect" class="border border-gray-300 rounded px-2 py-1 text-sm mr-4">
+                <option value="9">9 per page (3x3)</option>
+                <option value="12">12 per page (4x3)</option>
+                <option value="15">15 per page (5x3)</option>
+                <option value="18">18 per page (6x3)</option>
+            </select>
+
+            <!-- Pagination Buttons -->
+            <button id="prevPageBtn"
+                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                disabled>
+                ← Prev
+            </button>
+
+            <span id="pageIndicator" class="text-sm text-gray-600 mx-2">
+                Page 1 of 1
+            </span>
+
+            <button id="nextPageBtn"
+                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                disabled>
+                Next →
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+    // Flag to prevent duplicate loading
+    let isInitialLoad = true;
+
+    function loadEmployeeProjects(search = '', page = 1, pageSize = 9) {
+        // Skip if it's initial load and we already have data
+        if (isInitialLoad && page === 1 && !search) {
+            const projectsGrid = document.getElementById('projectsGrid');
+            if (projectsGrid && projectsGrid.innerHTML.includes('project-card')) {
+                console.log('Skipping AJAX - projects already loaded via Django');
+                isInitialLoad = false;
+                return;
+            }
+        }
+
+        isInitialLoad = false;
+
+        // ... rest of your loadEmployeeProjects function
+    }
+
+
+    // ========== SYNC TOKEN FUNCTION ==========
+    function ensureTokenInCookies() {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            // Check if cookie exists
+            const hasTokenCookie = document.cookie.includes('access_token=');
+
+            if (!hasTokenCookie) {
+                console.log('Syncing token to cookies at:', new Date().toLocaleTimeString());
+                const date = new Date();
+                date.setTime(date.getTime() + (1 * 60 * 60 * 1000));
+                document.cookie = `access_token=${token}; expires=${date.toUTCString()}; path=/; SameSite=Lax`;
+
+                const refreshToken = localStorage.getItem('refresh_token');
+                if (refreshToken) {
+                    const refreshDate = new Date();
+                    refreshDate.setTime(refreshDate.getTime() + (24 * 60 * 60 * 1000));
+                    document.cookie = `refresh_token=${refreshToken}; expires=${refreshDate.toUTCString()}; path=/; SameSite=Lax`;
+                }
+
+                console.log('Cookies after sync:', document.cookie);
+            }
+        } else {
+            console.log('No token found in localStorage');
+        }
+    }
+
+    // Run sync on page load
+    ensureTokenInCookies();
+
+    // Also sync after 1 second (in case localStorage loads late)
+    setTimeout(ensureTokenInCookies, 1000);
+    // ========== END SYNC TOKEN FUNCTION ==========
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie('csrftoken');
+
+    // Pagination variables
+    let currentPage = 1;
+    let currentPageSize = 9;
+    let currentSearchQuery = '';
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function loadEmployeeProjects(search = '', page = 1, pageSize = 9) {
+        // Sync token before every AJAX request
+        ensureTokenInCookies();
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.remove('hidden');
+
+        const url = new URL(window.location.href);
+        if (search) {
+            url.searchParams.set('search', search);
+        } else {
+            url.searchParams.delete('search');
+        }
+        url.searchParams.set('page', page);
+        url.searchParams.set('page_size', pageSize);
+
+        // IMPORTANT: Add credentials to send cookies
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include'  // 🔥 THIS IS CRUCIAL - sends cookies with request
+        })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Cookies sent with request:', document.cookie);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    currentPage = data.current_page;
+                    currentPageSize = data.page_size;
+                    currentSearchQuery = data.search_query;
+
+                    // Update stats
+                    document.getElementById('totalProjects').innerText = data.total_projects;
+                    document.getElementById('ongoingProjects').innerText = data.ongoing_projects;
+                    document.getElementById('completedProjects').innerText = data.completed_projects;
+                    document.getElementById('projectCount').innerHTML = `${data.total_projects} Project${data.total_projects !== 1 ? 's' : ''}`;
+
+                    // Render projects
+                    renderProjects(data.projects);
+
+                    // Update pagination UI
+                    updatePaginationUI(data);
+
+                    // Update showing info
+                    const startIndex = (data.current_page - 1) * data.page_size + 1;
+                    const endIndex = Math.min(data.current_page * data.page_size, data.total_projects);
+                    const showingInfo = document.getElementById('showingInfo');
+                    if (showingInfo) {
+                        showingInfo.innerHTML = `Showing ${startIndex} - ${endIndex} of ${data.total_projects} projects`;
+                    }
+                }
+                loadingOverlay.classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('projectsGrid').innerHTML = `
+            <div class="col-span-3 text-center py-12">
+                <div class="text-red-500">Error loading projects. Please refresh the page.</div>
+            </div>
+        `;
+                loadingOverlay.classList.add('hidden');
+            });
+    }
+
+    function updatePaginationUI(data) {
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        if (prevBtn) {
+            prevBtn.disabled = !data.has_previous;
+            if (data.has_previous) {
+                prevBtn.onclick = () => loadEmployeeProjects(currentSearchQuery, data.previous_page_number, currentPageSize);
+            }
+        }
+
+        if (nextBtn) {
+            nextBtn.disabled = !data.has_next;
+            if (data.has_next) {
+                nextBtn.onclick = () => loadEmployeeProjects(currentSearchQuery, data.next_page_number, currentPageSize);
+            }
+        }
+
+        if (pageIndicator) {
+            pageIndicator.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+        }
+    }
+
+    function renderProjects(projects) {
+        const grid = document.getElementById('projectsGrid');
+
+        if (!projects || projects.length === 0) {
+            grid.innerHTML = `
+            <div class="col-span-3">
+                <div class="bg-white rounded-xl shadow-lg p-12 text-center max-w-lg mx-auto">
+                    <svg class="w-20 h-20 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                    </svg>
+                    <h4 class="text-xl font-bold text-gray-700 mb-2">No Projects Assigned</h4>
+                    <p class="text-gray-500 mb-6">You haven't been assigned to any projects yet.</p>
+                    <p class="text-sm text-gray-400">When you're added to a project, it will appear here.</p>
+                </div>
+            </div>
+        `;
+            return;
+        }
+
+        let html = '';
+        projects.forEach(project => {
+            // Assigned users HTML
+            let assignedHtml = '';
+            project.assigned_users.forEach(user => {
+                assignedHtml += `<span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs">${escapeHtml(user.username)}</span>`;
+            });
+            if (project.total_assigned > 3) {
+                assignedHtml += `<span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs">+${project.total_assigned - 3}</span>`;
+            }
+
+            html += `
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition transform hover:-translate-y-2 border border-gray-100 project-card">
+                <div class="h-2 w-full ${project.header_color}"></div>
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-xl font-bold text-gray-800 project-name">${escapeHtml(project.name)}</h3>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${project.status_class}">
+                            ${escapeHtml(project.status_display)}
+                        </span>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4 line-clamp-2">${escapeHtml(project.description)}</p>
+                    <div class="space-y-2 mb-4 text-sm">
+                        <div class="flex items-start">
+                            <svg class="w-4 h-4 text-gray-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <div class="flex flex-wrap gap-1">
+                                ${assignedHtml || '<span class="text-gray-400 text-xs">No members assigned</span>'}
+                            </div>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span class="text-sm">${escapeHtml(project.start_date)} - ${escapeHtml(project.end_date)}</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="${project.view_url}" 
+                           class="inline-flex items-center justify-center w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-lg font-medium transition shadow-md hover:shadow-lg">
+                            <span>View Project</span>
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+        });
+
+        grid.innerHTML = html;
+    }
+
+    // Search functionality with AJAX
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function () {
+            clearTimeout(searchTimeout);
+            const searchText = this.value.trim();
+            searchTimeout = setTimeout(() => {
+                currentSearchQuery = searchText;
+                loadEmployeeProjects(searchText, 1, currentPageSize);
+            }, 300);
+        });
+    }
+
+    // Page size change
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function () {
+            currentPageSize = parseInt(this.value);
+            loadEmployeeProjects(currentSearchQuery, 1, currentPageSize);
+        });
+    }
+
+    // Load projects on page load
+    // Load projects on page load - but skip if coming from back navigation
+    document.addEventListener('DOMContentLoaded', function() {
+        const isBackNavigation = sessionStorage.getItem('isBackNavigation');
+        
+        if (!isBackNavigation) {
+            loadEmployeeProjects('', 1, 9);
+        }
+        
+        // Clear the flag after checking
+        sessionStorage.removeItem('isBackNavigation');
+    });
+
+
+    // Debug: Log cookies and localStorage on page load
+    console.log('=== Debug Info ===');
+    console.log('localStorage token:', localStorage.getItem('access_token'));
+    console.log('Cookies:', document.cookie);
+    console.log('Has access_token cookie:', document.cookie.includes('access_token'));
+    console.log('==================');
+</script>
+
+<style>
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    #loadingOverlay {
+        transition: all 0.3s ease;
+    }
+
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+
+{% endblock %}

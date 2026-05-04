@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto mt-8 max-w-2xl">
+    <h1 class="text-2xl font-bold mb-4">Add task status summary</h1>
+    
+    <div id="messageContainer" class="mb-4"></div>
+    
+    <form method="POST" id="summaryForm">
+        {% csrf_token %}
+        
+        <textarea name="summary" id="summary" rows="4" 
+                  class="w-full border rounded-lg p-3 mb-2"
+                  placeholder="Describe what you accomplished..."></textarea>
+        
+        <div id="summaryError" class="text-red-500 text-sm mb-2 hidden"></div>
+        
+        <button type="submit" id="submitBtn" 
+                class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full transition">
+            Send
+        </button>
+    </form>
+</div>
+
+<script>
+document.getElementById('summaryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const summary = document.getElementById('summary').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    if (!summary.trim()) {
+        showError('summary', 'Please enter a summary');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Saving...';
+    submitBtn.disabled = true;
+    
+    hideError('summary');
+    hideMessage();
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest' 
+        },
+        body: JSON.stringify({
+            summary: summary
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        
+        if (data.success) {
+            
+            showMessage('success', data.message || 'Summary added successfully!');
+            
+            setTimeout(() => {
+                window.location.href = `/employee/tasks/?task_id=${data.task_id}`;
+            }, 1000);
+        } else {
+           
+            if (data.errors) {
+                
+                if (data.errors.summary) {
+                    showError('summary', data.errors.summary[0]);
+                }
+            } else {
+                showMessage('error', data.error || 'Something went wrong');
+            }
+        }
+    })
+    .catch(error => {
+        showMessage('error', 'Network error. Please try again.');
+    })
+    .finally(() => {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+function showError(fieldId, message) {
+    const errorDiv = document.getElementById(fieldId + 'Error');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+
+    document.getElementById(fieldId).classList.add('border-red-500', 'bg-red-50');
+}
+
+
+function hideError(fieldId) {
+    const errorDiv = document.getElementById(fieldId + 'Error');
+    errorDiv.classList.add('hidden');
+    document.getElementById(fieldId).classList.remove('border-red-500', 'bg-red-50');
+}
+
+function showMessage(type, message) {
+    const container = document.getElementById('messageContainer');
+    container.innerHTML = `
+        <div class="p-4 rounded-lg ${type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+            ${message}
+        </div>
+    `;
+}
+
+function hideMessage() {
+    document.getElementById('messageContainer').innerHTML = '';
+}
+</script>
+{% endblock %}

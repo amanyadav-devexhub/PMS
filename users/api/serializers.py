@@ -22,28 +22,3 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
-class ProjectSerializer(serializers.ModelSerializer):
-    assigned_to = UserSerializer(many=True, read_only=True)
-    created_by = UserSerializer(read_only=True)
-
-    class Meta:
-        model = Projects
-        fields = [
-            'id', 'name', 'description', 'assigned_to',
-            'start_date', 'end_date', 'created_by', 'status'
-        ]
-
-
-class TaskSerializer(serializers.ModelSerializer):
-    assigned_to = UserSerializer(many=True, read_only=True)
-    assigned_by = UserSerializer(many=True, read_only=True)
-    project_name = serializers.CharField(source='project.name', read_only=True)
-
-    class Meta:
-        model = Task
-        fields = [
-            'id', 'name', 'description', 'project', 'project_name',
-            'assigned_to', 'assigned_by', 'start_date', 'end_date',
-            'status', 'start_time', 'end_time', 'total_time',
-            'estimated_time', 'created_at', 'deadline', 'summary'
-        ]

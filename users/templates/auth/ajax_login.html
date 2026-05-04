@@ -1,0 +1,254 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en" class="dark:bg-[#0f1117]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login · ReadyTask PMS</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { primary: '#4a9d7e', accent: '#4a9d7e' }
+                    },
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f6f7f9 0%, #e8ecef 100%);
+        }
+        .dark body {
+            background: linear-gradient(135deg, #0f1117 0%, #1a202c 100%);
+        }
+        .login-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .login-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+        }
+        .input-focus {
+            transition: all 0.2s ease;
+        }
+        .input-focus:focus {
+            border-color: #4a9d7e;
+            box-shadow: 0 0 0 3px rgba(74, 157, 126, 0.15);
+        }
+        .brand-logo {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-md">
+        
+        <div class="login-card bg-white dark:bg-[#111827] rounded-3xl shadow-xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            
+            <div class="px-8 pt-10 pb-6 text-center border-b border-slate-100 dark:border-white/10">
+                <div class="flex justify-center mb-5">
+                    <div class="w-16 h-16 rounded-2xl bg-[#4a9d7e] flex items-center justify-center brand-logo">
+                        <i class="fa-solid fa-check-double text-white text-3xl"></i>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-semibold text-slate-800 dark:text-white tracking-tight">
+                    Welcome back
+                </h2>
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+                    Sign in to continue to ReadyTask PMS
+                </p>
+            </div>
+
+            <div class="p-8">
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Email Address
+                        </label>
+                        <input type="email" 
+                               id="email" 
+                               autocomplete="email"
+                               placeholder="you@example.com"
+                               class="input-focus w-full px-4 py-3.5 bg-[#f8fafc] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Password
+                        </label>
+                        <input type="password" 
+                               id="password" 
+                               autocomplete="current-password"
+                               placeholder="Enter your password"
+                               class="input-focus w-full px-4 py-3.5 bg-[#f8fafc] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none">
+                    </div>
+
+                    <button type="submit" 
+                            id="loginBtn"
+                            class="w-full bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white font-semibold py-4 rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 text-base shadow-sm">
+                        <span id="btnText">Sign In</span>
+                    </button>
+
+                    <div id="error" class="hidden px-4 py-3 rounded-2xl text-sm text-center"></div>
+                </form>
+
+                <div class="text-center mt-6">
+                    <a href="{% url 'reset_password' %}" 
+                       class="text-[#4a9d7e] hover:text-[#3d8a6d] text-sm font-medium transition">
+                        Forgot your password?
+                    </a>
+                </div>
+            </div>
+
+            <div class="px-8 py-6 border-t border-slate-100 dark:border-white/10 text-center">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Need access? Contact your administrator
+                </p>
+            </div>
+        </div>
+
+        <div class="text-center mt-6">
+            <p class="text-xs text-slate-400 dark:text-slate-500">ReadyTask PMS • Secure Login</p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("loginForm");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const errorDiv = document.getElementById("error");
+        const loginBtn = document.getElementById("loginBtn");
+        const btnText = document.getElementById("btnText");
+
+        function getCSRFToken() {
+            return document.cookie
+                .split("; ")
+                .find(row => row.startsWith("csrftoken="))
+                ?.split("=")[1];
+        }
+
+        function storeTokens(accessToken, refreshToken, userData) {
+            localStorage.clear();
+            localStorage.setItem('access_token', accessToken);
+            localStorage.setItem('refresh_token', refreshToken);
+            localStorage.setItem('user_role', userData.role || '');
+            localStorage.setItem('username', userData.username || '');
+            localStorage.setItem('user_id', userData.id || '');
+            localStorage.setItem('user_email', userData.email || '');
+            
+            console.log('✅ Tokens stored successfully');
+        }
+
+        function showLoading() {
+            loginBtn.disabled = true;
+            btnText.innerHTML = `
+                <span class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    Signing in...
+                </span>`;
+        }
+
+        function hideLoading() {
+            loginBtn.disabled = false;
+            btnText.textContent = 'Sign In';
+        }
+
+        function showMessage(message, type = "error") {
+            errorDiv.textContent = message;
+            errorDiv.className = `block px-4 py-3 rounded-2xl text-sm text-center font-medium ${
+                type === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                type === "error" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : 
+                "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+            }`;
+            
+            setTimeout(() => {
+                errorDiv.classList.add("hidden");
+            }, 5000);
+        }
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!email) {
+                showMessage("Email is required", "error");
+                emailInput.focus();
+                return;
+            }
+
+            if (!password) {
+                showMessage("Password is required", "error");
+                passwordInput.focus();
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showMessage("Please enter a valid email address", "error");
+                emailInput.focus();
+                return;
+            }
+
+            showLoading();
+
+            $.ajax({
+                url: "/ajax_login/",
+                method: "POST",
+                contentType: "application/json",
+                headers: {
+                    "X-CSRFToken": getCSRFToken()
+                },
+                data: JSON.stringify({ email, password }),
+                success: function (data) {
+                    hideLoading();
+
+                    if (data.status === "success") {
+                        storeTokens(data.access_token, data.refresh_token, data.user);
+                        showMessage(`Welcome back, ${data.username || 'User'}!`, "success");
+
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url || "{% url 'dashboard' %}";
+                        }, 900);
+                    } else {
+                        showMessage(data.error || "Login failed. Please try again.", "error");
+                    }
+                },
+                error: function (xhr) {
+                    hideLoading();
+                    const errorMsg = xhr.responseJSON?.error || "Something went wrong. Please try again.";
+                    showMessage(errorMsg, "error");
+                }
+            });
+        });
+
+        emailInput.addEventListener("input", () => errorDiv.classList.add("hidden"));
+        passwordInput.addEventListener("input", () => errorDiv.classList.add("hidden"));
+
+        passwordInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                form.dispatchEvent(new Event("submit"));
+            }
+        });
+    </script>
+</body>
+</html>

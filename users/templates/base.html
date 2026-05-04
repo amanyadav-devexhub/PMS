@@ -1,713 +1,1152 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" class="dark:bg-[#0f1117]">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}ReadyTask · PMS{% endblock %}</title>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}PMS Dashboard{% endblock %}</title>
-
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              brand: { primary: "#4a9d7e", accent: "#4a9d7e" },
+            },
+            fontFamily: { sans: ["Outfit", "sans-serif"] },
+          },
+        },
+      };
+    </script>
+    <script>
+      // Apply theme early to prevent flickering
+      if (localStorage.getItem("theme") === "dark") {
+        document.documentElement.classList.add("dark");
+      }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+      body {
+        font-family: "Outfit", sans-serif;
+        font-weight: 400;
+        background: #f6f7f9;
+      }
+
+      .dark body {
+        background: #0f1117;
+      }
+
+      .nav-item {
+        border-radius: 6px;
+        transition: all 0.15s;
+      }
+
+      .nav-item:hover {
+        background: #f0f1f3;
+      }
+
+      .nav-item.active {
+        background: #eef6f2;
+        color: #4a9d7e;
+        font-weight: 500;
+      }
+
+      .dark .nav-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .dark .nav-item.active {
+        background: rgba(0, 133, 77, 0.15);
+        color: #34d399;
+      }
+
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 55;
+      }
+
+      .sidebar-overlay.active {
+        display: block;
+      }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
         }
 
-        .animate-spin {
-            animation: spin 1s linear infinite;
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .toast-notification {
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes pulse-ring {
+        0% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(74, 157, 126, 0.7);
         }
 
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+        70% {
+          transform: scale(1);
+          box-shadow: 0 0 0 10px rgba(74, 157, 126, 0);
         }
 
-        .toast-notification {
-            animation: slideIn 0.3s ease-out;
+        100% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(74, 157, 126, 0);
         }
+      }
+
+      .chat-badge-pulse {
+        animation: pulse-ring 1.5s cubic-bezier(0.66, 0, 0, 1) infinite;
+      }
+
+      .sidebar-chat-active {
+        background-color: #eef6f2;
+        color: #4a9d7e;
+      }
+
+      .chat-badge {
+        transition: all 0.2s ease;
+      }
+      .text-wrap{
+         max-width: 320px;
+  display: block;
+  word-break: break-all;
+      }
     </style>
-</head>
+    {% block extra_css %}{% endblock %}
+  </head>
 
-<body class="bg-gray-100 font-sans">
+  <body
+    class="text-slate-800 dark:bg-[#0f1117] dark:text-slate-200 no-scrollbar"
+  >
+    <div
+      id="sidebarOverlay"
+      class="sidebar-overlay"
+      onclick="closeSidebar()"
+    ></div>
 
-    <div class="flex h-screen">
+    <!-- Global Notification Container -->
+    <div id="globalNotificationContainer" class="fixed top-20 right-5 z-[9999] w-80 md:w-96 pointer-events-none flex flex-col items-end"></div>
 
-        <!-- ================= SIDEBAR ================= -->
-        <aside class="w-64 bg-white shadow-lg">
+    <div class="flex min-h-screen">
+      <!-- ========== SIDEBAR ========== -->
+      <aside
+        id="sidebar"
+        class="fixed inset-y-0 left-0 z-[60] w-[260px] bg-white dark:bg-[#111827] border-r border-slate-200 dark:border-white/5 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0"
+      >
+        <div class="flex-1 overflow-y-auto no-scrollbar py-4">
+          <div class="lg:hidden absolute top-3 right-3">
+            <button
+              onclick="closeSidebar()"
+              class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"
+            >
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
 
-            <!-- Logo / Brand -->
-            <div class="p-6 border-b">
-                <h1 class="text-2xl font-bold text-orange-600">PMS</h1>
+          <!-- Logo -->
+          <div class="flex items-center gap-2 px-5 mb-6">
+            <div
+              class="w-8 h-8 rounded-md bg-[#4a9d7e] flex items-center justify-center"
+            >
+              <i class="fa-solid fa-check-double text-white text-xs"></i>
+            </div>
+            <span
+              class="text-base font-semibold text-slate-800 dark:text-white tracking-tight"
+              >ReadyTask PMS</span
+            >
+          </div>
+
+          {% comment %}
+          <!-- User Info -->
+          <div
+            class="mx-4 mb-4 px-3 py-2 bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg"
+          >
+            <div class="flex items-center gap-3">
+              <img
+                src="https://ui-avatars.com/api/?name={{ request.user.username|default:'U' }}&background=4a9d7e&color=fff&size=32&bold=true"
+                class="w-8 h-8 rounded-full object-cover"
+              />
+              <div class="flex-1 min-w-0">
+                <div
+                  class="text-sm font-semibold text-slate-800 dark:text-white truncate"
+                >
+                  {{ request.user.get_full_name|default:request.user.username }}
+                </div>
+                <div class="text-[10px] text-slate-400 truncate">
+                  {{ request.user.email }}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endcomment %}
+
+          <!-- Search -->
+          {% comment %}
+          <div class="mx-4 mb-3 relative">
+            <i
+              class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"
+            ></i>
+            <input
+              type="text"
+              id="sidebarSearch"
+              placeholder="Search..."
+              class="w-full pl-7 pr-3 py-[7px] bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-[13px] outline-none focus:border-slate-300 transition"
+            />
+          </div>
+          {% endcomment %}
+
+          <!-- Navigation -->
+          <nav class="px-3 space-y-[2px] relative" id="main-nav">
+            <a
+              href="{% url 'dashboard' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300 {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+            >
+              <i
+                class="fa-solid fa-house text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              Dashboard
+            </a>
+
+            <a href="{% url 'chatbot_page' %}" class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
+              <i class="fa-solid fa-robot text-slate-400 text-[12px] w-4 text-center"></i>
+              AI Assistant
+          </a>
+
+            <!-- To this: -->
+            {% if can_view_task %}
+            <a
+              href="{% url 'task_dashboard' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+            >
+              <i
+                class="fa-solid fa-list-check text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              My Tasks
+            </a>
+            {% endif %} {% if can_view_projects %}
+            <a
+              href="{% url 'view_projects' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+            >
+              <i
+                class="fa-solid fa-folder text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              {% if can_view_all_projects %}Projects{% else %}My Projects{%endif %}
+            </a>
+            {% endif %} {% if can_manage_users %}
+            <a
+              href="{% url 'admin_view_users' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+            >
+              <i
+                class="fa-solid fa-users text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              Team Members
+            </a>
+            {% endif %} 
+            {% comment %} {% if can_add_task %}
+            <a
+              href="{% url 'assign_task' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+            >
+              <i
+                class="fa-solid fa-plus-circle text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              Assign Task
+            </a>
+            {% endif %} {% endcomment %}
+             {% comment %} {% if can_manage_projects %}
+            <a
+              href="{% url 'create_project' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+            >
+              <i
+                class="fa-solid fa-plus-square text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              Create Project
+            </a>
+            {% endif %} {% endcomment %}
+            {% if perms.projects.view_projects %}
+            <a href="{% url 'trash_view' %}" class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300">
+                <i class="fa-solid fa-trash-can text-slate-400 text-[12px] w-4 text-center"></i>
+                Trash
+            </a>
+            {% endif %}
+
+            <!-- Chat Section - Simplified -->
+            <div class="mt-2">
+              <a
+                href="{% url 'chat_rooms' %}"
+                class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+              >
+                <i
+                  class="fa-regular fa-message text-[#4a9d7e] text-[12px] w-4 text-center"
+                ></i>
+                <span>Chat</span>
+                <span
+                  id="sidebarChatBadge"
+                  class="hidden ml-auto bg-[#4a9d7e] text-white text-[9px] font-bold rounded-full h-4 min-w-[1rem] px-1 flex items-center justify-center"
+                >
+                  0
+                </span>
+              </a>
             </div>
 
-            <!-- Navigation -->
-            <nav class="p-4 space-y-2 text-gray-700">
-
-                {% if request.user.is_authenticated %}
-                <!-- Dashboard - Role Based (Simpler) -->
-                <a href="
-                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-                    {% url 'admin_dashboard' %}
-                {% elif request.user.role == 'TEAM_LEAD' %}
-                    {% url 'teamlead_dashboard' %}
-                {% elif request.user.role == 'EMPLOYEE' %}
-                    {% url 'employee_dashboard' %}
-                {% else %}
-                    {% url 'dashboard' %}
-                {% endif %}" class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Dashboard
+            {% if can_manage_roles %}
+            <div class="mt-2">
+              <button
+                onclick="toggleSettingsTree()"
+                class="w-full flex items-center gap-1.5 px-3 py-[7px] text-[13px] font-medium text-slate-700 dark:text-white rounded-md hover:bg-slate-50 dark:hover:bg-white/5 transition"
+              >
+                <i
+                  class="fa-solid fa-chevron-down text-[8px] text-slate-400"
+                  id="settings-tree-icon"
+                ></i>
+                <i class="fa-solid fa-gear text-[#4a9d7e] text-[12px]"></i>
+                <span>Settings</span>
+              </button>
+              <div id="settings-tree-children" class="ml-[30px] mt-[2px]">
+                <a
+                  href="{% url 'role_list' %}"
+                  class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <i class="fa-solid fa-shield-haltered text-[11px]"></i> Roles
                 </a>
-
-                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-                <a href="{% url 'admin_view_users' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Members
+                <a
+                  href="{% url 'permission_list' %}"
+                  class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <i class="fa-solid fa-key text-[11px]"></i> Permissions
                 </a>
-
-                <a href="{% url 'view_projects' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Projects
+                <a href="{% url 'permission_overrides' %}" class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400">
+                <i class="fa-solid fa-user-lock text-[11px]"></i> User Overrides
                 </a>
-
-                <!-- Departments -->
-                <a href="{% url 'departments' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Departments
+                <a
+                  href="{% url 'departments' %}"
+                  class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <i class="fa-solid fa-building text-[11px]"></i> Departments
                 </a>
-
-                <!-- Designations -->
-                <a href="{% url 'designations' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Designations
+                <a
+                  href="{% url 'designations' %}"
+                  class="nav-item flex items-center gap-2 px-3 py-[6px] text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <i class="fa-solid fa-briefcase text-[11px]"></i> Designations
                 </a>
-                <!--Analytics-->
-                <a href="{% url 'user_analytics' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Analytics
-                </a>
+              </div>
+            </div>
+            {% endif %} {% if request.user.is_superuser %}
+            <a
+              href="{% url 'user_analytics' %}"
+              class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-slate-600 dark:text-slate-300"
+            >
+              <i
+                class="fa-solid fa-chart-line text-slate-400 text-[12px] w-4 text-center"
+              ></i>
+              Analytics
+            </a>
+            {% endif %}
 
-                {% endif %}
-
-                <!-- TEAM LEAD MENU -->
-                {% if request.user.role == 'TEAM_LEAD' %}
-                <a href="{% url 'teamlead_view_users' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Members
-                </a>
-
-                <a href="{% url 'view_projects' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Projects
-                </a>
-
-                <!-- Analytics for Team Lead -->
-                <a href="{% url 'user_analytics' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    Analytics
-                </a>
-                {% endif %}
-
-                <!-- Employee Menu -->
-                {% if request.user.role == 'EMPLOYEE' %}
-                <a href="{% url 'employee_projects' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    My Projects
-                </a>
-
-                <a href="{% url 'task_dashboard' %}"
-                    class="block px-4 py-2 rounded hover:bg-orange-100 hover:text-orange-600 transition">
-                    My Tasks
-                </a>
-                {% endif %}
-
-                <!--Logout!-->
-                <button id="logoutBtn" type="button"
-                    class="mt-4 w-full text-left px-4 py-2 rounded hover:bg-red-100 hover:text-red-600 transition">
-                    Logout
-                </button>
-                {% endif %}
-
-            </nav>
-        </aside>
-        <!-- ================= END SIDEBAR ================= -->
-
-        <!-- ================= MAIN AREA ================= -->
-        <div class="flex-1 flex flex-col">
-
-            <!-- Topbar -->
-            <header class="bg-white shadow p-4 flex justify-between items-center">
-
-                <h2 class="text-xl font-semibold text-gray-800">
-                    {% block page_title %}Dashboard{% endblock %}
-                </h2>
-
-                <div class="flex items-center space-x-4">
-
-                    <!-- Notification Bell with AJAX -->
-                    <div class="relative" id="notificationBellContainer">
-                        <button id="notificationBellBtn" class="relative focus:outline-none">
-                            <svg class="w-6 h-6 text-gray-600 hover:text-orange-500 transition" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
-                                </path>
-                            </svg>
-                            <!-- Unread Count Badge -->
-                            <span id="notificationBadge"
-                                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                                style="display: {% if unread_notifications_count > 0 %}flex{% else %}none{% endif %};">
-                                {{ unread_notifications_count }}
-                            </span>
-                        </button>
-
-                        <!-- Dropdown Menu - Shows ONLY 1 latest notification -->
-                        <div id="notificationDropdown"
-                            class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50">
-                            <div class="p-4 border-b border-gray-200">
-                                <div class="flex justify-between items-center">
-                                    <h3 class="text-lg font-semibold text-gray-800">Latest Notification</h3>
-                                </div>
-                            </div>
-
-                            <div id="notificationList" class="max-h-96 overflow-y-auto">
-                                <!-- Single notification will appear here -->
-                                <div class="p-4 text-center text-gray-500">
-                                    <div
-                                        class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500">
-                                    </div>
-                                    <p class="mt-2 text-sm">Loading...</p>
-                                </div>
-                            </div>
-
-                            <div class="p-3 border-t border-gray-200">
-                                <a href="{% url 'all_notifications' %}"
-                                    class="block text-center text-orange-500 hover:text-orange-600 font-medium transition">
-                                    View all notifications
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- User Info -->
-                    <div class="flex items-center space-x-2">
-                        <img src="https://i.pravatar.cc/40" class="rounded-full w-10 h-10" alt="User">
-                        <span class="font-medium">
-                            {{ request.user.username }}
-                        </span>
-                    </div>
-
-                    <!-- Logout Button -->
-                    <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
-                        Logout
-                    </button>
-
-                </div>
-            </header>
-
-            <!-- Content Area -->
-            <main class="p-6 overflow-y-auto flex-1">
-                {% block content %}
-                <!-- Page Content Goes Here -->
-                {% endblock %}
-            </main>
-
+            <div
+              class="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 fixed bottom-0 w-full"
+            >
+              <a
+                href="#"
+                onclick="logout()"
+                class="nav-item flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-red-600 dark:text-red-400"
+              >
+                <i
+                  class="fa-solid fa-arrow-right-from-bracket text-[12px] w-4 text-center"
+                ></i>
+                Logout
+              </a>
+            </div>
+          </nav>
         </div>
-        <!-- ================= END MAIN AREA ================= -->
 
+        <!-- Upgrade/Info Card -->
+        {% comment %}
+        <div class="px-4 py-3 border-t border-slate-100 dark:border-white/5">
+          <div
+            class="bg-[#f6f7f9] dark:bg-white/5 rounded-xl p-3.5 border border-slate-100 dark:border-white/10"
+          >
+            <div
+              class="text-[13px] font-semibold text-slate-800 dark:text-white mb-0.5"
+            >
+              Need help?
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed mb-2.5">
+              Contact support or check documentation.
+            </p>
+            <button
+              onclick="showSupportModal()"
+              class="w-full flex items-center justify-center gap-1.5 bg-[#4a9d7e] text-white text-[12px] font-medium py-[7px] rounded-lg hover:bg-[#3d8a6d] transition"
+            >
+              <i class="fa-solid fa-headset text-[10px]"></i> Get Support
+            </button>
+          </div>
+        </div>
+        {% endcomment %}
+      </aside>
+
+      <!-- ========== MAIN ========== -->
+      <main class="flex-1 lg:ml-[260px] flex flex-col min-w-0">
+        <!-- Top bar -->
+        <header
+          class="h-12 px-5 flex items-center justify-between border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-sm sticky top-0 z-50"
+        >
+          <div class="flex items-center gap-2">
+            <button
+              onclick="toggleSidebar()"
+              class="lg:hidden p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition"
+            >
+              <i class="fa-solid fa-bars text-sm"></i>
+            </button>
+            <h2
+              class="text-sm font-medium text-slate-600 dark:text-slate-400 hidden sm:block"
+            >
+              {% block page_title %}Dashboard{% endblock %}
+            </h2>
+          </div>
+          <div class="flex items-center gap-1">
+            <!-- Notification Bell -->
+            <div class="relative" id="notificationBellContainer">
+              <button
+                id="notificationBellBtn"
+                class="relative focus:outline-none w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition"
+              >
+                <i class="fa-regular fa-bell text-[13px]"></i>
+                <span
+                  id="notificationBadge"
+                  class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full h-4 min-w-[1rem] px-0.5 flex items-center justify-center"
+                  style="display: none"
+                  >0</span
+                >
+              </button>
+              <div
+                id="notificationDropdown"
+                class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-[#1e293b] rounded-lg shadow-xl z-50 border border-slate-200 dark:border-white/10"
+              >
+                <div class="p-3 border-b border-slate-200 dark:border-white/10">
+                  <div class="flex justify-between items-center">
+                    <h3
+                      class="text-sm font-semibold text-slate-800 dark:text-white"
+                    >
+                      Notifications
+                    </h3>
+                    <button id="markAllReadBtn" class="text-[10px] text-[#4a9d7e] hover:underline">Mark all read</button>
+                  </div>
+                </div>
+                <div id="notificationList" class="max-h-96 overflow-y-auto text-wrap">
+                  <div class="p-4 text-center text-slate-500">
+                    <div
+                      class="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#4a9d7e]"
+                    ></div>
+                    <p class="mt-2 text-xs">Loading...</p>
+                  </div>
+                </div>
+                <div class="p-3 border-t border-slate-200 dark:border-white/10">
+                  <a
+                    href="{% url 'all_notifications' %}"
+                    class="block text-center text-[#4a9d7e] hover:text-[#3d8a6d] text-xs font-medium transition"
+                  >
+                    View all notifications
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chat Button -->
+            <div class="relative">
+              <a
+                href="{% url 'chat_rooms' %}"
+                id="topbarChatBtn"
+                class="relative w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition"
+              >
+                <i class="fa-regular fa-message text-[13px]"></i>
+                <span
+                  id="topbarChatBadge"
+                  class="absolute -top-1 -right-1 bg-[#4a9d7e] text-white text-[9px] rounded-full h-4 min-w-[1rem] px-0.5 flex items-center justify-center hidden chat-badge"
+                >
+                  0
+                </span>
+              </a>
+            </div>
+
+            <!-- Theme Toggle -->
+            <button
+              onclick="toggleTheme()"
+              class="w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 transition ml-1"
+            >
+              <i id="themeIcon" class="fa-regular fa-sun text-[13px]"></i>
+            </button>
+
+            <!-- User Avatar -->
+            <a
+              href="{% url 'view_user_details' request.user.id %}"
+              class="w-8 h-8 rounded-full overflow-hidden ml-1.5 cursor-pointer block hover:ring-2 hover:ring-[#4a9d7e]/50 transition"
+              title="My Profile"
+            >
+              <img
+                src="https://ui-avatars.com/api/?name={{ request.user.username|default:'U' }}&background=4a9d7e&color=fff&size=32&bold=true&font-size=0.45"
+                class="w-full h-full object-cover"
+                alt="avatar"
+              />
+            </a>
+          </div>
+        </header>
+
+        <!-- Content Area -->
+        <div
+          class="{% block content_wrapper_class %}p-6 md:px-8 space-y-4 max-w-[1400px] w-full mx-auto{% endblock %}"
+        >
+          {% block content %}
+          <!-- Page Content Goes Here -->
+          {% endblock %}
+        </div>
+      </main>
+    </div>
+
+    <!-- Support Modal -->
+    <div
+      id="supportModal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center p-5 bg-black/30 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#111827] w-full max-w-md rounded-xl border border-slate-200 dark:border-white/10 p-5 shadow-xl"
+      >
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3
+              class="text-[15px] font-semibold text-slate-800 dark:text-white"
+            >
+              Support Center
+            </h3>
+            <p class="text-[12px] text-slate-400">How can we help you?</p>
+          </div>
+          <button
+            onclick="closeSupportModal()"
+            class="text-slate-400 hover:text-slate-600 transition"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="space-y-3">
+          <a
+            href="#"
+            class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition"
+          >
+            <i class="fa-regular fa-file-lines text-[#4a9d7e] text-lg"></i>
+            <span class="text-sm">Documentation</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition"
+          >
+            <i class="fa-regular fa-envelope text-[#4a9d7e] text-lg"></i>
+            <span class="text-sm">Email Support</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition"
+          >
+            <i class="fa-brands fa-whatsapp text-[#4a9d7e] text-lg"></i>
+            <span class="text-sm">WhatsApp Support</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access Denied Modal -->
+    <div
+      id="accessDeniedModal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center p-5 bg-black/30 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#111827] w-full max-w-md rounded-xl border border-red-200 dark:border-red-900/30 p-5 shadow-xl"
+      >
+        <div class="flex items-center gap-3 mb-4">
+          <div
+            class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center"
+          >
+            <i
+              class="fa-solid fa-triangle-exclamation text-red-500 text-lg"
+            ></i>
+          </div>
+          <div>
+            <h3
+              class="text-[15px] font-semibold text-slate-800 dark:text-white"
+            >
+              Access Denied
+            </h3>
+            <p class="text-[12px] text-slate-500" id="accessDeniedMessage">
+              You don't have permission for this action.
+            </p>
+          </div>
+        </div>
+        <button
+          onclick="closeAccessDeniedModal()"
+          class="w-full bg-[#4a9d7e] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#3d8a6d] transition"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+
+    <!-- Message Toast Container -->
+    <div
+      id="toastContainer"
+      class="fixed bottom-5 right-5 z-[110] space-y-3 pointer-events-none"
+    >
+      {% if messages %} {% for message in messages %}
+      <div
+        class="toast-notification pointer-events-auto bg-white dark:bg-[#1e293b] border-l-4 {% if message.tags == 'error' %}border-red-500{% elif message.tags == 'success' %}border-green-500{% else %}border-blue-500{% endif %} shadow-lg rounded-lg p-4 flex items-center gap-3 min-w-[300px] transform transition-all duration-300"
+      >
+        <div class="flex-shrink-0">
+          {% if message.tags == 'error' %}
+          <i class="fa-solid fa-circle-xmark text-red-500"></i>
+          {% elif message.tags == 'success' %}
+          <i class="fa-solid fa-circle-check text-green-500"></i>
+          {% else %}
+          <i class="fa-solid fa-circle-info text-blue-500"></i>
+          {% endif %}
+        </div>
+        <div class="flex-1">
+          <p class="text-xs font-semibold text-slate-800 dark:text-white">
+            {{ message }}
+          </p>
+        </div>
+        <button
+          onclick="this.parentElement.remove()"
+          class="text-slate-400 hover:text-slate-600 transition"
+        >
+          <i class="fa-solid fa-xmark text-[10px]"></i>
+        </button>
+      </div>
+      {% endfor %} {% endif %}
     </div>
 
     <script>
-        function getCSRFToken() {
-            return document.cookie
-                .split('; ')
-                .find(row => row.startsWith('csrftoken='))
-                ?.split('=')[1] || '';
-        }
+      // ========== Sidebar Functions ==========
+      function toggleSidebar() {
+          document.getElementById('sidebar').classList.toggle('-translate-x-full');
+          document.getElementById('sidebarOverlay').classList.toggle('active');
+      }
+      function closeSidebar() {
+          document.getElementById('sidebar').classList.add('-translate-x-full');
+          document.getElementById('sidebarOverlay').classList.remove('active');
+      }
 
-        function getAccessToken() {
-            return localStorage.getItem('access_token');
-        }
+      // ========== Tree Toggles ==========
+      function toggleChatTree() {
+          const ch = document.getElementById('chat-tree-children');
+          const ic = document.getElementById('chat-tree-icon');
+          if (ch.style.display === 'none') {
+              ch.style.display = '';
+              ic.style.transform = '';
+          } else {
+              ch.style.display = 'none';
+              ic.style.transform = 'rotate(-90deg)';
+          }
+      }
+      function toggleSettingsTree() {
+          const ch = document.getElementById('settings-tree-children');
+          const ic = document.getElementById('settings-tree-icon');
+          if (ch.style.display === 'none') {
+              ch.style.display = '';
+              ic.style.transform = '';
+          } else {
+              ch.style.display = 'none';
+              ic.style.transform = 'rotate(-90deg)';
+          }
+      }
+      // Initialize tree states
+      const chatTree = document.getElementById('chat-tree-children');
+      if (chatTree) chatTree.style.display = 'block';
 
-        $.ajaxSetup({
-            beforeSend: function (xhr) {
-                const token = getAccessToken();
-                if (token) {
-                    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-                }
-                xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            }
-        });
+      const settingsTree = document.getElementById('settings-tree-children');
+      if (settingsTree) settingsTree.style.display = 'block';
 
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', function () {
-                $.ajax({
-                    url: '{% url "logout" %}',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        refresh_token: localStorage.getItem('refresh_token')
-                    }),
-                    success: function () {
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('refresh_token');
-                        localStorage.removeItem('user_role');
-                        localStorage.removeItem('username');
-                        localStorage.removeItem('user_id');
-                        localStorage.removeItem('user_email');
-                        window.location.href = '{% url "login_page" %}';
-                    },
-                    error: function () {
-                        localStorage.clear();
-                        window.location.href = '{% url "login_page" %}';
-                    }
-                });
-            });
-        }
+      // ========== Theme ==========
+      function toggleTheme() {
+          const h = document.documentElement;
+          h.classList.toggle('dark');
+          const i = document.getElementById('themeIcon');
+          if (h.classList.contains('dark')) {
+              i.classList.replace('fa-sun', 'fa-moon');
+          } else {
+              i.classList.replace('fa-moon', 'fa-sun');
+          }
+          localStorage.setItem('theme', h.classList.contains('dark') ? 'dark' : 'light');
+      }
+      // Set initial icon based on theme
+      const themeIcon = document.getElementById('themeIcon');
+      if (document.documentElement.classList.contains('dark')) {
+          themeIcon?.classList.replace('fa-sun', 'fa-moon');
+      }
+
+      // ========== Modals ==========
+      function showSupportModal() {
+          document.getElementById('supportModal').classList.remove('hidden');
+      }
+      function closeSupportModal() {
+          document.getElementById('supportModal').classList.add('hidden');
+      }
+      function closeAccessDeniedModal() {
+          document.getElementById('accessDeniedModal').classList.add('hidden');
+      }
+      function showAccessDeniedModal(message) {
+          document.getElementById('accessDeniedMessage').textContent = message;
+          document.getElementById('accessDeniedModal').classList.remove('hidden');
+      }
+
+      // ========== CSRF Token ==========
+      function getCSRFToken() {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+              const cookies = document.cookie.split(';');
+              for (let i = 0; i < cookies.length; i++) {
+                  const cookie = cookies[i].trim();
+                  if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                      cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                      break;
+                  }
+              }
+          }
+          return cookieValue;
+      }
+
+      function getAccessToken() {
+          return localStorage.getItem('access_token');
+      }
+
+      // ========== Authenticated Fetch Wrapper ==========
+      async function authFetch(url, options = {}) {
+          const token = getAccessToken();
+          if (!token) {
+              window.location.href = '{% url "login_page" %}';
+              return Promise.reject('No token');
+          }
+
+          const headers = {
+              ...options.headers,
+              'Authorization': `Bearer ${token}`,
+              'X-Requested-With': 'XMLHttpRequest'
+          };
+
+          // Don't set Content-Type if we're sending FormData
+          if (!(options.body instanceof FormData)) {
+              headers['Content-Type'] = 'application/json';
+          }
+
+          // Add CSRF token for state-changing methods
+          const method = (options.method || 'GET').toUpperCase();
+          if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+              const csrf = getCSRFToken();
+              if (csrf) headers['X-CSRFToken'] = csrf;
+          }
+
+          const response = await fetch(url, { ...options, headers });
+
+          if (response.status === 401) {
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              window.location.href = '{% url "login_page" %}';
+              throw new Error('Unauthorized');
+          }
+
+          return response;
+      }
+
+      // ========== Logout ==========
+      function logout() {
+          fetch('{% url "logout" %}', {
+              method: 'POST',
+              headers: {
+                  'X-CSRFToken': getCSRFToken(),
+                  'X-Requested-With': 'XMLHttpRequest',
+                  'Authorization': `Bearer ${getAccessToken()}`
+              }
+          }).then(() => {
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              window.location.href = '{% url "login_page" %}';
+          }).catch(() => {
+              window.location.href = '{% url "login_page" %}';
+          });
+      }
+
+      // ========== Notification Manager ==========
+      const NotificationManager = {
+          unreadCount: 0,
+          pollInterval: null,
+          init() {
+              this.loadLatestNotification();
+              this.startPolling();
+              this.attachEventListeners();
+          },
+          attachEventListeners() {
+              const bellBtn = document.getElementById('notificationBellBtn');
+              const dropdown = document.getElementById('notificationDropdown');
+              if (bellBtn && dropdown) {
+                  bellBtn.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      dropdown.classList.toggle('hidden');
+                      if (!dropdown.classList.contains('hidden')) this.loadLatestNotification();
+                  });
+                  document.addEventListener('click', (e) => {
+                      if (!bellBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                          dropdown.classList.add('hidden');
+                      }
+                  });
+              }
+              const markAllBtn = document.getElementById('markAllReadBtn');
+              if (markAllBtn) {
+                  markAllBtn.addEventListener('click', () => this.markAllAsRead());
+              }
+          },
+          loadLatestNotification() {
+              fetch('{% url "all_notifications" %}?page=1&page_size=5', {
+                  credentials: 'same-origin',
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'Authorization': `Bearer ${getAccessToken()}`
+                  }
+              })
+                  .then(response => { if (!response.ok) throw new Error(response.status); return response; })
+                  .then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          this.renderNotifications(data.notifications || []);
+                          this.unreadCount = data.unread_count || 0;
+                          this.updateBadge();
+                      }
+                  })
+                  .catch(console.error);
+          },
+          renderNotifications(notifications) {
+              const container = document.getElementById('notificationList');
+              if (!container) return;
+              if (!notifications.length) {
+                  container.innerHTML = `
+                      <div class="p-8 text-center">
+                          <i class="fa-regular fa-bell-slash text-3xl text-slate-300 mb-2"></i>
+                          <p class="text-sm text-slate-500">No notifications</p>
+                      </div>
+                  `;
+                  return;
+              }
+              container.innerHTML = notifications.map(n => `
+                  <div class="p-3 border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition ${!n.is_read ? 'bg-[#eef6f2] dark:bg-[#1a3a2a]' : ''}">
+                      <div class="flex justify-between items-start">
+                          <div class="flex-1 cursor-pointer" onclick="${n.target_url ? `NotificationManager.markAsRead(${n.id}, '${n.target_url}')` : `NotificationManager.markAsRead(${n.id})`}">
+                              <p class="text-xs text-slate-700 dark:text-slate-300">
+                                  ${n.target_url ? `<span class="hover:text-[#4a9d7e] hover:underline ">${this.escapeHtml(n.message)}</span>` : this.escapeHtml(n.message)}
+                              </p>
+                              <p class="text-[10px] text-slate-400 mt-1">${this.formatDate(n.created_at)}</p>
+                          </div>
+                          ${!n.is_read ? `
+                          <button onclick="event.stopPropagation(); NotificationManager.markAsRead(${n.id})"
+                                  class="text-[10px] text-[#4a9d7e] hover:underline ml-2">
+                              Mark read
+                          </button>
+                          ` : ''}
+                      </div>
+                  </div>
+              `).join('');
+          },
+          markAsRead(notificationId, targetUrl = null) {
+              fetch(`/notifications/mark-read/${notificationId}/`, {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'X-CSRFToken': getCSRFToken(),
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'Authorization': `Bearer ${getAccessToken()}`
+                  }
+              })
+                  .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
+                  .then(data => {
+                      if (data.success) {
+                          if (targetUrl) {
+                              window.location.href = targetUrl;
+                          } else {
+                              this.loadLatestNotification();
+                          }
+                      }
+                  })
+                  .catch(console.error);
+          },
+          markAllAsRead() {
+              fetch('/notifications/mark-all-read/', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'X-CSRFToken': getCSRFToken(),
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'Authorization': `Bearer ${getAccessToken()}`
+                  }
+              })
+                  .then(response => { if (!response.ok) throw new Error(response.status); return response.json(); })
+                  .then(data => {
+                      if (data.success) {
+                          this.loadLatestNotification();
+                      }
+                  })
+                  .catch(console.error);
+          },
+          updateBadge() {
+              const badge = document.getElementById('notificationBadge');
+              if (badge) {
+                  if (this.unreadCount > 0) {
+                      badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
+                      badge.style.display = 'flex';
+                  } else {
+                      badge.style.display = 'none';
+                  }
+              }
+          },
+          startPolling() {
+              this.pollInterval = setInterval(() => {
+                  if (!document.hidden) this.loadLatestNotification();
+              }, 30000);
+          },
+          formatDate(dateString) {
+              const date = new Date(dateString);
+              const now = new Date();
+              const diffMins = Math.floor((now - date) / 60000);
+              if (diffMins < 1) return 'Just now';
+              if (diffMins < 60) return `${diffMins}m ago`;
+              if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+              return date.toLocaleDateString();
+          },
+          escapeHtml(text) {
+              if (!text) return '';
+              const div = document.createElement('div');
+              div.textContent = text;
+              return div.innerHTML;
+          }
+      };
+
+      // ========== Chat Badge Manager (REAL-TIME) ==========
+      const ChatBadgeManager = {
+          totalUnread: 0,
+          socket: null,
+
+          init() {
+              this.connectWS();
+              this.fetchInitialUnread();
+
+              // Listen for real-time updates from internal room events (fallback)
+              window.addEventListener('chatBadgeUpdate', (e) => {
+                  if (e.detail && typeof e.detail.count === 'number') {
+                      if (e.detail.action === 'set') this.totalUnread = e.detail.count;
+                      else if (e.detail.action === 'increment') this.totalUnread += (e.detail.count || 1);
+                      else if (e.detail.action === 'decrement') this.totalUnread = Math.max(0, this.totalUnread - (e.detail.count || 1));
+                      this.updateBadges(true);
+                  }
+              });
+
+              document.addEventListener('visibilitychange', () => {
+                  if (!document.hidden && (!this.socket || this.socket.readyState !== WebSocket.OPEN)) {
+                      this.connectWS();
+                      this.fetchInitialUnread();
+                  }
+              });
+          },
+
+          connectWS() {
+              if (this.socket) this.socket.close();
+
+              const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+              this.socket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/list/`);
+
+                          this.socket.onmessage = (e) => {
+                              const data = JSON.parse(e.data);
+                              if (data.type === 'sidebar_update' && typeof data.total_unread_count !== 'undefined') {
+                                  // If we are in the room being updated, the unread count in the update might be stale (server-side)
+                                  // wait a moment for markRead to complete or just ignore increment if it's THIS room
+                                  if (window.activeChatRoomId && parseInt(data.room_id) === parseInt(window.activeChatRoomId)) {
+                                      // We don't update totalUnread here because it might jump up and then down
+                                      data.unread_count = 0;
+                                  } else {
+                                      this.totalUnread = data.total_unread_count;
+                                      this.updateBadges(true);
+                                  }
+
+                                  // Dispatch local event so specific pages (like room.html) can react
+                                  window.dispatchEvent(new CustomEvent('sidebarUpdate', { detail: data }));
+                              }
+                          };
+
+              this.socket.onclose = () => {
+                  setTimeout(() => this.connectWS(), 5000);
+              };
+          },
+
+          fetchInitialUnread() {
+              fetch('/chat/api/unread-count/', {
+                  headers: { 'Authorization': `Bearer ${getAccessToken()}` }
+              })
+              .then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      this.totalUnread = data.total_unread || 0;
+                      this.updateBadges(false);
+                  }
+              }).catch(() => {});
+          },
+
+          updateBadges(animate = false) {
+              const displayCount = this.totalUnread > 99 ? '99+' : (this.totalUnread || '');
+              const hasUnread = this.totalUnread > 0;
+
+              ['topbarChatBadge', 'sidebarChatBadge'].forEach(id => {
+                  const badge = document.getElementById(id);
+                  if (!badge) return;
+                  if (hasUnread) {
+                      badge.textContent = displayCount;
+                      badge.classList.remove('hidden');
+                      if (animate) {
+                          badge.classList.add('chat-badge-pulse');
+                          setTimeout(() => badge.classList.remove('chat-badge-pulse'), 2000);
+                      }
+                  } else {
+                      badge.classList.add('hidden');
+                  }
+              });
+          }
+      };
+
+      // ========== Navigation Helper ==========
+      function goBack() {
+          if (document.referrer && document.referrer !== window.location.href) {
+              window.history.back();
+          } else {
+              window.location.href = '{% url "dashboard" %}';
+          }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+          NotificationManager.init();
+          ChatBadgeManager.init();
+
+          // Auto-hide toasts after 5 seconds
+          setTimeout(() => {
+              const toasts = document.querySelectorAll('.toast-notification');
+              toasts.forEach(t => {
+                  t.style.opacity = '0';
+                  t.style.transform = 'translateX(100%)';
+                  setTimeout(() => t.remove(), 300);
+              });
+          }, 5000);
+
+          // Handle Access Denied messages specifically
+          {% if messages %}
+              {% for message in messages %}
+                  {% if "Access Denied" in message or "don't have permission" in message or "does not have permission" in message %}
+                      showAccessDeniedModal("{{ message|escapejs }}");
+                  {% endif %}
+              {% endfor %}
+          {% endif %}
+      });
+
+      // Global jQuery AJAX error handler for permissions
+      $(document).ajaxError(function (event, jqXHR, ajaxSettings, thrownError) {
+          if (jqXHR.status === 403) {
+              let message = "You don't have permission to perform this action.";
+              try {
+                  const response = JSON.parse(jqXHR.responseText);
+                  if (response.message) message = response.message;
+                  else if (response.error) message = response.error;
+              } catch (e) { }
+              showAccessDeniedModal(message);
+          }
+      });
+
+      // ========== Universal Notification Helper ==========
+      function showNotification(message, type = 'success') {
+          const container = document.getElementById('globalNotificationContainer');
+          if (!container) return;
+
+          const notification = document.createElement('div');
+          notification.className = `mb-3 p-4 rounded-lg shadow-lg pointer-events-auto transform transition-all duration-300 translate-x-full opacity-0 ${
+              type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
+          } text-white`;
+          
+          notification.innerHTML = `
+              <div class="flex items-center justify-between">
+                  <div class="flex items-center">
+                      <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-2"></i>
+                      <span class="text-sm font-medium">${NotificationManager.escapeHtml(message)}</span>
+                  </div>
+                  <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-white/80 transition">
+                      <i class="fa-solid fa-xmark text-xs"></i>
+                  </button>
+              </div>
+          `;
+          
+          container.appendChild(notification);
+          
+          // Trigger animation
+          setTimeout(() => {
+              notification.classList.remove('translate-x-full', 'opacity-0');
+              notification.classList.add('translate-x-0', 'opacity-100');
+          }, 10);
+
+          // Auto-remove
+          setTimeout(() => {
+              notification.classList.remove('translate-x-0', 'opacity-100');
+              notification.classList.add('translate-x-full', 'opacity-0');
+              setTimeout(() => notification.remove(), 300);
+          }, 5000);
+      }
+
+      window.NotificationManager = NotificationManager;
+      window.ChatBadgeManager = ChatBadgeManager;
+      window.showAccessDeniedModal = showAccessDeniedModal;
+      window.showNotification = showNotification;
     </script>
-
-    <script>
-    function logout() {
-        // Clear session storage (for back button navigation)
-        sessionStorage.clear();
-        
-        // Clear all cookies
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-            const eqPos = cookie.indexOf('=');
-            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        }
-
-        // Clear local storage (JWT tokens)
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('username');
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_email');
-
-        // Call server logout endpoint
-        fetch('/logout/', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(() => {
-                window.location.href = '/render_login/';
-            })
-            .catch(() => {
-                window.location.href = '/render_login/';
-            });
-    }
-    </script>
-
-    <!-- Navigation Helper - Prevents Back Button Loops -->
-    <script>
-        // ========== GLOBAL NAVIGATION HELPER ==========
-        
-        // Store the previous page before any navigation
-        (function () {
-            sessionStorage.setItem('currentPage', window.location.pathname);
-            if (!sessionStorage.getItem('initialPage')) {
-                sessionStorage.setItem('initialPage', window.location.pathname);
-            }
-        })();
-
-        // Smart back button function - Fixed for loop issue
-        function goBack() {
-            const previousPage = sessionStorage.getItem('previousPage');
-            const currentPage = window.location.pathname;
-            
-            // If we have a stored previous page and it's different from current
-            if (previousPage && previousPage !== currentPage) {
-                sessionStorage.removeItem('previousPage');
-                window.location.href = previousPage;
-                return;
-            }
-            
-            // Check if it's a project detail page
-            if (currentPage.includes('view_project_detail')) {
-                {% if request.user.role == 'EMPLOYEE' %}
-                    window.location.href = "{% url 'employee_projects' %}";
-                {% else %}
-                    window.location.href = "{% url 'view_projects' %}";
-                {% endif %}
-                return;
-            }
-            
-            // If it's the projects page, go to dashboard
-            if (currentPage.includes('employee_projects') || currentPage.includes('view_projects')) {
-                {% if request.user.role == 'EMPLOYEE' %}
-                    window.location.href = "{% url 'employee_dashboard' %}";
-                {% else %}
-                    window.location.href = "{% url 'admin_dashboard' %}";
-                {% endif %}
-                return;
-            }
-            
-            // Check if there's browser history
-            if (document.referrer && document.referrer !== window.location.href) {
-                window.history.back();
-                return;
-            }
-            
-            // Final fallback to dashboard
-            {% if request.user.is_authenticated %}
-                {% if request.user.role == 'ADMIN' %}
-                    window.location.href = "{% url 'admin_dashboard' %}";
-                {% elif request.user.role == 'TEAM_LEAD' %}
-                    window.location.href = "{% url 'teamlead_dashboard' %}";
-                {% elif request.user.role == 'EMPLOYEE' %}
-                    window.location.href = "{% url 'employee_dashboard' %}";
-                {% else %}
-                    window.location.href = "{% url 'dashboard' %}";
-                {% endif %}
-            {% else %}
-                window.location.href = "{% url 'login_page' %}";
-            {% endif %}
-        }
-
-        // Automatically capture clicks on ALL links to track navigation
-        document.addEventListener('click', function (e) {
-            const link = e.target.closest('a');
-            if (link && link.href && !link.href.includes('#') && link.target !== '_blank') {
-                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes('goBack')) {
-                    return;
-                }
-                if (link.classList.contains('no-history')) {
-                    return;
-                }
-                if (link.href.includes('javascript:')) {
-                    return;
-                }
-                
-                const currentPath = window.location.pathname;
-                try {
-                    const linkPath = new URL(link.href).pathname;
-                    if (currentPath !== linkPath) {
-                        sessionStorage.setItem('previousPage', currentPath);
-                    }
-                } catch (e) {
-                    // Invalid URL, ignore
-                }
-            }
-        });
-
-        // Convert all existing back buttons to use goBack function
-        document.addEventListener('DOMContentLoaded', function () {
-            const backButtons = document.querySelectorAll('[onclick*="history.back"], [onclick*="window.history.back"]');
-            backButtons.forEach(btn => {
-                btn.setAttribute('onclick', 'goBack()');
-            });
-            
-            const backButtonsByClass = document.querySelectorAll('.back-btn, [data-back-button]');
-            backButtonsByClass.forEach(btn => {
-                if (!btn.getAttribute('onclick')) {
-                    btn.setAttribute('onclick', 'goBack()');
-                }
-            });
-        });
-    </script>
-
-    <!-- Notification System JavaScript -->
-    <script>
-        // Notification Manager - Handles real-time updates
-        const NotificationManager = {
-            unreadCount: parseInt("{{ unread_notifications_count|default:'0' }}") || 0,
-            pollInterval: null,
-            isLoading: false,
-
-            init() {
-                console.log('Notification Manager Initialized');
-                this.loadLatestNotification();
-                this.startPolling();
-                this.attachEventListeners();
-            },
-
-            attachEventListeners() {
-                const bellBtn = document.getElementById('notificationBellBtn');
-                const dropdown = document.getElementById('notificationDropdown');
-
-                if (bellBtn && dropdown) {
-                    bellBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        dropdown.classList.toggle('hidden');
-                        if (!dropdown.classList.contains('hidden')) {
-                            this.loadLatestNotification();
-                        }
-                    });
-
-                    document.addEventListener('click', (e) => {
-                        if (!bellBtn.contains(e.target) && !dropdown.contains(e.target)) {
-                            dropdown.classList.add('hidden');
-                        }
-                    });
-                }
-
-                const markAllBtn = document.getElementById('markAllReadBtn');
-                if (markAllBtn) {
-                    markAllBtn.addEventListener('click', () => this.markAllAsRead());
-                }
-            },
-
-            loadLatestNotification() {
-                if (this.isLoading) return;
-                this.isLoading = true;
-
-                fetch('/notifications/all/?page=1&page_size=1', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                    }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.renderSingleNotification(data.notifications);
-                            this.unreadCount = data.unread_count;
-                            this.updateBadge();
-                        }
-                        this.isLoading = false;
-                    })
-                    .catch(error => {
-                        console.error('Error loading notification:', error);
-                        this.isLoading = false;
-                    });
-            },
-
-            renderSingleNotification(notifications) {
-                const container = document.getElementById('notificationList');
-                if (!container) return;
-
-                const latestNotif = notifications && notifications.length > 0 ? notifications[0] : null;
-
-                if (!latestNotif) {
-                    container.innerHTML = `
-                        <div class="p-8 text-center">
-                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                            </svg>
-                            <p class="text-gray-500">No notifications yet</p>
-                            <p class="text-xs text-gray-400 mt-1">New notifications will appear here</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const isUnread = !latestNotif.is_read;
-                const bgColor = isUnread ? 'bg-blue-50' : 'bg-white';
-
-                container.innerHTML = `
-                    <div class="p-4 border-b border-gray-100 ${bgColor}">
-                        <div class="flex justify-between items-start">
-                            <div class="flex-1">
-                                <p class="text-sm text-gray-800 leading-relaxed">${this.escapeHtml(latestNotif.message)}</p>
-                                <p class="text-xs text-gray-400 mt-2">${this.formatDate(latestNotif.created_at)}</p>
-                            </div>
-                            ${isUnread ? `
-                            <button onclick="NotificationManager.markAsRead(${latestNotif.id})" 
-                                    class="text-xs text-blue-600 hover:text-blue-800 ml-2 px-2 py-1 rounded hover:bg-blue-100 whitespace-nowrap">
-                                Mark read
-                            </button>
-                            ` : `
-                            <span class="text-xs text-green-600 ml-2 whitespace-nowrap">
-                                ✓ Read
-                            </span>
-                            `}
-                        </div>
-                    </div>
-                `;
-            },
-
-            markAsRead(notificationId) {
-                fetch(`/notifications/mark-read/${notificationId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': this.getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                    }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.unreadCount = Math.max(0, this.unreadCount - 1);
-                            this.updateBadge();
-                            this.loadLatestNotification();
-
-                            if (window.location.pathname.includes('/notifications/all/')) {
-                                if (typeof loadNotifications === 'function') {
-                                    loadNotifications(1, 20);
-                                } else {
-                                    location.reload();
-                                }
-                            }
-
-                            this.showToast('Notification marked as read', 'success');
-                        }
-                    })
-                    .catch(error => console.error('Error marking as read:', error));
-            },
-
-            markAllAsRead() {
-                fetch('/notifications/mark-all-read/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': this.getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                    }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.unreadCount = 0;
-                            this.updateBadge();
-                            this.loadLatestNotification();
-                            this.showToast(data.message, 'success');
-                        }
-                    })
-                    .catch(error => console.error('Error marking all as read:', error));
-            },
-
-            updateBadge() {
-                const badge = document.getElementById('notificationBadge');
-                if (badge) {
-                    if (this.unreadCount > 0) {
-                        badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
-                        badge.style.display = 'flex';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-
-                const title = document.title;
-                if (this.unreadCount > 0) {
-                    if (!title.startsWith('(')) {
-                        document.title = `(${this.unreadCount}) ${title}`;
-                    }
-                } else {
-                    document.title = title.replace(/^\(\d+\)\s/, '');
-                }
-            },
-
-            startPolling() {
-                this.pollInterval = setInterval(() => {
-                    if (!document.hidden) {
-                        this.checkForNewNotifications();
-                    }
-                }, 30000);
-            },
-
-            checkForNewNotifications() {
-                fetch('/notifications/all/?page=1&page_size=1', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                    }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.unread_count > this.unreadCount) {
-                            const newCount = data.unread_count - this.unreadCount;
-                            this.unreadCount = data.unread_count;
-                            this.updateBadge();
-                            this.showToast(`📬 ${newCount} new notification${newCount > 1 ? 's' : ''}`, 'info');
-
-                            const dropdown = document.getElementById('notificationDropdown');
-                            if (dropdown && !dropdown.classList.contains('hidden')) {
-                                this.loadLatestNotification();
-                            }
-                        } else if (data.success) {
-                            this.unreadCount = data.unread_count;
-                            this.updateBadge();
-                        }
-                    })
-                    .catch(error => console.error('Error checking notifications:', error));
-            },
-
-            getCsrfToken() {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
-                            cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            },
-
-            formatDate(dateString) {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diffMs = now - date;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
-
-                if (diffMins < 1) return 'Just now';
-                if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-                if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-                if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            },
-
-            escapeHtml(text) {
-                if (!text) return '';
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            },
-
-            showToast(message, type = 'success') {
-                const existingToast = document.querySelector('.toast-notification');
-                if (existingToast) existingToast.remove();
-
-                const toast = document.createElement('div');
-                const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
-                toast.className = `toast-notification fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
-                toast.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <span>${message}</span>
-                        <button onclick="this.parentElement.parentElement.remove()" class="hover:text-gray-200 text-xl">&times;</button>
-                    </div>
-                `;
-                document.body.appendChild(toast);
-
-                setTimeout(() => toast.classList.remove('translate-x-full'), 10);
-                setTimeout(() => {
-                    toast.classList.add('translate-x-full');
-                    setTimeout(() => toast.remove(), 300);
-                }, 3000);
-            }
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            NotificationManager.init();
-        });
-
-        window.NotificationManager = NotificationManager;
-    </script>
-
-</body>
-
+    {% block extra_js %}{% endblock %}
+  </body>
 </html>

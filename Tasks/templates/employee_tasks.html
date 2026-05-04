@@ -1,0 +1,844 @@
+{% extends "base.html" %}
+
+{% block title %}Task Details | ReadyTask PMS{% endblock %}
+{% block page_title %}Task Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rich-text-content ul {
+        list-style-type: disc !important;
+        margin-left: 1.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .rich-text-content ol {
+        list-style-type: decimal !important;
+        margin-left: 1.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .rich-text-content p {
+        margin-bottom: 0.75rem !important;
+    }
+
+    .rich-text-content a {
+        color: #4a9d7e !important;
+        text-decoration: underline !important;
+    }
+
+    .rich-text-content blockquote {
+        border-left: 4px solid #4a9d7e !important;
+        padding-left: 1rem !important;
+        font-style: italic !important;
+        margin: 1rem 0 !important;
+    }
+
+    @keyframes shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 8px;
+    }
+
+    .dark .skeleton {
+        background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+        background-size: 200% 100%;
+    }
+
+    .task-detail-card {
+        animation: fadeInUp 0.4s ease-out;
+    }
+
+    .info-row {
+        transition: all 0.2s ease;
+    }
+
+    .info-row:hover {
+        transform: translateX(4px);
+    }
+
+    .status-badge {
+        transition: all 0.2s ease;
+    }
+
+    .status-badge:hover {
+        transform: scale(1.05);
+    }
+
+    .action-btn {
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .action-btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+
+    .action-btn:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .timer-badge {
+        font-family: 'Monaco', 'Menlo', monospace;
+        letter-spacing: 0.05em;
+    }
+
+    .avatar-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a9d7e, #2d6a4f);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .avatar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(74, 157, 126, 0.3);
+    }
+
+    .observer-tag {
+        transition: all 0.2s ease;
+    }
+
+    .observer-tag:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .summary-card {
+        transition: all 0.2s ease;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Live timer pulse */
+    .live-timer {
+        position: relative;
+    }
+
+    .live-timer::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: -12px;
+        transform: translateY(-50%);
+        width: 6px;
+        height: 6px;
+        background-color: #10b981;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container mx-auto px-4 py-6 max-w-6xl">
+
+    <!-- Back Button -->
+    <div class="mb-6">
+        <button onclick="goBack()"
+            class="group inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-[#4a9d7e] dark:hover:text-[#4a9d7e] transition-all duration-200">
+            <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-1 transition-transform"></i>
+            Back to Tasks
+        </button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState">
+        <div class="bg-white dark:bg-[#111827] shadow-xl rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-[#1a1f2e] dark:to-[#111827] px-8 py-6 border-b border-slate-200 dark:border-white/10">
+                <div class="skeleton h-8 w-64 mb-2"></div>
+                <div class="skeleton h-4 w-24"></div>
+            </div>
+            <div class="p-8 space-y-6">
+                <div class="skeleton h-24 w-full"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="skeleton h-6 w-32"></div>
+                        <div class="skeleton h-6 w-48"></div>
+                        <div class="skeleton h-6 w-56"></div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="skeleton h-6 w-32"></div>
+                        <div class="skeleton h-6 w-52"></div>
+                    </div>
+                </div>
+                <div class="skeleton h-32 w-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Container -->
+    <div id="contentContainer" class="hidden"></div>
+
+</div>
+
+<script>
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskId = urlParams.get('task_id');
+    const employeeId = urlParams.get('employee_id');
+
+    function escapeHtml(text) {
+        if (!text) return '—';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'Not set';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    function formatDateOnly(dateString) {
+        if (!dateString) return 'Not set';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    function getStatusConfig(status) {
+        const configs = {
+            'PENDING': {
+                color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                icon: 'fa-regular fa-hourglass-half',
+                label: 'Pending'
+            },
+            'ONGOING': {
+                color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                icon: 'fa-solid fa-play',
+                label: 'In Progress'
+            },
+            'COMPLETED': {
+                color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                icon: 'fa-solid fa-check-circle',
+                label: 'Completed'
+            }
+        };
+        return configs[status] || configs['PENDING'];
+    }
+
+    function renderTask(task) {
+        const statusConfig = getStatusConfig(task.status);
+        const timeDisplay = task.status === 'ONGOING' ? task.current_display_time :
+            task.status === 'COMPLETED' ? task.total_time_display : '00:00:00';
+        
+        const isLive = task.status === 'ONGOING' && !task.is_paused;
+
+        return `
+        <div class="task-detail-card bg-white dark:bg-[#111827] shadow-xl rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+            <!-- Task Header with Gradient -->
+            <div class="bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-[#1a1f2e] dark:via-[#111827] dark:to-[#1a1f2e] px-8 py-6 border-b border-slate-200 dark:border-white/10 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4a9d7e] to-[#2d6a4f] flex items-center justify-center shadow-lg shadow-[#4a9d7e]/20">
+                        <i class="fa-solid fa-list-check text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">${escapeHtml(task.name)}</h1>
+                        <div class="flex items-center gap-3 mt-1">
+                            <p class="text-sm text-slate-500 dark:text-slate-400">ID: #${task.id}</p>
+                            <span class="text-xs text-slate-400">•</span>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">Created ${formatDate(task.created_at)}</p>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <span class="status-badge inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${statusConfig.color}">
+                        <i class="${statusConfig.icon} text-xs"></i>
+                        ${escapeHtml(task.status_display)}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Description Section -->
+            <div class="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 px-8 py-6 border-b border-slate-200 dark:border-white/10">
+                <div class="flex items-start gap-3">
+                    <i class="fa-regular fa-file-lines text-[#4a9d7e] text-lg mt-0.5"></i>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Description</h3>
+                        <div class="text-slate-700 dark:text-slate-300 rich-text-content max-w-none">
+                            ${task.description ? task.description : '<p class="italic text-slate-400">No description provided.</p>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="p-8">
+                <!-- Two Column Info Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Left Column -->
+                    <div class="space-y-5">
+                        <!-- Task Owner -->
+                        <div class="info-row flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-user-plus text-purple-500 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Task Owner</p>
+                                <div class="avatar-stack">
+                                    ${task.assigned_by.map(u => `
+                                        <div class="avatar" title="${escapeHtml(u.full_name)}">
+                                            ${(u.full_name || u.username).charAt(0).toUpperCase()}
+                                        </div>
+                                    `).join('') || '<span class="text-slate-400 text-sm">Not assigned</span>'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Deadline -->
+                        <div class="info-row flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/10 to-red-600/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-regular fa-calendar text-red-500 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Deadline</p>
+                                <p class="font-semibold text-slate-800 dark:text-slate-200">
+                                    ${task.deadline ? formatDate(task.deadline) : (task.end_date ? formatDateOnly(task.end_date) : 'Not set')}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Time Tracking -->
+                        <div class="info-row flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-regular fa-clock text-emerald-500 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Time Tracking</p>
+                                <div class="flex items-center gap-3">
+                                    <span id="timer-${task.id}" class="timer-badge font-mono text-lg font-bold ${isLive ? 'live-timer' : ''} text-slate-800 dark:text-white">
+                                        ${timeDisplay}
+                                    </span>
+                                    <span class="text-sm text-slate-500 dark:text-slate-400">/ ${task.estimated_display}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="space-y-5">
+                        <!-- Assignee -->
+                        <div class="info-row flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-user-check text-blue-500 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Assignee</p>
+                                <div class="avatar-stack">
+                                    ${task.assigned_to.map(u => `
+                                        <div class="avatar" title="${escapeHtml(u.full_name)}">
+                                            ${(u.full_name || u.username).charAt(0).toUpperCase()}
+                                        </div>
+                                    `).join('') || '<span class="text-slate-400 text-sm">Unassigned</span>'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project -->
+                        <div class="info-row flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4a9d7e]/10 to-[#2d6a4f]/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-regular fa-folder text-[#4a9d7e] text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Project</p>
+                                <a href="/project/${task.project.id}/" class="inline-flex items-center gap-2 text-[#4a9d7e] hover:text-[#3d8a6d] font-semibold transition">
+                                    <i class="fa-regular fa-folder-open text-xs"></i>
+                                    ${escapeHtml(task.project.name)}
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="info-row flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500/10 to-slate-600/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-chart-line text-slate-500 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Current Status</p>
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${statusConfig.color}">
+                                    <i class="${statusConfig.icon} text-[10px]"></i>
+                                    ${escapeHtml(task.status_display)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observers Section -->
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 flex items-center justify-center flex-shrink-0">
+                            <i class="fa-regular fa-eye text-indigo-500 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Observers</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${task.observers.length > 0 ? task.observers.map(o => `
+                                    <span class="observer-tag inline-flex items-center gap-2 bg-slate-100 dark:bg-[#1e293b] hover:bg-slate-200 dark:hover:bg-white/10 px-4 py-2 rounded-full text-sm text-slate-700 dark:text-slate-300 transition-all duration-200 cursor-default">
+                                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#4a9d7e] to-[#2d6a4f] text-white flex items-center justify-center text-[10px] font-bold">
+                                            ${(o.full_name || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                        ${escapeHtml(o.full_name)}
+                                    </span>
+                                `).join('') : '<span class="text-slate-400 text-sm italic">No observers</span>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-600/10 flex items-center justify-center flex-shrink-0">
+                            <i class="fa-regular fa-pen-to-square text-amber-500 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Task Summary</p>
+                                ${task.status === 'ONGOING' && !task.is_paused ? `
+                                <a href="/task/${task.id}/summary/add/" 
+                                   class="action-btn inline-flex items-center gap-2 bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] hover:from-[#3d8a6d] hover:to-[#2d6a4f] text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200">
+                                    <i class="fa-solid fa-plus text-xs"></i>
+                                    Add Summary
+                                </a>
+                                ` : ''}
+                            </div>
+                            ${task.summary ? `
+                            <div class="summary-card mt-2 p-5 bg-gradient-to-r from-slate-50 to-white dark:from-[#1e293b] dark:to-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                                <div class="flex items-start gap-3">
+                                    <i class="fa-regular fa-message text-[#4a9d7e] text-sm mt-0.5"></i>
+                                    <p class="text-slate-700 dark:text-slate-300 leading-relaxed">${escapeHtml(task.summary)}</p>
+                                </div>
+                            </div>
+                            ` : '<p class="text-slate-400 text-sm italic mt-3">No summary added yet. Add a summary before completing the task.</p>'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                ${task.status !== 'COMPLETED' ? `
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end gap-4">
+                    ${task.status === 'PENDING' ? `
+                        <button type="button" onclick="startTask(${task.id})" 
+                                class="action-btn bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] hover:from-[#3d8a6d] hover:to-[#2d6a4f] text-white px-8 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                                id="start-btn-${task.id}">
+                            <i class="fa-solid fa-play mr-2 text-xs"></i>
+                            Start Task
+                        </button>
+                    ` : ''}
+                    
+                    ${task.status === 'ONGOING' ? `
+                        ${task.is_paused ? `
+                        <button type="button" onclick="resumeTask(${task.id})" 
+                                class="action-btn bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                                id="resume-btn-${task.id}">
+                            <i class="fa-solid fa-play mr-2 text-xs"></i>
+                            Resume Task
+                        </button>
+                        ` : `
+                        <button type="button" onclick="pauseTask(${task.id})" 
+                                class="action-btn bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-8 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                                id="pause-btn-${task.id}">
+                            <i class="fa-solid fa-pause mr-2 text-xs"></i>
+                            Pause Task
+                        </button>
+                        <button type="button" onclick="completeTask(${task.id})" 
+                                class="action-btn bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                                id="complete-btn-${task.id}">
+                            <i class="fa-solid fa-check-circle mr-2 text-xs"></i>
+                            Complete Task
+                        </button>
+                        `}
+                    ` : ''}
+                </div>
+                ` : `
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end">
+                    <div class="inline-flex items-center gap-3 px-6 py-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                        <i class="fa-solid fa-check-circle text-emerald-600 dark:text-emerald-400"></i>
+                        <span class="text-sm font-medium text-emerald-700 dark:text-emerald-300">Task Completed</span>
+                    </div>
+                </div>
+                `}
+            </div>
+        </div>
+    `;
+    }
+
+    function loadTaskData() {
+        const loadingState = document.getElementById('loadingState');
+        const contentContainer = document.getElementById('contentContainer');
+
+        const taskId = new URLSearchParams(window.location.search).get('task_id');
+        const token = localStorage.getItem('access_token');
+
+        if (!taskId) {
+            loadingState.innerHTML = '<div class="text-center py-20 text-red-500">No task ID provided</div>';
+            return;
+        }
+
+        fetch(`/api/tasks/${taskId}/`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(task => {
+                loadingState.classList.add('hidden');
+                contentContainer.classList.remove('hidden');
+
+                const formattedTask = {
+                    id: task.id,
+                    name: task.name,
+                    description: task.description,
+                    status: task.status,
+                    status_display: task.status_display,
+                    summary: task.summary,
+                    estimated_display: task.estimated_display || '01:00:00',
+                    current_display_time: task.time_display || '00:00:00',
+                    total_time_display: task.time_display || '00:00:00',
+                    is_paused: task.is_paused || false,
+                    created_at: task.created_at,
+                    deadline: task.deadline,
+                    end_date: task.end_date,
+                    assigned_to: task.assigned_to_details || [],
+                    assigned_by: task.assigned_by_details || [],
+                    observers: task.observers_details || [],
+                    project: {
+                        id: task.project,
+                        name: task.project_name || 'No Project'
+                    }
+                };
+
+                contentContainer.innerHTML = renderTask(formattedTask);
+
+                if (formattedTask.status === 'ONGOING' && !formattedTask.is_paused) {
+                    startLiveTimer(formattedTask);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingState.innerHTML = `
+                    <div class="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 p-10 text-center rounded-2xl border border-red-200 dark:border-red-900/30">
+                        <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+                            <i class="fa-solid fa-circle-exclamation text-red-500 text-2xl"></i>
+                        </div>
+                        <p class="text-red-600 dark:text-red-400 font-medium">${error.message || 'Error loading task'}</p>
+                        <button onclick="location.reload()" class="mt-6 bg-gradient-to-r from-[#4a9d7e] to-[#3d8a6d] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200">
+                            <i class="fa-solid fa-rotate-right mr-2 text-xs"></i>
+                            Retry
+                        </button>
+                    </div>
+                `;
+            });
+    }
+
+    function startLiveTimer(task) {
+        if (task.is_paused) {
+            console.log('Task is paused, not starting timer');
+            return;
+        }
+
+        console.log('Starting timer for task:', task.id);
+
+        const timerElement = document.getElementById(`timer-${task.id}`);
+        if (!timerElement) {
+            console.log('Timer element not found for task:', task.id);
+            return;
+        }
+
+        let currentTime = task.current_display_time || '00:00:00';
+        let [hours, minutes, seconds] = currentTime.split(':').map(Number);
+        let totalSeconds = (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0);
+
+        console.log('Starting from:', totalSeconds, 'seconds');
+
+        const interval = setInterval(() => {
+            totalSeconds++;
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            const displayTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+            if (timerElement) {
+                timerElement.textContent = displayTime;
+            } else {
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+
+    function renderTasksList(data) {
+        return `
+        <div class="bg-white dark:bg-[#111827] rounded-xl p-6">
+            <h2 class="text-xl font-bold mb-4">Tasks for ${escapeHtml(data.viewing_employee)}</h2>
+            <div class="space-y-3">
+                ${data.tasks.map(task => `
+                    <a href="/employee/tasks/?task_id=${task.id}" class="block p-4 border rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">${escapeHtml(task.name)}</span>
+                            <span class="text-sm px-2 py-1 rounded-full ${task.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : task.status === 'ONGOING' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}">
+                                ${escapeHtml(task.status_display)}
+                            </span>
+                        </div>
+                    </a>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    }
+
+    function startTask(taskId) {
+        const btn = document.getElementById(`start-btn-${taskId}`);
+        const originalText = btn?.innerHTML;
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Starting...';
+            btn.disabled = true;
+        }
+
+        fetch(`/task/${taskId}/start/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Something went wrong');
+                    if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Network error');
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            });
+    }
+
+    function pauseTask(taskId) {
+        const btn = document.getElementById(`pause-btn-${taskId}`);
+        const originalText = btn?.innerHTML;
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Pausing...';
+            btn.disabled = true;
+        }
+
+        fetch(`/task/${taskId}/pause/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Something went wrong');
+                    if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Network error');
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            });
+    }
+
+    function resumeTask(taskId) {
+        const btn = document.getElementById(`resume-btn-${taskId}`);
+        const originalText = btn?.innerHTML;
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Resuming...';
+            btn.disabled = true;
+        }
+
+        fetch(`/task/${taskId}/resume/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Something went wrong');
+                    if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Network error');
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            });
+    }
+
+    function completeTask(taskId) {
+        const btn = document.getElementById(`complete-btn-${taskId}`);
+        const originalText = btn?.innerHTML;
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Completing...';
+            btn.disabled = true;
+        }
+
+        fetch(`/task/${taskId}/complete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else if (data.redirect_url) {
+                    if (confirm('Task needs a summary. Add it now?')) {
+                        window.location.href = data.redirect_url;
+                    } else if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                } else {
+                    alert(data.error || 'Something went wrong');
+                    if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Network error');
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            });
+    }
+
+    function goBack() {
+        window.history.back();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadTaskData);
+</script>
+
+{% endblock %}

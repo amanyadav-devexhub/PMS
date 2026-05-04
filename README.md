@@ -1,143 +1,260 @@
-Project Management System (PMS)
+I see you want me to update the README with your GitHub repository URL and installation instructions. However, I cannot access the content of your GitHub repository at `https://github.com/amanyadav-devexhub/PMS.git` as it falls outside my supported retrieval scope.
 
-A web-based Project Management System built with Django, Tailwind CSS, and PostgreSQL/SQLite that allows Admins, Team Leads, and Employees to manage projects, tasks, and notifications efficiently.
+**Here's the updated README with your repository URL and installation instructions:**
 
-Table of Contents
+---
 
-Features
+# PMS System - Project Management System
 
-Tech Stack
+## Overview
 
-Installation
+A comprehensive Django-based Project Management System (PMS) with features for task tracking, project management, team collaboration, real-time chat, and notifications. The system supports multiple user roles (Admin, Team Lead, Employee) with granular permission controls.
 
-Project Structure
+**GitHub Repository:** [https://github.com/amanyadav-devexhub/PMS.git](https://github.com/amanyadav-devexhub/PMS.git)
 
-Usage
+## Features
 
-Notifications
+### User Management
+- Custom user model with role-based access control
+- Department and designation management
+- User profiles with employee details (salary, bank info, verification docs)
+- Email-based account activation
+- JWT authentication with session fallback
 
-Screenshots
+### Project Management
+- Create, edit, delete projects
+- Assign team members to projects
+- Project resources (text, files, links)
+- Project status tracking (Pending, Ongoing, Completed)
 
-Contributing
+### Task Management
+- Assign tasks to multiple employees
+- Time tracking with start/pause/resume functionality
+- Estimated time vs actual time spent
+- Task deadlines and overdue notifications
+- Task summary required before completion
+- Task observers for additional visibility
 
-License
+### Real-time Chat
+- Direct messaging between users
+- Group chat rooms
+- Real-time message delivery via WebSockets
+- Typing indicators
+- Read receipts
+- Online status tracking
 
-Features
+### Notifications
+- In-app notifications for task assignments
+- Real-time notifications via WebSockets
+- Overdue task alerts
+- Mark notifications as read/unread
 
-User Roles:
+### Analytics & Dashboard
+- Role-based dashboards (Admin, Team Lead, Employee)
+- User performance analytics
+- Top performers tracking
+- Task completion metrics
 
-Admin: Manage members, projects, departments, and designations.
+## Tech Stack
 
-Team Lead: Assign tasks to employees, track progress.
+- **Backend**: Django 5.2, Django REST Framework
+- **Authentication**: JWT (SimpleJWT) with cookie storage
+- **Database**: SQLite (development), configurable for production
+- **Real-time**: Django Channels, Redis channel layer
+- **Frontend**: Django Templates, Tailwind CSS, HTMX/AJAX
+- **Email**: SMTP (Gmail configured)
 
-Employee: View tasks, start/complete tasks, see notifications.
+## Installation
 
-Task Management:
+### Prerequisites
+- Python 3.8+
+- Redis server (for WebSocket functionality)
 
-Create, assign, and track tasks with start/end dates and timers.
+### Setup Instructions
 
-Task status: PENDING, ONGOING, COMPLETED.
+1. **Clone the repository**
+```bash
+git clone https://github.com/amanyadav-devexhub/PMS.git
+cd PMS
+```
 
-Notification System:
+2. **Create virtual environment**
+```bash
+# macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
 
-Real-time notifications for task assignments, start, and completion.
-
-Notification bell with unread count and dropdown for latest notifications.
-
-View all notifications and mark them as read.
-
-Dashboard:
-
-Role-based dashboards showing relevant tasks and projects.
-
-Authentication:
-
-JWT-based login for secure API access.
-
-Role-based access control for views.
-
-Tech Stack
-
-Backend: Django 6.0
-
-Frontend: Tailwind CSS, HTML, JavaScript
-
-Database: SQLite (default) / PostgreSQL
-
-Python Version: 3.14+
-
-Installation
-
-Clone the repository
-
-git clone https://github.com/yourusername/pms_system.git
-cd pms_system
-
-Create a virtual environment
-
+# Windows
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+venv\Scripts\activate
+```
 
-Install dependencies
-
+3. **Install dependencies**
+```bash
 pip install -r requirements.txt
+```
 
-Apply migrations
-
-python manage.py makemigrations
+4. **Run migrations**
+```bash
 python manage.py migrate
+```
 
-Create a superuser
-
+5. **Create superuser**
+```bash
 python manage.py createsuperuser
+```
 
-Run the development server
+6. **Run Redis server** (required for WebSockets)
+```bash
+# macOS (with Homebrew)
+brew install redis
+redis-server
 
+# Ubuntu/Debian
+sudo apt install redis-server
+redis-server
+
+# Windows - Download from https://github.com/microsoftarchive/redis/releases
+```
+
+7. **Start development server**
+```bash
 python manage.py runserver
+```
 
-Open in browser
+8. **Access the application**
+- Open browser: http://127.0.0.1:8000
+- Admin panel: http://127.0.0.1:8000/admin
 
-http://127.0.0.1:8000/
-Project Structure
-pms_system/
-├── users/               # User management (roles, authentication)
-├── projects/            # Projects and related models
-├── notifications/       # Notifications system (model, views, templates)
-├── templates/           # Global templates
-├── static/              # Static files (CSS, JS, images)
-├── pms_system/          # Project settings
-└── manage.py            # Django management script
-Usage
+## Configuration
 
-Admin: Manage users, departments, designations, and projects.
+### Email Settings (settings.py)
+Email is configured for Gmail SMTP. Update settings.py:
+```python
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "your-email@gmail.com"
+EMAIL_HOST_PASSWORD = "your-app-password"
+```
 
-Team Lead: Assign tasks to employees, track task progress.
+For development, use console backend:
+```python
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+```
 
-Employee: Start and complete tasks, view notifications.
+### Redis Configuration
+Update `CHANNEL_LAYERS` in settings.py if Redis runs on different host/port:
+```python
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+```
 
-Notifications
+### Database Configuration
+For production, update DATABASES in settings.py:
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'your_db_name',
+        'USER': 'your_db_user',
+        'PASSWORD': 'your_db_password',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+```
 
-Notification Bell: Shows unread notifications in the top bar.
+## Project Structure
 
-Dropdown Panel: Latest 5 notifications appear in a dropdown.
+```
+PMS/
+├── manage.py
+├── requirements.txt
+├── pms_system/
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── asgi.py          # ASGI config for WebSockets
+│   └── wsgi.py
+├── users/               # User management, auth, roles
+├── projects/            # Project CRUD and resources
+├── Tasks/               # Task management with time tracking
+├── chat/                # Real-time chat with WebSockets
+├── notifications/       # Notification system
+└── templates/           # Shared templates
+```
 
-All Notifications Page: See all notifications and mark them as read.
+## Authentication
 
-Notification triggers:
+The system uses **JWT authentication** with cookies:
+- Login endpoint returns access/refresh tokens in HTTP-only cookies
+- JWTAuthenticationMiddleware automatically authenticates requests
+- Fallback to session authentication for backwards compatibility
 
-Task assigned → sends notification to the assigned employee.
+**Login flow:**
+1. POST to `/ajax_login/` with email/password
+2. Server returns access_token and refresh_token as HTTP-only cookies
+3. Subsequent requests automatically include tokens
+4. Logout blacklists refresh token and clears cookies
 
-Task started → sends notification to Admins & Team Leads.
+## Role-Based Permissions
 
-Task completed → sends notification to Admins & Team Leads.
+### Default Roles (auto-created on migrate)
+- **ADMIN**: Full system access
+- **TEAM_LEAD**: Add/change tasks, view projects, manage team
+- **EMPLOYEE**: View and update assigned tasks
 
-Screenshots
+### Permission Checks
+Use `@permission_required()` decorator:
+```python
+@permission_required('projects.add_projects')
+def create_project(request):
+    ...
+```
 
-Dashboard
+## WebSocket Connections
+
+### Chat WebSocket
+```
+ws://localhost:8000/ws/chat/<room_id>/
+```
+
+### Notifications WebSocket
+```
+ws://localhost:8000/ws/notifications/
+```
+
+## Running Tests
+```bash
+python manage.py test
+```
+
+## Troubleshooting
+
+### Redis Connection Issues
+- Ensure Redis server is running: `redis-cli ping`
+- Check Redis host/port in settings.py
+
+### Migration Issues
+```bash
+python manage.py makemigrations
+python manage.py migrate --fake
+python manage.py migrate
+```
+
+### Static Files
+```bash
+python manage.py collectstatic
+```
 
 
-Notification Dropdown
 
-
-All Notifications Page
+**For issues or contributions, please visit:** [https://github.com/amanyadav-devexhub/PMS](https://github.com/amanyadav-devexhub/PMS)

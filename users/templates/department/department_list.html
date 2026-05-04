@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Departments{% endblock %}
+{% block page_title %}Departments{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-building text-[#4a9d7e] text-lg"></i>
+            <h2 class="text-lg font-semibold text-slate-800 dark:text-white">All Departments</h2>
+            <span id="deptCount" class="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full">0</span>
+        </div>
+        {% if can_manage_departments %}
+        <button id="toggleCreateForm"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-sm">
+            <i class="fa-solid fa-plus text-xs"></i>
+            Create Department
+        </button>
+        {% endif %}
+    </div>
+
+    <div id="createFormContainer" class="hidden bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 p-4">
+        <div class="flex flex-wrap gap-3">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="deptNameInput" name="name" placeholder="Department name..."
+                    class="w-full px-4 py-2 bg-[#f6f7f9] dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-[#4a9d7e] focus:ring-1 focus:ring-[#4a9d7e] transition">
+            </div>
+            <button type="button" id="createDeptBtn"
+                class="px-4 py-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white text-sm font-medium rounded-lg transition-all duration-200">
+                Add Department
+            </button>
+            <button type="button" id="cancelCreateBtn"
+                class="px-4 py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 text-sm font-medium rounded-lg transition-all duration-200">
+                Cancel
+            </button>
+        </div>
+        <div id="createError" class="text-red-500 text-xs mt-2 hidden"></div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-20">
+        <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#4a9d7e] mx-auto mb-4"></div>
+        <p class="text-slate-500">Loading departments...</p>
+    </div>
+
+    <div id="departmentsGrid" style="display: none;">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" id="departmentsList"></div>
+    </div>
+
+</div>
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie('csrftoken');
+
+    function showNotification(message, type = 'success') {
+        let container = document.getElementById('notificationContainer');
+        if (!container) {
+            const newContainer = document.createElement('div');
+            newContainer.id = 'notificationContainer';
+            newContainer.className = 'fixed top-20 right-5 z-50 space-y-2';
+            document.body.appendChild(newContainer);
+            container = newContainer;
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = `flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+            type === 'success' 
+                ? 'bg-[#4a9d7e] text-white' 
+                : 'bg-red-500 text-white'
+        }`;
+        notification.innerHTML = `
+            <i class="fa-solid ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} text-sm"></i>
+            <span class="text-sm">${message}</span>
+            <button onclick="this.parentElement.remove()" class="ml-4 hover:opacity-80">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        `;
+        container.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function updateDeptCount() {
+        const count = document.querySelectorAll('#departmentsList > div').length;
+        const countSpan = document.getElementById('deptCount');
+        if (countSpan) countSpan.textContent = count;
+    }
+
+    function renderDepartments(departments) {
+        const container = document.getElementById('departmentsList');
+        if (!departments || departments.length === 0) {
+            container.innerHTML = `
+                <div id="noDepartments" class="col-span-full text-center py-12">
+                    <i class="fa-regular fa-building text-5xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                    <p class="text-slate-500 dark:text-slate-400">No departments found.</p>
+                    ${document.getElementById('toggleCreateForm') ? `
+                    <button id="emptyStateCreateBtn" class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white text-sm font-medium rounded-lg transition-all duration-200">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        Create your first department
+                    </button>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('emptyStateCreateBtn')?.addEventListener('click', function() {
+                document.getElementById('createFormContainer').classList.remove('hidden');
+                document.getElementById('deptNameInput')?.focus();
+            });
+            return;
+        }
+        
+        let html = '';
+        departments.forEach(dept => {
+            html += `
+                <div class="group bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#4a9d7e] dark:hover:border-[#4a9d7e]/50 transition-all duration-200 overflow-hidden" id="dept-${dept.id}">
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                                <i class="fa-solid fa-building text-[#4a9d7e] text-lg"></i>
+                            </div>
+                            ${document.getElementById('toggleCreateForm') ? `
+                            <button type="button" onclick="deleteDepartment(${dept.id}, '${escapeHtml(dept.name)}')"
+                                class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all duration-200">
+                                <i class="fa-regular fa-trash-alt text-sm"></i>
+                            </button>
+                            ` : ''}
+                        </div>
+                        <a href="/department/${dept.id}/" class="block">
+                            <h3 class="text-base font-semibold text-slate-800 dark:text-white mb-1 group-hover:text-[#4a9d7e] transition-colors">
+                                ${escapeHtml(dept.name)}
+                            </h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <i class="fa-regular fa-user text-[10px]"></i>
+                                View members
+                            </p>
+                        </a>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        updateDeptCount();
+    }
+
+    function loadDepartments() {
+        const token = localStorage.getItem('access_token');
+        const loadingState = document.getElementById('loadingState');
+        const departmentsGrid = document.getElementById('departmentsGrid');
+        
+        fetch('/api/departments/', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderDepartments(data.departments);
+                loadingState.style.display = 'none';
+                departmentsGrid.style.display = 'block';
+                document.getElementById('deptCount').textContent = data.total;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loadingState.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fa-solid fa-circle-exclamation text-4xl text-red-500 mb-3"></i>
+                    <p class="text-red-500">Error loading departments. Please refresh the page.</p>
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('toggleCreateForm')?.addEventListener('click', function () {
+        const form = document.getElementById('createFormContainer');
+        form.classList.toggle('hidden');
+        document.getElementById('deptNameInput')?.focus();
+    });
+
+    document.getElementById('cancelCreateBtn')?.addEventListener('click', function () {
+        document.getElementById('createFormContainer').classList.add('hidden');
+        document.getElementById('deptNameInput').value = '';
+        document.getElementById('createError').classList.add('hidden');
+    });
+
+    document.getElementById('createDeptBtn')?.addEventListener('click', function () {
+        const deptName = document.getElementById('deptNameInput').value.trim();
+        if (!deptName) {
+            document.getElementById('createError').innerText = 'Department name is required';
+            document.getElementById('createError').classList.remove('hidden');
+            return;
+        }
+
+        fetch("{% url 'create_department' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `name=${encodeURIComponent(deptName)}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+
+                    const departmentsGrid = document.getElementById('departmentsGrid');
+                    const loadingState = document.getElementById('loadingState');
+                    if (loadingState.style.display !== 'none') {
+                        loadingState.style.display = 'none';
+                        departmentsGrid.style.display = 'block';
+                    }
+
+                    const grid = document.getElementById('departmentsList');
+                    const noDeptsDiv = grid.querySelector('#noDepartments');
+                    if (noDeptsDiv) {
+                        grid.innerHTML = '';
+                    }
+                    
+                    const newDeptHtml = `
+                        <div class="group bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#4a9d7e] dark:hover:border-[#4a9d7e]/50 transition-all duration-200 overflow-hidden" id="dept-${data.department.id}">
+                            <div class="p-5">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div class="w-10 h-10 rounded-lg bg-[#eef6f2] dark:bg-[#1a3a2a] flex items-center justify-center">
+                                        <i class="fa-solid fa-building text-[#4a9d7e] text-lg"></i>
+                                    </div>
+                                    <button type="button" onclick="deleteDepartment(${data.department.id}, '${escapeHtml(data.department.name)}')"
+                                        class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all duration-200">
+                                        <i class="fa-regular fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
+                                <a href="/department/${data.department.id}/" class="block">
+                                    <h3 class="text-base font-semibold text-slate-800 dark:text-white mb-1 group-hover:text-[#4a9d7e] transition-colors">${escapeHtml(data.department.name)}</h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                        <i class="fa-regular fa-user text-[10px]"></i>
+                                        View members
+                                    </p>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    grid.insertAdjacentHTML('beforeend', newDeptHtml);
+                    updateDeptCount();
+
+                    document.getElementById('deptNameInput').value = '';
+                    document.getElementById('createFormContainer').classList.add('hidden');
+                    document.getElementById('createError').classList.add('hidden');
+                } else {
+                    showNotification(data.error || 'Error creating department', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            });
+    });
+
+    window.deleteDepartment = function (deptId, deptName) {
+        if (!confirm(`Are you sure you want to delete "${deptName}"? This action cannot be undone.`)) return;
+
+        fetch(`/department/${deptId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    const deptCard = document.getElementById(`dept-${deptId}`);
+                    if (deptCard) deptCard.remove();
+                    updateDeptCount();
+
+                    const grid = document.getElementById('departmentsList');
+                    if (grid && grid.children.length === 0) {
+                        renderDepartments([]);
+                    }
+                } else {
+                    showNotification(data.error || 'Error deleting department', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            });
+    };
+
+    // Load departments on page load
+    loadDepartments();
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+<div class="searchable-select-wrapper relative" data-field="{{ field_name }}">
+    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+        {{ label }}
+    </label>
+    
+    <div class="selected-items-display border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 min-h-[46px] cursor-pointer bg-white dark:bg-[#1e293b] flex flex-wrap gap-1.5 items-center transition focus-within:ring-2 focus-within:ring-[#4a9d7e]">
+        <span class="select-placeholder text-slate-400 dark:text-slate-500 text-sm">{{ placeholder }}</span>
+    </div>
+    
+    <div class="absolute right-3 top-[38px] pointer-events-none">
+        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+    </div>
+    
+    <div class="select-dropdown hidden absolute z-20 w-full mt-1 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+        
+        <div class="sticky top-0 bg-white dark:bg-[#1e293b] p-2 border-b border-slate-200 dark:border-white/10">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
+                <input type="text" 
+                       class="select-search-input w-full border border-slate-300 dark:border-white/10 rounded-md pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-[#0f1117] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#4a9d7e]">
+            </div>
+        </div>
+        
+        <div class="select-options-list max-h-52 overflow-y-auto custom-scrollbar">
+            {% if queryset %}
+                {% for item in queryset %}
+                    <div class="select-option flex items-center px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition"
+                         data-id="{{ item.id }}"
+                         data-label="{{ item.get_full_name|default:item.username }}">
+                        <input type="checkbox" 
+                               class="option-checkbox rounded border-slate-300 dark:border-white/20 text-[#4a9d7e] focus:ring-[#4a9d7e] mr-3"
+                               value="{{ item.id }}">
+                        <label class="flex-1 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <span class="font-semibold block">{{ item.get_full_name|default:item.username }}</span>
+                            <span class="text-slate-400 dark:text-slate-500 text-[10px] block mt-0.5">{{ item.email }}</span>
+                        </label>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-6 text-slate-500 dark:text-slate-400">
+                    <i class="fa-regular fa-user text-lg mb-2 block opacity-20"></i>
+                    <p class="text-[10px]">No options available</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="hidden-inputs-container"></div>
+</div>

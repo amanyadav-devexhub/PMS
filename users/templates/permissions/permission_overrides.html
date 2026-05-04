@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+
+{% block title %}User Permission Overrides | ReadyTask PMS{% endblock %}
+{% block page_title %}User Permission Overrides{% endblock %}
+
+{% block extra_css %}
+<style>
+    .permission-group {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+
+    .dark .permission-group {
+        border-color: #334155;
+    }
+
+    .permission-item {
+        transition: all 0.2s ease;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .dark .permission-item {
+        border-bottom-color: #334155;
+    }
+
+    .permission-item:last-child {
+        border-bottom: none;
+    }
+
+    .permission-item:hover {
+        background-color: #f8fafc;
+    }
+
+    .dark .permission-item:hover {
+        background-color: #1e293b;
+    }
+
+    .grant-radio {
+        accent-color: #10b981;
+    }
+
+    .deny-radio {
+        accent-color: #ef4444;
+    }
+
+    .none-radio {
+        accent-color: #64748b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-[#4a9d7e]/10 flex items-center justify-center">
+                <i class="fa-solid fa-user-lock text-[#4a9d7e] text-lg"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-semibold text-slate-800 dark:text-white">User Permission Overrides</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Grant or deny specific permissions to individual users (overrides role-based permissions)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Alert -->
+    <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/30">
+        <div class="flex items-start gap-3">
+            <i class="fa-solid fa-circle-info text-blue-500 text-sm mt-0.5"></i>
+            <div class="text-sm text-blue-700 dark:text-blue-300">
+                <span class="font-semibold">How overrides work:</span>
+                <ul class="mt-1 space-y-1 text-xs">
+                    <li>• <span class="font-medium text-green-600">GRANT</span> = User gets this permission (even if role doesn't have it)</li>
+                    <li>• <span class="font-medium text-red-600">DENY</span> = User loses this permission (even if role has it)</li>
+                    <li>• <span class="font-medium">No Override</span> = Uses role-based permission (default)</li>
+                    <li>• Overrides take effect immediately</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Select User Card -->
+    <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1e293b]">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-user text-[#4a9d7e] text-sm"></i>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Select User</h3>
+            </div>
+        </div>
+        <div class="p-6">
+            <select id="userSelect"
+                class="w-full md:w-96 border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2.5 bg-white dark:bg-[#1e293b] text-slate-800 dark:text-white focus:ring-2 focus:ring-[#4a9d7e] focus:border-transparent">
+                <option value="">-- Select a user --</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-2">Select a user to view and manage their permission overrides</p>
+        </div>
+    </div>
+
+    <!-- Existing Overrides Summary -->
+    <div id="existingOverridesSection" class="hidden mb-6">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1e293b]">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-[#4a9d7e] text-sm"></i>
+                    <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Current Overrides for <span id="existingOverridesUserName" class="text-[#4a9d7e]">--</span></h3>
+                </div>
+            </div>
+            <div id="existingOverridesContent" class="p-4">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions Card (Hidden until user selected) -->
+    <div id="permissionsCard" class="hidden">
+        <div class="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1e293b] flex justify-between items-center flex-wrap gap-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-[#4a9d7e] text-sm"></i>
+                    <h3 id="selectedUserName" class="text-sm font-semibold text-slate-800 dark:text-white">Permission Overrides for: <span class="text-[#4a9d7e]">--</span></h3>
+                </div>
+                <div class="flex gap-3">
+                    <button id="selectAllGrantBtn" class="text-xs text-green-600 hover:text-green-700 transition font-medium">Grant All</button>
+                    <span class="text-slate-300">|</span>
+                    <button id="clearAllBtn" class="text-xs text-slate-500 hover:text-slate-600 transition font-medium">Clear All</button>
+                    <span class="text-slate-300">|</span>
+                    <button id="selectAllDenyBtn" class="text-xs text-red-600 hover:text-red-700 transition font-medium">Deny All</button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <!-- Loading State -->
+                <div id="permissionsLoading" class="text-center py-12">
+                    <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#4a9d7e] mx-auto mb-3"></div>
+                    <p class="text-sm text-slate-500">Loading permissions...</p>
+                </div>
+
+                <!-- Permissions Groups -->
+                <div id="permissionsGroups" class="space-y-6"></div>
+
+                <!-- Save Button -->
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end">
+                    <button id="saveOverridesBtn"
+                        class="bg-[#4a9d7e] hover:bg-[#3d8a6d] text-white px-6 py-2.5 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2">
+                        <i class="fa-solid fa-save text-xs"></i>
+                        Save Overrides
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let currentUserId = null;
+    let allPermissions = [];
+    let currentGrantOverrides = new Set();
+    let currentDenyOverrides = new Set();
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showNotification(message, type = 'success') {
+        if (window.showNotification) {
+            window.showNotification(message, type);
+        } else {
+            alert(message);
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Load users into dropdown
+    function loadUsers() {
+        const token = localStorage.getItem('access_token');
+        fetch('/api/users/?page_size=1000', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const select = document.getElementById('userSelect');
+                let users = data.users || data.results || [];
+                select.innerHTML = '<option value="">-- Select a user --</option>';
+                users.forEach(user => {
+                    select.innerHTML += `<option value="${user.id}">${escapeHtml(user.full_name || user.username)} (${escapeHtml(user.email)})</option>`;
+                });
+            })
+            .catch(error => console.error('Error loading users:', error));
+    }
+
+    // Load all available permissions
+    function loadAllPermissions() {
+        return fetch('/api/permissions/all/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    allPermissions = data.permissions;
+                    return allPermissions;
+                }
+                return [];
+            });
+    }
+
+    // Load current overrides for selected user
+    function loadUserOverrides(userId) {
+        return fetch(`/permission-overrides/api/?user_id=${userId}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                currentGrantOverrides.clear();
+                currentDenyOverrides.clear();
+                if (data.success && data.overrides) {
+                    data.overrides.forEach(override => {
+                        if (override.is_granted) {
+                            currentGrantOverrides.add(override.permission);
+                        } else {
+                            currentDenyOverrides.add(override.permission);
+                        }
+                    });
+                }
+                return { grant: currentGrantOverrides, deny: currentDenyOverrides };
+            });
+    }
+
+    // Load existing overrides summary for selected user
+    function loadExistingOverrides(userId, userName) {
+        fetch(`/permission-overrides/api/?user_id=${userId}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const section = document.getElementById('existingOverridesSection');
+                const content = document.getElementById('existingOverridesContent');
+                const userNameSpan = document.getElementById('existingOverridesUserName');
+
+                if (data.success && data.overrides && data.overrides.length > 0) {
+                    section.classList.remove('hidden');
+                    userNameSpan.textContent = userName;
+
+                    let grantList = [];
+                    let denyList = [];
+
+                    data.overrides.forEach(override => {
+                        if (override.is_granted) {
+                            grantList.push(override.permission);
+                        } else {
+                            denyList.push(override.permission);
+                        }
+                    });
+
+                    let html = '<div class="space-y-3">';
+                    if (grantList.length > 0) {
+                        html += `
+                            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <p class="text-xs font-semibold text-green-700 dark:text-green-400 mb-2">✅ GRANT Overrides (${grantList.length}):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${grantList.map(p => `<code class="text-xs bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">${escapeHtml(p)}</code>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    if (denyList.length > 0) {
+                        html += `
+                            <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                                <p class="text-xs font-semibold text-red-700 dark:text-red-400 mb-2">❌ DENY Overrides (${denyList.length}):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${denyList.map(p => `<code class="text-xs bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded">${escapeHtml(p)}</code>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    html += '</div>';
+                    content.innerHTML = html;
+                } else {
+                    section.classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading existing overrides:', error);
+            });
+    }
+
+    // Render permissions with GRANT/DENY radio buttons
+    function renderPermissions() {
+        const container = document.getElementById('permissionsGroups');
+
+        // Group permissions by module
+        const groups = {};
+        allPermissions.forEach(perm => {
+            const module = perm.module || perm.app_label || 'Other';
+            if (!groups[module]) groups[module] = [];
+            groups[module].push(perm);
+        });
+
+        let html = '';
+        for (const [module, perms] of Object.entries(groups)) {
+            html += `
+                <div class="permission-group">
+                    <div class="px-4 py-3 bg-slate-50 dark:bg-[#1e293b] border-b border-slate-200 dark:border-white/10">
+                        <h3 class="text-xs font-bold text-[#4a9d7e] uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#4a9d7e]"></span>
+                            ${escapeHtml(module)} Module
+                        </h3>
+                    </div>
+                    <div>
+            `;
+
+            perms.forEach(perm => {
+                const fullPermissionName = `${perm.app_label}.${perm.codename}`;
+                const isGranted = currentGrantOverrides.has(fullPermissionName);
+                const isDenied = currentDenyOverrides.has(fullPermissionName);
+                
+                html += `
+                    <div class="permission-item flex items-center justify-between p-3">
+                        <div class="w-64">
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">${escapeHtml(perm.name)}</span>
+                            <p class="text-[10px] text-slate-400 font-mono">${escapeHtml(perm.codename)}</p>
+                        </div>
+                        <div class="flex items-center gap-6">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" 
+                                       name="perm_${perm.id}_action" 
+                                       value="grant"
+                                       data-permission="${fullPermissionName}"
+                                       class="grant-radio w-4 h-4"
+                                       ${isGranted ? 'checked' : ''}>
+                                <span class="text-sm font-medium text-green-600 dark:text-green-400">GRANT</span>
+                            </label>
+                            
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" 
+                                       name="perm_${perm.id}_action" 
+                                       value="deny"
+                                       data-permission="${fullPermissionName}"
+                                       class="deny-radio w-4 h-4"
+                                       ${isDenied ? 'checked' : ''}>
+                                <span class="text-sm font-medium text-red-600 dark:text-red-400">DENY</span>
+                            </label>
+                            
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" 
+                                       name="perm_${perm.id}_action" 
+                                       value="none"
+                                       data-permission="${fullPermissionName}"
+                                       class="none-radio w-4 h-4"
+                                       ${!isGranted && !isDenied ? 'checked' : ''}>
+                                <span class="text-sm font-medium text-slate-500 dark:text-slate-400">No Override</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    // Save overrides for selected user
+    function saveOverrides() {
+        if (!currentUserId) return;
+
+        const saveBtn = document.getElementById('saveOverridesBtn');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Saving...';
+        saveBtn.disabled = true;
+
+        // Collect GRANT and DENY permissions
+        const grantPermissions = [];
+        const denyPermissions = [];
+
+        document.querySelectorAll('.grant-radio:checked').forEach(radio => {
+            grantPermissions.push(radio.getAttribute('data-permission'));
+        });
+
+        document.querySelectorAll('.deny-radio:checked').forEach(radio => {
+            denyPermissions.push(radio.getAttribute('data-permission'));
+        });
+
+        // Send to server
+        fetch('/permission-overrides/sync/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                user_id: currentUserId,
+                grant_permissions: grantPermissions,
+                deny_permissions: denyPermissions
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    // Refresh the UI
+                    const userId = currentUserId;
+                    const userName = document.getElementById('userSelect').options[document.getElementById('userSelect').selectedIndex]?.text;
+                    loadUserOverrides(userId).then(() => {
+                        renderPermissions();
+                    });
+                    loadExistingOverrides(userId, userName);
+                } else {
+                    showNotification(data.error || 'Error saving overrides', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            })
+            .finally(() => {
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            });
+    }
+
+    // Handle user selection
+    document.getElementById('userSelect').addEventListener('change', async function (e) {
+        const userId = e.target.value;
+        if (!userId) {
+            document.getElementById('permissionsCard').classList.add('hidden');
+            document.getElementById('existingOverridesSection').classList.add('hidden');
+            currentUserId = null;
+            return;
+        }
+
+        currentUserId = parseInt(userId);
+        const userName = e.target.options[e.target.selectedIndex].text;
+        document.getElementById('selectedUserName').innerHTML = `Permission Overrides for: <span class="text-[#4a9d7e]">${escapeHtml(userName)}</span>`;
+
+        // Show permissions card
+        document.getElementById('permissionsCard').classList.remove('hidden');
+        document.getElementById('permissionsLoading').classList.remove('hidden');
+        document.getElementById('permissionsGroups').classList.add('hidden');
+
+        // Load existing overrides summary
+        loadExistingOverrides(currentUserId, userName);
+
+        try {
+            await loadAllPermissions();
+            await loadUserOverrides(currentUserId);
+            renderPermissions();
+            document.getElementById('permissionsLoading').classList.add('hidden');
+            document.getElementById('permissionsGroups').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('permissionsLoading').innerHTML = '<p class="text-red-500 text-center">Error loading permissions. Please refresh.</p>';
+        }
+    });
+
+    // Grant All button
+    document.getElementById('selectAllGrantBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('.grant-radio').forEach(radio => {
+            radio.checked = true;
+        });
+        document.querySelectorAll('.deny-radio').forEach(radio => {
+            radio.checked = false;
+        });
+        document.querySelectorAll('.none-radio').forEach(radio => {
+            radio.checked = false;
+        });
+    });
+
+    // Deny All button
+    document.getElementById('selectAllDenyBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('.grant-radio').forEach(radio => {
+            radio.checked = false;
+        });
+        document.querySelectorAll('.deny-radio').forEach(radio => {
+            radio.checked = true;
+        });
+        document.querySelectorAll('.none-radio').forEach(radio => {
+            radio.checked = false;
+        });
+    });
+
+    // Clear All button
+    document.getElementById('clearAllBtn')?.addEventListener('click', () => {
+        document.querySelectorAll('.grant-radio').forEach(radio => {
+            radio.checked = false;
+        });
+        document.querySelectorAll('.deny-radio').forEach(radio => {
+            radio.checked = false;
+        });
+        document.querySelectorAll('.none-radio').forEach(radio => {
+            radio.checked = true;
+        });
+    });
+
+    // Save button
+    document.getElementById('saveOverridesBtn')?.addEventListener('click', saveOverrides);
+
+    // Load users on page load
+    loadUsers();
+</script>
+
+{% endblock %}

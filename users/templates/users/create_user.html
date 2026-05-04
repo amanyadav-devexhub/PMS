@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Create User{% endblock %}
+{% block page_title %}Create User{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+
+    <!-- Back Button -->
+    <div class="mb-4">
+        <button onclick="goBack()"
+            class="flex items-center gap-2 bg-gray-100 hover:bg-[#4a9d7e] text-gray-700 hover:text-white font-semibold px-4 py-2 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-1 hover:scale-105">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back
+        </button>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white shadow-lg rounded-lg p-8">
+
+        <h2 class="text-2xl font-semibold text-gray-700 mb-6">
+            Create New User
+        </h2>
+
+        <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p class="text-sm text-gray-600">
+                <span class="font-medium">Note:</span> Fill in all the required details to create a new user account.
+                <span class="text-red-500 font-medium mt-1 block">* Employee ID is required and must be unique.</span>
+            </p>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-1/2 transform -translate-y-1/2 mx-auto w-16 h-16">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#4a9d7e]"></div>
+            </div>
+        </div>
+
+        <!-- Notification Container -->
+        <div id="notificationContainer" class="fixed top-5 right-5 z-50 w-96"></div>
+
+        <form method="POST" class="space-y-6" id="createUserForm" data-redirect-url="{% url 'admin_view_users' %}">
+            {% csrf_token %}
+
+            <!-- User Info Section -->
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">1</span>
+                    Account Information
+                </h3>
+                <div id="userFieldsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- Profile Info Section -->
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="bg-[#eef6f2] text-[#4a9d7e] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2">2</span>
+                    Profile Information
+                </h3>
+                <div id="profileFieldsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
+                <a href="{% url 'dashboard' %}"
+                    class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2.5 rounded-lg shadow transition font-medium">
+                    Cancel
+                </a>
+                <button type="submit" id="submitBtn"
+                    class="bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition font-medium flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    Create User
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Info Card -->
+    <div class="mt-6 bg-blue-50 rounded-lg border border-blue-200 p-4">
+        <div class="flex items-start gap-3">
+            <div class="bg-blue-100 p-2 rounded-full">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-blue-800">Account Setup Guide</p>
+                <ul class="text-xs text-blue-600 mt-2 space-y-1 list-disc list-inside">
+                    <li>First Name, Last Name, Email, Username, Role, and Employee ID are <strong class="text-red-600">required</strong></li>
+                    <li>Phone: 10 digits starting with 6/7/8/9 (optional)</li>
+                    <li>Department and Designation are optional</li>
+                    <li>New users will receive an email with login credentials</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('createUserForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const notificationContainer = document.getElementById('notificationContainer');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            ${type === 'success' ? 
+                                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' : 
+                                '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+                            }
+                        </svg>
+                        <span>${message}</span>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">×</button>
+                </div>
+            `;
+            notificationContainer.appendChild(notification);
+            setTimeout(() => notification.remove(), 5000);
+        }
+
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.classList.add('hidden');
+                el.innerHTML = '';
+            });
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.classList.remove('border-red-500', 'bg-red-50');
+            });
+        }
+
+        function displayErrors(errors) {
+            clearErrors();
+            for (const [field, errorList] of Object.entries(errors)) {
+                const errorMessage = Array.isArray(errorList) ? errorList.join(', ') : errorList;
+                const fieldElement = document.querySelector(`[name="${field}"]`);
+                if (fieldElement) {
+                    fieldElement.classList.add('border-red-500', 'bg-red-50');
+                    const parentDiv = fieldElement.closest('.field-group');
+                    if (parentDiv) {
+                        const errorDiv = parentDiv.querySelector('.error-message');
+                        if (errorDiv) {
+                            errorDiv.innerHTML = errorMessage;
+                            errorDiv.classList.remove('hidden');
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderField(fieldName, fieldData) {
+            const requiredAttr = fieldData.required ? 'required' : '';
+            const asterisk = fieldData.required ? '<span class="text-red-500">*</span>' : '';
+            
+            if (fieldData.type === 'select') {
+                let optionsHtml = '<option value="">Select ' + fieldData.label + '</option>';
+                if (fieldData.options) {
+                    fieldData.options.forEach(option => {
+                        optionsHtml += `<option value="${option.id}">${option.name}</option>`;
+                    });
+                }
+                return `
+                    <div class="field-group" data-field-name="${fieldName}">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            ${fieldData.label} ${asterisk}
+                        </label>
+                        <select name="${fieldName}" ${requiredAttr} class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
+                            ${optionsHtml}
+                        </select>
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                    </div>
+                `;
+            } else {
+                let patternAttr = fieldData.pattern ? `pattern="${fieldData.pattern}"` : '';
+                let maxlengthAttr = fieldData.maxlength ? `maxlength="${fieldData.maxlength}"` : '';
+                let minlengthAttr = fieldData.minlength ? `minlength="${fieldData.minlength}"` : '';
+                let helpTextHtml = fieldData.help_text ? `<p class="text-xs text-gray-400 mt-1">${fieldData.help_text}</p>` : '';
+                
+                return `
+                    <div class="field-group" data-field-name="${fieldName}">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">
+                            ${fieldData.label} ${asterisk}
+                        </label>
+                        <input type="${fieldData.type}" name="${fieldName}" ${requiredAttr} ${patternAttr} ${maxlengthAttr} ${minlengthAttr}
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#4a9d7e]/30 focus:outline-none transition">
+                        <div class="error-message text-red-500 text-xs mt-1 hidden"></div>
+                        ${helpTextHtml}
+                    </div>
+                `;
+            }
+        }
+
+        // Load form structure via AJAX (GET request)
+        fetch(window.location.href, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const userContainer = document.getElementById('userFieldsContainer');
+                const profileContainer = document.getElementById('profileFieldsContainer');
+                
+                userContainer.innerHTML = '';
+                profileContainer.innerHTML = '';
+                
+                // Render user fields
+                for (const [fieldName, fieldData] of Object.entries(data.user_fields)) {
+                    userContainer.innerHTML += renderField(fieldName, fieldData);
+                }
+                
+                // Render profile fields
+                for (const [fieldName, fieldData] of Object.entries(data.profile_fields)) {
+                    profileContainer.innerHTML += renderField(fieldName, fieldData);
+                }
+            }
+        })
+        .catch(error => console.error('Error loading form:', error));
+
+        // Handle form submission with AJAX (POST request)
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            clearErrors();
+
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            loadingOverlay.classList.remove('hidden');
+
+            const formData = new FormData(form);
+            const redirectUrl = form.dataset.redirectUrl;
+            formData.append('redirect_url', redirectUrl);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': form.querySelector('[name="csrfmiddlewaretoken"]').value
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showNotification(data.message, 'success');
+                    form.reset();
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                } else {
+                    if (data.errors) {
+                        displayErrors(data.errors);
+                    }
+                    showNotification(data.message || 'Error creating user.', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred.', 'error');
+            } finally {
+                loadingOverlay.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    });
+</script>
+
+<style>
+    #loadingOverlay { transition: all 0.3s ease; }
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    #notificationContainer > div { animation: slideIn 0.3s ease-out; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .field-group:hover { transform: translateX(2px); transition: transform 0.2s ease; }
+    input:focus, select:focus, textarea:focus { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+</style>
+
+{% endblock %}
