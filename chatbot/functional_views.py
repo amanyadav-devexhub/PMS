@@ -210,6 +210,8 @@ def dashboard_bot_api(request):
                     else:
                         try:
                             end_date = datetime.datetime.strptime(raw_command, "%Y-%m-%d").date()
+                            if end_date < start_date:
+                                return JsonResponse({'success': True, 'type': 'input_required', 'message': "❌ End date cannot be before the start date. Please provide a valid End Date:"})
                         except ValueError:
                             return JsonResponse({'success': True, 'type': 'input_required', 'message': "❌ Invalid date format. Please use YYYY-MM-DD or type 'skip'."})
                             
@@ -285,6 +287,8 @@ def dashboard_bot_api(request):
                     else:
                         try:
                             end_date = datetime.datetime.strptime(raw_command, "%Y-%m-%d").date()
+                            if end_date < start_date:
+                                return JsonResponse({'success': True, 'type': 'input_required', 'message': "❌ End date cannot be before the start date. Please provide a valid End Date:"})
                         except ValueError:
                             return JsonResponse({'success': True, 'type': 'input_required', 'message': "❌ Invalid date format. Please use YYYY-MM-DD or type 'skip'."})
                             
