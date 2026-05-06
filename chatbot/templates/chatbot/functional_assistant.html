@@ -1,0 +1,455 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Assistant · PMS{% endblock %}
+{% block page_title %}Dashboard Assistant{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        overflow: hidden;
+    }
+    .dark .chat-container {
+        background: #1e293b;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .message {
+        max-width: 80%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .message.bot {
+        align-self: flex-start;
+    }
+    
+    .message.user {
+        align-self: flex-end;
+        align-items: flex-end;
+    }
+    
+    .message-bubble {
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+    
+    .message.bot .message-bubble {
+        background: #f1f5f9;
+        color: #334155;
+        border-bottom-left-radius: 2px;
+    }
+    .dark .message.bot .message-bubble {
+        background: #334155;
+        color: #f8fafc;
+    }
+    
+    .message.user .message-bubble {
+        background: #4a9d7e;
+        color: white;
+        border-bottom-right-radius: 2px;
+    }
+    
+    .chip-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .action-chip {
+        background: white;
+        border: 1px solid #e2e8f0;
+        color: #4a9d7e;
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .dark .action-chip {
+        background: #0f1117;
+        border-color: #334155;
+    }
+    
+    .action-chip:hover {
+        background: #f0fdf4;
+        border-color: #4a9d7e;
+    }
+    .dark .action-chip:hover {
+        background: rgba(74, 157, 126, 0.1);
+    }
+
+    .data-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    .dark .data-card {
+        background: #0f1117;
+        border-color: #334155;
+    }
+
+    .data-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .dark .data-item {
+        border-bottom-color: #1e293b;
+    }
+    .data-item:last-child {
+        border-bottom: none;
+    }
+
+    .typing-indicator {
+        display: inline-flex;
+        gap: 0.25rem;
+        padding: 0.5rem 1rem;
+        background: #f1f5f9;
+        border-radius: 12px;
+        border-bottom-left-radius: 2px;
+    }
+    .dark .typing-indicator {
+        background: #334155;
+    }
+    
+    .dot {
+        width: 6px;
+        height: 6px;
+        background: #94a3b8;
+        border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="p-4 border-b border-slate-200 dark:border-white/10 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-[#4a9d7e]/10 flex items-center justify-center text-[#4a9d7e]">
+            <i class="fa-solid fa-robot text-lg"></i>
+        </div>
+        <div>
+            <h2 class="text-sm font-bold text-slate-800 dark:text-white">Dashboard Assistant</h2>
+            <p class="text-xs text-slate-500">I can help you with quick functional tasks</p>
+        </div>
+    </div>
+    
+    <div class="chat-messages no-scrollbar" id="chatMessages">
+        <!-- Initial Greeting -->
+        <div class="message bot">
+            <div class="message-bubble">
+                Hello! I am your Dashboard Assistant. I can help you quickly view and manage your resources.
+            </div>
+            <div class="chip-container">
+                <button class="action-chip" onclick="sendCommand('show_projects', 'Show project list')">
+                    <i class="fa-solid fa-folder"></i> Show project list
+                </button>
+                <button class="action-chip" onclick="sendCommand('show_tasks', 'Show tasks')">
+                    <i class="fa-solid fa-list-check"></i> Show tasks
+                </button>
+                <button class="action-chip" onclick="sendCommand('create_task', 'Create a task')">
+                    <i class="fa-solid fa-plus"></i> Create a task
+                </button>
+                {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+                <button class="action-chip" onclick="sendCommand('create_project', 'Create a project')">
+                    <i class="fa-solid fa-folder-plus"></i> Create a project
+                </button>
+                <button class="action-chip" onclick="sendCommand('create_user', 'Create a user')">
+                    <i class="fa-solid fa-user-plus"></i> Create a user
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+
+    function appendUserMessage(text) {
+        const div = document.createElement('div');
+        div.className = 'message user';
+        div.innerHTML = `
+            <div class="message-bubble">
+                ${text}
+            </div>
+        `;
+        chatMessages.appendChild(div);
+        scrollToBottom();
+    }
+
+    function appendTyping() {
+        const div = document.createElement('div');
+        div.className = 'message bot typing-message';
+        div.innerHTML = `
+            <div class="typing-indicator">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        `;
+        chatMessages.appendChild(div);
+        scrollToBottom();
+        return div;
+    }
+
+    function removeTyping(div) {
+        if(div && div.parentNode) {
+            div.parentNode.removeChild(div);
+        }
+    }
+
+    function getStatusColor(status) {
+        status = (status || '').toLowerCase();
+        if(['completed', 'done', 'approved'].includes(status)) return 'text-green-500';
+        if(['pending', 'to_do', 'todo'].includes(status)) return 'text-slate-500';
+        if(['ongoing', 'in_progress', 'progress'].includes(status)) return 'text-blue-500';
+        return 'text-slate-400';
+    }
+
+    function formatStatus(status) {
+        if(!status) return 'N/A';
+        return status.replace(/_/g, ' ').toUpperCase();
+    }
+
+    function appendBotMessage(response) {
+        const div = document.createElement('div');
+        div.className = 'message bot';
+        
+        let formattedMessage = (response.message || '').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+        
+        let htmlContent = `<div class="message-bubble">${formattedMessage}</div>`;
+        
+        if (response.type === 'projects' && response.data) {
+            const listId = 'list_' + Math.random().toString(36).substr(2, 9);
+            let listHtml = `
+            <div class="mt-3">
+                <input type="text" class="w-full bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs mb-2 focus:outline-none focus:border-[#4a9d7e] transition" 
+                       placeholder="Search projects..." onkeyup="filterSelectList('${listId}', this.value)">
+                <div id="${listId}" class="data-card max-h-48 overflow-y-auto no-scrollbar !mt-0 !p-1 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-[#0f1117]">
+            `;
+            if(response.data.length === 0) {
+                listHtml += '<div class="text-xs text-slate-500 p-2 text-center">No projects found.</div>';
+            } else {
+                response.data.forEach(p => {
+                    listHtml += `
+                    <div class="data-item p-2 rounded transition flex justify-between items-center border-b border-slate-100 dark:border-white/5 last:border-0 hover:bg-slate-50 dark:hover:bg-[#1e293b]">
+                        <div class="text-sm font-medium dark:text-slate-200 w-full">${p.name}</div>
+                    </div>`;
+                });
+            }
+            listHtml += '</div></div>';
+            htmlContent += listHtml;
+        } 
+        else if (response.type === 'tasks' && response.data) {
+            const listId = 'list_' + Math.random().toString(36).substr(2, 9);
+            let listHtml = `
+            <div class="mt-3">
+                <input type="text" class="w-full bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs mb-2 focus:outline-none focus:border-[#4a9d7e] transition" 
+                       placeholder="Search tasks..." onkeyup="filterSelectList('${listId}', this.value)">
+                <div id="${listId}" class="data-card max-h-48 overflow-y-auto no-scrollbar !mt-0 !p-1 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-[#0f1117]">
+            `;
+            if(response.data.length === 0) {
+                listHtml += '<div class="text-xs text-slate-500 p-2 text-center">No tasks found.</div>';
+            } else {
+                response.data.forEach(t => {
+                    listHtml += `
+                    <div class="data-item flex-col items-start gap-1 p-2 rounded transition border-b border-slate-100 dark:border-white/5 last:border-0 hover:bg-slate-50 dark:hover:bg-[#1e293b]">
+                        <div class="text-sm font-medium dark:text-slate-200 w-full">${t.name}</div>
+                        <div class="text-[10px] text-slate-400"><i class="fa-solid fa-folder text-[9px] mr-1"></i>${t.project}</div>
+                    </div>`;
+                });
+            }
+            listHtml += '</div></div>';
+            htmlContent += listHtml;
+        }
+        else if (response.type === 'create_task') {
+            htmlContent += `
+            <div class="mt-2">
+                <a href="${response.url}" class="inline-flex items-center gap-2 bg-[#4a9d7e] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#3d8a6d] transition">
+                    <i class="fa-solid fa-arrow-right"></i> Go to Task Creation
+                </a>
+            </div>`;
+        }
+        else if (response.type === 'redirect') {
+            setTimeout(() => {
+                window.location.href = response.url;
+            }, 1500);
+        }
+        else if (response.type === 'input_required') {
+            const inputId = 'input_' + Math.random().toString(36).substr(2, 9);
+            htmlContent += `
+            <div class="mt-3 flex gap-2 w-full max-w-sm">
+                <input type="text" id="${inputId}" class="flex-1 bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#4a9d7e] focus:ring-1 focus:ring-[#4a9d7e] transition w-full" 
+                       placeholder="Type your answer here..." onkeypress="if(event.key === 'Enter') submitInlineInput('${inputId}')" autocomplete="off">
+                <button onclick="submitInlineInput('${inputId}')" class="bg-[#4a9d7e] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#3d8a6d] transition whitespace-nowrap">
+                    Submit
+                </button>
+                <button onclick="sendCommand('cancel', 'Cancel')" class="bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition whitespace-nowrap" title="Cancel Flow">
+                    Cancel
+                </button>
+            </div>`;
+            setTimeout(() => {
+                const el = document.getElementById(inputId);
+                if(el) el.focus();
+            }, 100);
+        }
+        else if (response.type === 'select_project' || response.type === 'select_user' || response.type === 'select_role') {
+            const selectId = 'select_' + Math.random().toString(36).substr(2, 9);
+            let selectHtml = `
+            <div class="mt-3">
+                <input type="text" class="w-full bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs mb-2 focus:outline-none focus:border-[#4a9d7e] transition" 
+                       placeholder="Search options..." onkeyup="filterSelectList('${selectId}', this.value)">
+                <div id="${selectId}" class="data-card max-h-48 overflow-y-auto no-scrollbar !mt-0 !p-1 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-[#0f1117]">
+            `;
+            
+            if (response.data.length === 0) {
+                selectHtml += '<div class="text-xs text-slate-500 p-2 text-center">No options found.</div>';
+            } else {
+                response.data.forEach(item => {
+                    selectHtml += `
+                    <div class="data-item cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e293b] p-2 rounded transition flex justify-between items-center border-b border-slate-100 dark:border-white/5 last:border-0"
+                         onclick="sendCommand('${item.id}', 'Selected: ${item.name.replace(/'/g, "\\'")}')">
+                        <div class="text-sm font-medium dark:text-slate-200 w-full">${item.name}</div>
+                    </div>`;
+                });
+            }
+            selectHtml += '</div></div>';
+            htmlContent += selectHtml;
+        }
+
+        div.innerHTML = htmlContent;
+        chatMessages.appendChild(div);
+        
+        // Re-append chips for quick actions
+        const chipDiv = document.createElement('div');
+        chipDiv.className = 'chip-container';
+        chipDiv.innerHTML = `
+            <button class="action-chip" onclick="sendCommand('show_projects', 'Show project list')">
+                <i class="fa-solid fa-folder"></i> Show project list
+            </button>
+            <button class="action-chip" onclick="sendCommand('show_tasks', 'Show tasks')">
+                <i class="fa-solid fa-list-check"></i> Show tasks
+            </button>
+            <button class="action-chip" onclick="sendCommand('create_task', 'Create a task')">
+                <i class="fa-solid fa-plus"></i> Create a task
+            </button>
+            {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+            <button class="action-chip" onclick="sendCommand('create_project', 'Create a project')">
+                <i class="fa-solid fa-folder-plus"></i> Create a project
+            </button>
+            <button class="action-chip" onclick="sendCommand('create_user', 'Create a user')">
+                <i class="fa-solid fa-user-plus"></i> Create a user
+            </button>
+            {% endif %}
+        `;
+        chatMessages.appendChild(chipDiv);
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendCommand(commandCode, displayText) {
+        // Remove existing chips from view (clean UI)
+        const allChips = document.querySelectorAll('.chip-container');
+        if(allChips.length > 0) {
+            allChips[allChips.length - 1].style.display = 'none';
+        }
+
+        appendUserMessage(displayText);
+        const typingDiv = appendTyping();
+
+        try {
+            const response = await fetch('{% url "dashboard_bot_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ command: commandCode })
+            });
+            
+            const data = await response.json();
+            removeTyping(typingDiv);
+            
+            if (data.success) {
+                appendBotMessage(data);
+            } else {
+                appendBotMessage({type: 'text', message: data.error || 'Something went wrong.'});
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            removeTyping(typingDiv);
+            appendBotMessage({type: 'text', message: 'Failed to communicate with the server. Please try again.'});
+        }
+    }
+    
+    function filterSelectList(containerId, query) {
+        query = query.toLowerCase();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const items = container.querySelectorAll('.data-item');
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            if (text.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function submitInlineInput(inputId) {
+        const inputEl = document.getElementById(inputId);
+        if (!inputEl) return;
+        const val = inputEl.value.trim();
+        if (!val) return;
+        
+        inputEl.disabled = true;
+        const btns = inputEl.parentElement.querySelectorAll('button');
+        btns.forEach(b => b.disabled = true);
+        
+        sendCommand(val, val);
+    }
+</script>
+{% endblock %}
